@@ -1,0 +1,9 @@
+---
+
+- include: setup_Debian.yml
+
+- name: default vhost
+  template:
+    src: default-vhost.j2
+    dest: /etc/apache2/sites-available/000-default.conf
+  notify: reload apache
