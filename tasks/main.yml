@@ -4,9 +4,15 @@
   apt:
     pkg: postfix
 
+- name: configuration pull directory
+  local_action: file
+  args:
+    path: host_files/{{inventory_hostname}}/etc
+    state: directory
+
 - name: pull configuration
   synchronize:
-    src: /etc/postfix/
-    dest: host_files/{{inventory_hostname}}/etc/postfix
+    src: /etc/postfix
+    dest: host_files/{{inventory_hostname}}/etc/
     mode: pull
     recursive: true
