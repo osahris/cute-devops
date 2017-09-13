@@ -2,4 +2,20 @@
 
 - name: install package
   apt:
-    pkg: dovecot
+    pkg: "{{ item }}"
+  with_items:
+    - dovecot-imapd
+    - dovecot-lmptd
+
+- name: configuration pull directory
+  local_action: file
+  args:
+    path: host_files/{{inventory_hostname}}/etc
+    state: directory
+
+- name: pull configuration
+  synchronize:
+    src: /etc/dovecot
+    dest: host_files/{{inventory_hostname}}/etc/
+    mode: pull
+    recursive: true
