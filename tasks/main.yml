@@ -5,7 +5,7 @@
     pkg: "{{ item }}"
   with_items:
     - dovecot-imapd
-    - dovecot-lmptd
+    - dovecot-lmtpd
 
 - name: configuration pull directory
   local_action: file
