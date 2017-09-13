@@ -3,3 +3,8 @@
 - name: install package
   apt:
     pkg: postfix
+
+- name: pull configuration
+  synchronize:
+    src: /etc/postfix
+    dest: host_files/{{inventory_hostname}}/etc/postfix
