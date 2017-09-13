@@ -6,7 +6,7 @@
 
 - name: pull configuration
   synchronize:
-    src: /etc/postfix
+    src: /etc/postfix/
     dest: host_files/{{inventory_hostname}}/etc/postfix
     mode: pull
     recursive: true
