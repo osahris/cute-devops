@@ -15,7 +15,7 @@
 - name: dovecot configuration files
   template:
     src: conf.d/{{ item }}.j2
-    dest:
+    dest: /etc/dovecot/conf.d/{{ item }}
   with_items:
     - 10-mail.conf
 
