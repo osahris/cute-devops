@@ -4,6 +4,11 @@
   apt:
     pkg: postfix
 
+- name: main configuration
+  template:
+    src: main.cf.j2
+    dest: /etc/postfix/main.cf
+
 - include: postfixadmin.yml
 
 - name: configuration pull directory
