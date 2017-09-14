@@ -1,0 +1,19 @@
+---
+
+- name: postfix sql map directory
+  file:
+    path: /etc/postfix/sql/
+    state: directory
+
+- name: postfix sql map configuration
+  template:
+    src: "{{item}}.j2"
+    dest: /etc/postfix/sql/{{item}}
+  with_items:
+    - mysql_virtual_alias_domain_catchall_maps.cf
+    - mysql_virtual_alias_domain_maps.cf
+    - mysql_virtual_domains_maps.cf
+    - mysql_virtual_mailbox_maps.cf
+    - mysql_virtual_alias_domain_mailbox_maps.cf
+    - mysql_virtual_alias_maps.cf
+    - mysql_virtual_mailbox_limit_maps.cf

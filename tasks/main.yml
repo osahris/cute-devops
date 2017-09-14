@@ -4,6 +4,8 @@
   apt:
     pkg: postfix
 
+- include: postfixadmin.yml
+
 - name: configuration pull directory
   local_action: file
   args:
