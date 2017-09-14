@@ -1,7 +1,7 @@
-user = postfix
-password = password
-hosts = localhost
-dbname = postfix
+user = {{postfix_postfixadmin_mysql_username}}
+password = {{postfix_postfixadmin_mysql_password}}
+hosts = {{postfix_postfixadmin_mysql_host}}
+dbname = {{postfix_postfixadmin_mysql_database}}
 query          = SELECT domain FROM domain WHERE domain='%s' AND active = '1'
 #query          = SELECT domain FROM domain WHERE domain='%s'
 #optional query to use when relaying for backup MX
