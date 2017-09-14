@@ -7,6 +7,18 @@
     - dovecot-imapd
     - dovecot-lmtpd
 
+- name: dovecot main configuration file
+  template:
+    src: dovecot.conf.j2
+    dest: /etc/dovecot/dovecot.conf
+
+- name: dovecot configuration files
+  template:
+    src: conf.d/{{ item }}.j2
+    dest:
+  with_items:
+    - 10-mail.conf
+
 - name: configuration pull directory
   local_action: file
   args:
