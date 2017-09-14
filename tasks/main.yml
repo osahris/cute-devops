@@ -11,6 +11,8 @@
   template:
     src: dovecot.conf.j2
     dest: /etc/dovecot/dovecot.conf
+  notify:
+    - reload dovecot
 
 - name: dovecot configuration files
   template:
@@ -18,6 +20,8 @@
     dest: /etc/dovecot/conf.d/{{ item }}
   with_items:
     - 10-mail.conf
+  notify:
+    - reload dovecot
 
 - name: configuration pull directory
   local_action: file
