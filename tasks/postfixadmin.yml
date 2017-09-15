@@ -21,3 +21,10 @@
     - mysql_virtual_alias_domain_mailbox_maps.cf
     - mysql_virtual_alias_maps.cf
     - mysql_virtual_mailbox_limit_maps.cf
+
+- name: postfixadmin mysql user
+  mysql_user:
+    name: "{{postfix_postfixadmin_mysql_username}}"
+    password: "{{postfix_postfixadmin_mysql_password}}"
+    priv: "{{postfix_postfixadmin_mysql_database}}.*:SELECT"
+    state: present
