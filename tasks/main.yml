@@ -1,5 +1,42 @@
 ---
 
-- name: install postfixadmin package
+- name: install packages
   apt:
     pkg: postfixadmin
+
+# fix https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=857791
+- name: change dbtype to mysqli (debian bug \#857791)
+  lineinfile:
+    dest: /etc/postfixadmin/dbconfig.inc.php
+    regexp: ^\$dbtype\=
+    line: $dbtype='mysqli';
+
+- name: ensure template_c folder is writable by webserver
+  file:
+    path: /usr/share/postfixadmin/templates_c
+    owner: www-data
+    group: www-data
+    state: directory
+
+# fix https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=858005
+- name: fix postfixadmin setup bug (debian bug \#858005)
+  get_url:
+    url: https://raw.githubusercontent.com/postfixadmin/postfixadmin/ba94c3a75ea025762ad732b1a4c735251add8b0f/upgrade.php
+    dest: /usr/share/postfixadmin/upgrade.php
+    checksum: sha256:f2a87ded979be06250ab59f9cb4a26e70323b9f1aa962e5efe206b81ebb48d51
+
+- name: make postfixadmin-cli executable
+  file:
+    path: /usr/share/postfixadmin/scripts/postfixadmin-cli
+    mode: "u=rwx,g=rx,o=rx"
+
+- name: symlink for postfixadmin-cli
+  file:
+    src: /usr/share/postfixadmin/scripts/postfixadmin-cli
+    dest:  /usr/local/bin/postfixadmin-cli
+    state: link
+
+- name: setup postfixadmin
+  get_url:
+    url: http://localhost/postfixadmin/setup.php
+    dest:  /var/www/html/postfixadmin-setup-report.html
