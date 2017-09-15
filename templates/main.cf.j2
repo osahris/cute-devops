@@ -54,3 +54,6 @@ virtual_mailbox_maps =
 
 # use dovecot lmtp for mail transport
 virtual_transport = lmtp:unix:private/dovecot-lmtp
+
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
