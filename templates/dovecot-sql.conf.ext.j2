@@ -130,7 +130,7 @@ password_query = SELECT username AS user,password FROM mailbox WHERE username = 
 #  FROM users WHERE username = '%n' AND domain = '%d'
 #
 # postfixadmin: Query to retrieve user information, note uid matches dovecot.conf AND Postfix virtual_uid_maps parameter.
-user_query = SELECT CONCAT('/var/vmail/', maildir) AS home, \
+user_query = SELECT CONCAT('/home/vmail/', maildir) AS home, \
             {{vmail_uid}} AS uid, {{vmail_gid}} AS gid \
             FROM mailbox WHERE username = '%u' AND active='1'
 

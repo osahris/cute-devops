@@ -27,7 +27,7 @@
     uid: "{{vmail_uid}}"
     group: vmail
     system: yes
-    home: /var/vmail
+    home: /home/vmail
 
 - name: dovecot configuration files
   template:
