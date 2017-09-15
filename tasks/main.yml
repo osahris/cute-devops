@@ -36,6 +36,7 @@
     - conf.d/auth-sql.conf.ext
     - dovecot-sql.conf.ext
     - conf.d/10-ssl.conf
+    - conf.d/20-lmtp.conf
   notify:
     - reload dovecot
 
