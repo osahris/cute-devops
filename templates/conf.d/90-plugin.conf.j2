@@ -20,13 +20,13 @@ plugin {
     # backend selection, MUST be configured first,
     # there's no default so you need to set one of
     # these options:
-    # antispam_backend = crm114
+    antispam_backend = crm114
     # antispam_backend = dspam
     # antispam_backend = pipe
     # antispam_backend = spool2dir
 
     # mail signature (used with any backend requiring a signature)
-    antispam_signature = X-DSPAM-Signature
+    # antispam_signature = X-DSPAM-Signature
 
     # action to take on mails without signature
     # (used with any backend requiring a signature)
@@ -70,7 +70,7 @@ plugin {
     # antispam_spam_pattern_ignorecase = SPAM
 
     # semicolon-separated list of unsure folders (default unset i.e. none)
-    # antispam_unsure =
+    antispam_unsure = inbox/unsure
     # antispam_unsure_pattern =
     # antispam_unsure_pattern_ignorecase =
 
@@ -87,7 +87,7 @@ plugin {
     # dspam plugin
 
     # dspam binary
-    antispam_dspam_binary = /usr/bin/dspam
+    # antispam_dspam_binary = /usr/bin/dspam
 
     # semicolon-separated list of extra arguments to dspam
     # (default unset i.e. none)
@@ -153,8 +153,8 @@ plugin {
     # crm114 plugin
 
     # mailreaver binary
-    antispam_crm_binary = /bin/false
-    # antispam_crm_binary = /usr/share/crm114/mailreaver.crm
+    # antispam_crm_binary = /bin/false
+    antispam_crm_binary = /usr/share/crm114/mailreaver.crm
 
     # semicolon-separated list of extra arguments to crm114
     # (default unset i.e. none)
@@ -164,7 +164,7 @@ plugin {
     # semicolon-separated list of environment variables to set
     # (default unset i.e. none)
     # antispam_crm_env =
-    # antispam_crm_env = HOME=%h;USER=%u
+    antispam_crm_env = HOME=%h;USER=%u
 
     # NOTE: you need to set the signature for this backend
     antispam_signature = X-CRM114-CacheID
