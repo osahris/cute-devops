@@ -6,6 +6,9 @@
   with_items:
     - dovecot-imapd
     - dovecot-lmtpd
+    - dovecot-mysql
+  notify:
+    - reload dovecot
 
 - name: dovecot configuration files
   template:
