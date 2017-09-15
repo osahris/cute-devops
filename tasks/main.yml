@@ -7,31 +7,35 @@
     - dovecot-imapd
     - dovecot-lmtpd
 
-- name: dovecot main configuration file
+- name: dovecot configuration files
   template:
-    src: dovecot.conf.j2
-    dest: /etc/dovecot/dovecot.conf
+    src: "{{ item }}.j2"
+    dest: /etc/dovecot/{{ item }}
+  with_items:
+    - dovecot.conf
+    - conf.d/10-mail.conf
+    - conf.d/10-auth.conf
+    - conf.d/auth-sql.conf.ext
+    - dovecot-sql.conf.ext
   notify:
     - reload dovecot
 
-- name: dovecot configuration files
-  template:
-    src: conf.d/{{ item }}.j2
-    dest: /etc/dovecot/conf.d/{{ item }}
-  with_items:
-    - 10-mail.conf
-  notify:
-    - reload dovecot
+- name: postfixadmin mysql user
+  mysql_user:
+    name: "{{dovecot_postfixadmin_mysql_username}}"
+    password: "{{dovecot_postfixadmin_mysql_password}}"
+    priv: "{{dovecot_postfixadmin_mysql_database}}.*:SELECT"
+    state: present
 
 - name: configuration pull directory
   local_action: file
   args:
-    path: host_files/{{inventory_hostname}}/etc
+    path: ~/host_files/{{inventory_hostname}}/etc
     state: directory
 
 - name: pull configuration
   synchronize:
     src: /etc/dovecot
-    dest: host_files/{{inventory_hostname}}/etc/
+    dest: ~/host_files/{{inventory_hostname}}/etc/
     mode: pull
     recursive: true
