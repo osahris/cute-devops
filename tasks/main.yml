@@ -10,6 +10,20 @@
   notify:
     - reload dovecot
 
+- name: vmail group
+  group:
+    name: vmail
+    gid: "{{vmail_gid}}"
+    system: yes
+
+- name: vmail user
+  user:
+    name: vmail
+    uid: "{{vmail_uid}}"
+    group: vmail
+    system: yes
+    home: /var/vmail
+
 - name: dovecot configuration files
   template:
     src: "{{ item }}.j2"
