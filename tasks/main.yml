@@ -35,6 +35,7 @@
     dest: /etc/dovecot/{{ item }}
   with_items:
     - dovecot.conf
+    - conf.d/10-master.conf
     - conf.d/10-mail.conf
     - conf.d/10-auth.conf
     - conf.d/auth-sql.conf.ext
