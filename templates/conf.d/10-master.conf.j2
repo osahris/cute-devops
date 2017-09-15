@@ -46,7 +46,10 @@ service pop3-login {
 }
 
 service lmtp {
- unix_listener /var/spool/postfix/private/dovecot-lmtp {
+  unix_listener lmtp {
+    #mode = 0666
+  }
+  unix_listener /var/spool/postfix/private/dovecot-lmtp {
    group = postfix
    mode = 0600
    user = postfix
@@ -88,9 +91,11 @@ service auth {
   }
 
   # Postfix smtp-auth
-  #unix_listener /var/spool/postfix/private/auth {
-  #  mode = 0666
-  #}
+  unix_listener /var/spool/postfix/private/auth {
+    mode = 0666
+    user = postfix
+    group = postfix
+  }
 
   # Auth process is run as this user.
   #user = $default_internal_user
