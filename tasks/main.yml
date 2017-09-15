@@ -10,11 +10,6 @@
   notify:
     - reload dovecot
 
-- name: postfix user
-  user:
-    name: postfix
-    groups: ssl-cert
-
 - name: vmail group
   group:
     name: vmail
