@@ -61,7 +61,7 @@
     dest:  /usr/local/bin/postfixadmin-cli
     state: link
 
-- name: setup postfixadmin
-  get_url:
-    url: http://localhost/postfixadmin/setup.php
-    dest:  /var/www/html/postfixadmin-setup-report.html
+#- name: setup postfixadmin
+#  get_url:
+#    url: http://localhost/postfixadmin/setup.php
+#    dest:  /var/www/html/postfixadmin-setup-report.html
