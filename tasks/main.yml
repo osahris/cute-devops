@@ -1,15 +1,40 @@
 ---
 
+- name: mysql database
+  mysql_db:
+    name: "{{postfixadmin_mysql_database}}"
+    state: present
+
+- name: mysql user
+  mysql_user:
+    name: "{{postfixadmin_mysql_username}}"
+    password: "{{postfixadmin_mysql_password}}"
+    priv: "{{postfixadmin_mysql_database}}.*:ALL,GRANT"
+    state: present
+
+- name: disable dbconfig
+  debconf:
+    name: postfixadmin
+    question: postfixadmin/dbconfig-{{item}}
+    answer: false
+    vtype: boolean
+  with_items:
+    - install
+    - reinstall
+    - remove
+    - upgrade
+
 - name: install packages
   apt:
-    pkg: postfixadmin
+    pkg: "{{item}}"
+  with_items:
+    - postfixadmin
+    - ca-certificates
 
-# fix https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=857791
-- name: change dbtype to mysqli (debian bug \#857791)
-  lineinfile:
+- name: dbconfig
+  template:
+    src: dbconfig.inc.php.j2
     dest: /etc/postfixadmin/dbconfig.inc.php
-    regexp: ^\$dbtype\=
-    line: $dbtype='mysqli';
 
 - name: ensure template_c folder is writable by webserver
   file:
