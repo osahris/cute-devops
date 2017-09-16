@@ -7,8 +7,6 @@
     - dovecot-imapd
     - dovecot-lmtpd
     - dovecot-mysql
-    - dovecot-antispam
-    - crm114
   notify:
     - reload dovecot
 
