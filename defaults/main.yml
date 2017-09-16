@@ -1,4 +1,3 @@
-postfix_postfixadmin_mysql_host: localhost
 postfix_postfixadmin_mysql_database: postfixadmin
 postfix_postfixadmin_mysql_username: postfix
 postfix_postfixadmin_mysql_password: eiVa9aloex5fiayeepheequ7
