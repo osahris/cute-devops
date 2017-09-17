@@ -28,3 +28,4 @@
     password: "{{postfix_postfixadmin_mysql_password}}"
     priv: "{{postfix_postfixadmin_mysql_database}}.*:SELECT"
     state: present
+  delegate_to: "{{postfix_postfixadmin_mysql_host}}"
