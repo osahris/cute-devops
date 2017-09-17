@@ -4,6 +4,7 @@
   mysql_db:
     name: "{{postfixadmin_mysql_database}}"
     state: present
+  delegate_to: "{{postfixadmin_mysql_host}}"
 
 - name: mysql user
   mysql_user:
@@ -11,6 +12,7 @@
     password: "{{postfixadmin_mysql_password}}"
     priv: "{{postfixadmin_mysql_database}}.*:ALL,GRANT"
     state: present
+  delegate_to: "{{postfixadmin_mysql_host}}"
 
 - name: disable dbconfig
   debconf:
