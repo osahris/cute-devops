@@ -47,6 +47,7 @@
     password: "{{dovecot_postfixadmin_mysql_password}}"
     priv: "{{dovecot_postfixadmin_mysql_database}}.*:SELECT"
     state: present
+  delegate_to: "{{dovecot_postfixadmin_mysql_host}}"
 
 - name: configuration pull directory
   local_action: file

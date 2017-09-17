@@ -1,5 +1,4 @@
 dovecot_postfixadmin_mysql_database: postfixadmin
 dovecot_postfixadmin_mysql_username: dovecot
-dovecot_postfixadmin_mysql_password: koof5DeNgi5aeR2ewoh9iz1u
 vmail_uid: 500
 vmail_gid: 500
