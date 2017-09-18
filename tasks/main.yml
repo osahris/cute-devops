@@ -46,6 +46,7 @@
     name: "{{dovecot_postfixadmin_mysql_username}}"
     password: "{{dovecot_postfixadmin_mysql_password}}"
     priv: "{{dovecot_postfixadmin_mysql_database}}.*:SELECT"
+    host: "{{inventory_hostname}}"
     state: present
   delegate_to: "{{dovecot_postfixadmin_mysql_host}}"
 
