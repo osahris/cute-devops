@@ -33,6 +33,7 @@
   with_items:
     - postfixadmin
     - ca-certificates
+    - ssl-cert
 
 - name: dbconfig
   template:
