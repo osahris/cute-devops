@@ -27,5 +27,6 @@
     name: "{{postfix_postfixadmin_mysql_username}}"
     password: "{{postfix_postfixadmin_mysql_password}}"
     priv: "{{postfix_postfixadmin_mysql_database}}.*:SELECT"
+    host: "{{inventory_hostname}}"
     state: present
   delegate_to: "{{postfix_postfixadmin_mysql_host}}"
