@@ -1,8 +1,11 @@
 ---
 
-- name: install package
+- name: install packages
   apt:
-    pkg: postfix
+    pkg: "{{item}}"
+  with_items:
+    - postfix
+    - postfix-mysql
 
 - name: main configuration
   template:
