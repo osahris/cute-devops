@@ -11,6 +11,7 @@
   template:
     src: main.cf.j2
     dest: /etc/postfix/main.cf
+  notify: reload postfix
 
 - include: postfixadmin.yml
 
