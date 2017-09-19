@@ -43,9 +43,9 @@ inet_interfaces = all
 inet_protocols = all
 
 # some rules from http://www.postfix.org/SMTPD_ACCESS_README.html
-smtpd_client_restrictions = permit_mynetworks, reject
-smtpd_helo_restrictions = reject_unknown_helo_hostname
-smtpd_sender_restrictions = reject_unknown_sender_domain
+#smtpd_client_restrictions = permit_mynetworks, reject
+#smtpd_helo_restrictions = reject_unknown_helo_hostname
+#smtpd_sender_restrictions = reject_unknown_sender_domain
 smtpd_data_restrictions = reject_unauth_pipelining
 
 smtpd_recipient_restrictions =
