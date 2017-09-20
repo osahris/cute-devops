@@ -30,7 +30,7 @@ smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 # See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
 # information on enabling SSL in the smtp client.
 
-myhostname = tg-infra-dev-mail-1
+myhostname = {{mailname}}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 mydestination = $myhostname, tg-infra-dev-mail-1, localhost.localdomain, , localhost
