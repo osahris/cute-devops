@@ -1,2 +1,4 @@
+mailname: "{{inventory_hostname}}"
+
 postfix_postfixadmin_mysql_database: postfixadmin
 postfix_postfixadmin_mysql_username: postfix
