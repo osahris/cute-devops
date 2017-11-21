@@ -1,0 +1,23 @@
+server:
+    listen: 0.0.0.0@53
+    listen: ::@53
+
+log:
+  - target: syslog
+    any: info
+
+template:
+{% if nameserver_zonefile_directory is defined %}
+  - id: managed
+    storage: {{nameserver_zonefile_directory}}
+    semantic-checks: on
+{% endif %}
+
+zone:
+{% if nameserver_zones is defined %}
+{% for zone in nameserver_zones %}
+  - domain: {{zone.domain}}
+    template: managed
+    file: {{zone.domain}}.zone
+{% endfor %}
+{% endif %}

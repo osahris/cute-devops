@@ -1,0 +1,7 @@
+---
+
+- name: install debian packages
+  apt:
+    pkg: "{{item}}"
+  with_items:
+    - knot

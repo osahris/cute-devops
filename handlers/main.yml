@@ -1,0 +1,7 @@
+---
+
+- name: reload knot
+  service:
+    name: knot
+    state: reloaded
+  listen: reload nameserver

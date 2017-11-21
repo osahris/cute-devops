@@ -1,0 +1,7 @@
+---
+
+- name: knot configuration
+  template:
+    src: knot.conf.j2
+    dest: /etc/knot/knot.conf
+  notify: reload knot
