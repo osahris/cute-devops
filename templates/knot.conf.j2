@@ -1,23 +1,74 @@
 server:
     listen: 0.0.0.0@53
     listen: ::@53
+    user: knot:knot
 
 log:
   - target: syslog
     any: info
 
 template:
+  - id: slave
+    storage: /var/lib/knot/slave
 {% if nameserver_zonefile_directory is defined %}
   - id: managed
     storage: {{nameserver_zonefile_directory}}
     semantic-checks: on
 {% endif %}
 
+remote:
+{% if nameserver_zones is defined %}
+{% for zone in nameserver_zones %}
+{% if zone.type|default('managed') == 'slave' %}
+  - id: {{zone.domain}}/master
+    address: {{zone.master.ip}}
+{% endif %}
+{% if zone.slaves is defined %}
+{% for slave in zone.slaves %}
+  - id: {{zone.domain}}/slave/{{slave.name}}
+    address: {{slave.ip}}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+acl:
+{% if nameserver_zones is defined %}
+{% for zone in nameserver_zones %}
+{% if zone.type|default('managed') == 'slave' %}
+  - id: {{zone.domain}}/master/allow_notify
+    address: {{zone.master.ip}}
+    action: notify
+{% endif %}
+{% if zone.slaves is defined %}
+{% for slave in zone.slaves %}
+  - id: {{zone.domain}}/slave/{{slave.name}}/allow_transfer
+    address: {{slave.ip}}
+    action: transfer
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
 zone:
 {% if nameserver_zones is defined %}
 {% for zone in nameserver_zones %}
+{% if zone.type|default('managed') != 'slave' %}
   - domain: {{zone.domain}}
     template: managed
     file: {{zone.domain}}.zone
+{% elif zone.type|default('managed') == 'slave' %}
+  - domain: {{zone.domain}}
+    template: slave
+    master: {{zone.domain}}/master
+    file: {{zone.domain}}.zone
+    acl: {{zone.domain}}/master/allow_notify
+{% endif %}
+{% if zone.slaves is defined %}
+{% for slave in zone.slaves %}
+    notify: {{zone.domain}}/slave/{{slave.name}}
+    acl: {{zone.domain}}/slave/{{slave.name}}/allow_transfer
+{% endfor %}
+{% endif %}
 {% endfor %}
 {% endif %}
