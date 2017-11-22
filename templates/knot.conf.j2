@@ -1,6 +1,12 @@
 server:
+{% if not nameserver_ips is defined%}
     listen: 0.0.0.0@53
     listen: ::@53
+{% else %}
+{% for ip in nameserver_ips %}
+    listen: {{ip|ipaddr('address')}}@53
+{% endfor %}
+{% endif %}
     user: knot:knot
 
 log:

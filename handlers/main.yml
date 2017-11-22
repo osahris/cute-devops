@@ -5,3 +5,8 @@
     name: knot
     state: reloaded
   listen: reload nameserver
+
+- name: restart knot
+  service:
+    name: knot
+    state: restarted
