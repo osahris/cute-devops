@@ -28,11 +28,17 @@ remote:
 {% if zone.type|default('managed') == 'slave' %}
   - id: {{zone.domain}}/master
     address: {{zone.master.ip}}
+{% if zone.master.via is defined%}
+    via: {{zone.master.via}}
+{% endif %}
 {% endif %}
 {% if zone.slaves is defined %}
 {% for slave in zone.slaves %}
   - id: {{zone.domain}}/slave/{{slave.name}}
     address: {{slave.ip}}
+{% if slave.via is defined%}
+    via: {{slave.via}}
+{% endif %}
 {% endfor %}
 {% endif %}
 {% endfor %}
