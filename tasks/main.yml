@@ -2,6 +2,15 @@
 
 - include: setup_Debian.yml
 
+- name: enable modules
+  apache2_module:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - php7.0
+    - rewrite
+    - ssl
+
 - name: default vhost
   template:
     src: default-vhost.j2

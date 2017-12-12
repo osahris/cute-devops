@@ -1,10 +1,29 @@
-<VirtualHost *:80>
+<VirtualHost *:443>
+
         ErrorLog ${APACHE_LOG_DIR}/error.log
         CustomLog ${APACHE_LOG_DIR}/access.log combined
-        DocumentRoot /var/www/html/
-        <Directory "/var/www/html/">
+
+        SSLEngine on
+        SSLCertificateFile "/etc/ssl/certs/ssl-cert-snakeoil.pem"
+        SSLCertificateKeyFile "/etc/ssl/private/ssl-cert-snakeoil.key"
+
+</VirtualHost>
+
+<VirtualHost *:80>
+
+        ErrorLog ${APACHE_LOG_DIR}/error.log
+        CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+        DocumentRoot /var/www/default/
+        <Directory "/var/www/default/">
                 Options -Indexes
         </Directory>
+
+        #RewriteEngine On
+        #RewriteCond %{REQUEST_FILENAME} !-f
+        #RewriteCond %{REQUEST_FILENAME} !-d
+        #RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R,L]
+
 </VirtualHost>
 
 # vim: syntax=apache ts=4 sw=4 sts=4 sr noet
