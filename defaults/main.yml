@@ -1,4 +1,12 @@
 mailname: "{{inventory_hostname}}"
 
+postfix_method: none
+
 postfix_postfixadmin_mysql_database: postfixadmin
 postfix_postfixadmin_mysql_username: postfix
+
+postfix_check_spf: false
+postfix_check_spamhaus: false
+
+postfix_with_opendkim: false
+postfix_with_opendmarc: false

@@ -1,0 +1,12 @@
+---
+
+- name: opendmarc debian packages
+  apt:
+    pkg: opendmarc
+
+- name: ensure postfix user is in opendmarc group
+  user:
+    name: postfix
+    groups: opendmarc
+    append: true
+  notify: restart postfix

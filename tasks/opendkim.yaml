@@ -1,0 +1,11 @@
+---
+
+- import_role:
+    name: opendkim
+
+- name: ensure postfix user is in opendkim group
+  user:
+    name: postfix
+    groups: opendkim
+    append: true
+  notify: restart postfix

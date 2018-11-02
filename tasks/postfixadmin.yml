@@ -1,5 +1,11 @@
 ---
 
+- name: postfix debian packages for postfixadmin
+  apt:
+    pkg:
+      - postfix
+      - postfix-mysql
+
 - name: postfix sql map directory
   file:
     path: /etc/postfix/sql/
@@ -9,8 +15,8 @@
 
 - name: postfixadmin sql map configuration
   template:
-    src: sql/{{item}}.j2
-    dest: /etc/postfix/sql/{{item}}
+    src: postfixadmin/sql/{{item}}.j2
+    dest: /etc/postfix/postfixadmin-sql/{{item}}
     mode: u=rwx,g=rx,o=
     group: postfix
   with_items:

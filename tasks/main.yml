@@ -2,10 +2,14 @@
 
 - name: install packages
   apt:
-    pkg: "{{item}}"
-  with_items:
-    - postfix
-    - postfix-mysql
+    pkg:
+      - postfix
+
+- name: master configuration
+  template:
+    src: master.cf.j2
+    dest: /etc/postfix/master.cf
+  notify: restart postfix
 
 - name: main configuration
   template:
@@ -19,7 +23,21 @@
     dest: /etc/mailname
   notify: reload postfix
 
-- include: postfixadmin.yml
+- import_tasks: spf.yaml
+  when: postfix_check_spf
+
+- import_tasks: opendkim.yaml
+  when: postfix_with_opendkim
+
+- import_tasks: opendmarc.yaml
+  when: postfix_with_opendmarc
+
+- import_tasks: postfixadmin.yml
+  when: postfix_method == "postfixadmin"
+
+- name: check postfix configuration
+  command: postfix check
+  changed_when: false
 
 - name: configuration pull directory
   local_action: file
