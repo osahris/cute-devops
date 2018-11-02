@@ -1,1 +1,52 @@
 ---
+
+- name: opendkim debian packages
+  apt:
+    pkg:
+      - opendkim
+      - opendkim-tools
+      - python-openssl
+
+- name: opendkim config
+  template:
+    src: opendkim.conf.j2
+    dest: /etc/opendkim.conf
+  notify: reload opendkim
+
+- name: dkim keys directory
+  file:
+    path: /etc/dkimkeys/{{item}}
+    state: directory
+    owner: opendkim
+    group: opendkim
+    mode: 0700
+  with_items: "{{dkim_domains}}"
+
+- name: dkim private keys
+  openssl_privatekey:
+    path: /etc/dkimkeys/{{item}}/mail.private
+    size: "{{opendkim_key_size}}"
+    owner: opendkim
+    group: opendkim
+    mode: 0600
+  with_items: "{{dkim_domains}}"
+
+- name: dkim public keys
+  openssl_publickey:
+    privatekey_path: /etc/dkimkeys/{{item}}/mail.private
+    path: /etc/dkimkeys/{{item}}/mail.public
+    owner: opendkim
+    group: opendkim
+    mode: 0600
+  with_items: "{{dkim_domains}}"
+
+- name: read dkim public keys
+  command: cat /etc/dkimkeys/{{item}}/mail.public
+  with_items: "{{dkim_domains}}"
+  changed_when: false
+  register: _opendkim_read_public_key
+
+- name: show dkim entries
+  debug:
+    msg: "{{_dkim_public_keys}}"
+  with_items: "{{dkim_domains}}"
