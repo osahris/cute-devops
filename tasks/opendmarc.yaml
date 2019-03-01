@@ -1,8 +1,7 @@
 ---
 
-- name: opendmarc debian packages
-  apt:
-    pkg: opendmarc
+- import_role:
+    name: opendmarc
 
 - name: ensure postfix user is in opendmarc group
   user:
