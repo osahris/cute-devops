@@ -1,11 +1,10 @@
 {{ansible_managed|comment}}
 
-# See /usr/share/postfix/main.cf.dist for a commented, more complete version
+### common settings
 
 # Debian specific:  Specifying a file name will cause the first
 # line of that file to be used as the name.  The Debian default
 # is /etc/mailname.
-myorigin = /etc/mailname
 
 smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
 biff = no
@@ -13,24 +12,14 @@ biff = no
 # appending .domain is the MUA's job.
 append_dot_mydomain = no
 
-# Uncomment the next line to generate "delayed mail" warnings
-#delay_warning_time = 4h
-
 readme_directory = no
 
 # See http://www.postfix.org/COMPATIBILITY_README.html -- default to 2 on
 # fresh installs.
 compatibility_level = 2
 
-# TLS parameters
-smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
-smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
-smtpd_use_tls=yes
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 
-# See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
-# information on enabling SSL in the smtp client.
+### general settings
 
 myhostname = {{mailname}}
 alias_maps = hash:/etc/aliases
@@ -42,6 +31,23 @@ mailbox_size_limit = 0
 recipient_delimiter = +
 inet_interfaces = all
 inet_protocols = all
+
+
+### TLS parameters
+
+smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+smtpd_use_tls=yes
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+
+
+### transport configuration
+
+#transport_maps = hash:/etc/postfix/transport
+
+
+### rules and restricitons
 
 # some rules from http://www.postfix.org/SMTPD_ACCESS_README.html
 
@@ -82,7 +88,6 @@ smtpd_relay_restrictions =
 smtpd_data_restrictions = reject_unauth_pipelining
 
 {% if postfix_check_spf %}
-# SPF
 policy-spf_time_limit = 3600
 {% endif %}
 
@@ -91,14 +96,18 @@ policy-spf_time_limit = 3600
 smtpd_end_of_data_restrictions = check_policy_service unix:private/policy
 #}
 
-# SASL
+
+### SASL
+
 {% if postfix_method == "postfixadmin" %}
 smtpd_sasl_type = dovecot
 smtpd_sasl_path = private/auth
 smtpd_sasl_auth_enable = yes
 {% endif %}
 
-# DKIM and DMARC
+
+### DKIM and DMARC
+
 non_smtpd_milters =
 {% if postfix_with_opendkim %}
   unix:/run/opendkim/opendkim.sock,
@@ -106,6 +115,7 @@ non_smtpd_milters =
 {% if postfix_with_opendmarc %}
   unix:/run/opendmarc/opendmarc.sock
 {% endif %}
+
 smtpd_milters =
 {% if postfix_with_opendkim %}
   unix:/run/opendkim/opendkim.sock,
@@ -114,27 +124,29 @@ smtpd_milters =
   unix:/run/opendmarc/opendmarc.sock
 {% endif %}
 
-# Relay
 
-# Virtual Domain Hosting
+### Virtual Domain Hosting
+
+virtual_transport =
+{% if postfix_method == "postfixadmin" %}
+  # use dovecot lmtp for mail transport
+  lmtp:unix:private/dovecot-lmtp
+{% endif %}
+
 virtual_mailbox_domains =
 {% if postfix_method == "postfixadmin" %}
   proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_domains_maps.cf
 {% endif %}
-virtual_alias_maps =
-{% if postfix_method == "postfixadmin" %}
-  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_maps.cf,
-  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_maps.cf,
-  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_catchall_maps.cf
-{% endif %}
+
 virtual_mailbox_maps =
 {% if postfix_method == "postfixadmin" %}
   proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_mailbox_maps.cf,
   proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_mailbox_maps.cf
 {% endif %}
 
-virtual_transport =
+virtual_alias_maps =
 {% if postfix_method == "postfixadmin" %}
-  # use dovecot lmtp for mail transport
-  lmtp:unix:private/dovecot-lmtp
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_maps.cf,
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_maps.cf,
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_catchall_maps.cf
 {% endif %}
