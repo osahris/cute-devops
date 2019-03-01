@@ -13,9 +13,18 @@
     dest: /etc/opendkim.conf
   notify: reload opendkim
 
-- name: dkim keys directory
+- name: opendkim config directory
   file:
-    path: /etc/dkimkeys/{{item}}
+    path: /etc/opendkim
+    state: directory
+    owner: opendkim
+    group: opendkim
+    mode: 0755
+  with_items: "{{dkim_domains}}"
+
+- name: dkim keys directories
+  file:
+    path: /etc/opendkim/keys/{{item}}
     state: directory
     owner: opendkim
     group: opendkim
@@ -24,7 +33,7 @@
 
 - name: dkim private keys
   openssl_privatekey:
-    path: /etc/dkimkeys/{{item}}/mail.private
+    path: /etc/opendkim/keys/{{item}}/{{dkim_selector}}.private
     size: "{{opendkim_key_size}}"
     owner: opendkim
     group: opendkim
@@ -33,20 +42,46 @@
 
 - name: dkim public keys
   openssl_publickey:
-    privatekey_path: /etc/dkimkeys/{{item}}/mail.private
-    path: /etc/dkimkeys/{{item}}/mail.public
+    privatekey_path: /etc/opendkim/keys/{{item}}/{{dkim_selector}}.private
+    path: /etc/opendkim/keys/{{item}}/{{dkim_selector}}.public
     owner: opendkim
     group: opendkim
     mode: 0600
   with_items: "{{dkim_domains}}"
 
 - name: read dkim public keys
-  command: cat /etc/dkimkeys/{{item}}/mail.public
+  command: cat /etc/opendkim/keys/{{item}}/{{dkim_selector}}.public
   with_items: "{{dkim_domains}}"
   changed_when: false
   register: _opendkim_read_public_key
 
-- name: show dkim entries
+- name: show dkim dns records
   debug:
-    msg: "{{_dkim_public_keys}}"
+    msg: "{{_dkim_dns_records}}"
+
+- name: test dkim dns records
+  command: opendkim-testkey -v -d {{item}} -s {{dkim_selector}} -k /etc/opendkim/keys/{{item}}/{{dkim_selector}}.private
+  changed_when: false
   with_items: "{{dkim_domains}}"
+
+- name: opendkim key table
+  template:
+    src: key.table.j2
+    dest: /etc/opendkim/key.table
+    mode: 0600
+
+- name: opendkim signing table
+  template:
+    src: signing.table.j2
+    dest: /etc/opendkim/signing.table
+    mode: 0600
+
+- name: opendkim signing table
+  template:
+    src: trusted.hosts.j2
+    dest: /etc/opendkim/trusted.hosts
+    mode: 0600
+
+- name: test opendkim configuration
+  command: opendkim -n
+  changed_when: false

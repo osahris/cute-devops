@@ -1,2 +1,3 @@
 ---
-_dkim_public_keys: "{{_opendkim_read_public_key|json_query(\"results[].stdout_lines[1:-1]\")|map('join')|list}}"
+_dkim_public_keys: "{{ lookup('template','public_keys.json.j2') }}"
+_dkim_dns_records: "{{ lookup('template','dns_records.json.j2') }}"

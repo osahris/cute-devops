@@ -10,10 +10,11 @@ Syslog			yes
 # privileged user (e.g. Postfix)
 UMask			007
 
-#KeyTable                /etc/opendkim/KeyTable
-#SigningTable            /etc/opendkim/SigningTable
-#ExternalIgnoreList      /etc/opendkim/TrustedHosts
-#InternalHosts           /etc/opendkim/TrustedHosts
+ExternalIgnoreList      file:/etc/opendkim/trusted.hosts
+InternalHosts           file:/etc/opendkim/trusted.hosts
+
+KeyTable                file:/etc/opendkim/key.table
+SigningTable            refile:/etc/opendkim/signing.table
 
 # Commonly-used options; the commented-out versions show the defaults.
 #Canonicalization	simple

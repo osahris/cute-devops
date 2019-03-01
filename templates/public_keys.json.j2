@@ -1,0 +1,5 @@
+{
+{% for dkim_domain in dkim_domains %}
+"{{dkim_domain}}":{{_opendkim_read_public_key|json_query("results[?item=='"+dkim_domain+"']|[0].stdout_lines[1:-1]")|join|to_json}},
+{% endfor %}
+}
