@@ -10,10 +10,9 @@ Syslog			yes
 # privileged user (e.g. Postfix)
 UMask			007
 
-ExternalIgnoreList      file:/etc/opendkim/trusted.hosts
-InternalHosts           file:/etc/opendkim/trusted.hosts
+InternalHosts           /etc/opendkim/trusted.hosts
 
-KeyTable                file:/etc/opendkim/key.table
+KeyTable                /etc/opendkim/key.table
 SigningTable            refile:/etc/opendkim/signing.table
 
 # Commonly-used options; the commented-out versions show the defaults.
@@ -21,8 +20,6 @@ SigningTable            refile:/etc/opendkim/signing.table
 #Mode			sv
 #SubDomains		no
 
-# Socket smtp://localhost
-#
 # ##  Socket socketspec
 # ##
 # ##  Names the socket where this filter should listen for milter connections
@@ -32,8 +29,7 @@ SigningTable            refile:/etc/opendkim/signing.table
 # ##  inet:port                   to listen on all interfaces
 # ##  local:/path/to/socket       to listen on a UNIX domain socket
 #
-#Socket                  inet:8892@localhost
-Socket			local:/var/run/opendkim/opendkim.sock
+Socket      {{opendkim_socket}}
 
 ##  PidFile filename
 ###      default (none)
