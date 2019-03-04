@@ -1,1 +1,3 @@
 ---
+
+opendmarc_socket: local:/var/run/opendmarc/opendmarc.sock
