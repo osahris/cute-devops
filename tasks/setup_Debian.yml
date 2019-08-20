@@ -1,11 +1,9 @@
 ---
 
-- name: install apt packages
+- name: debian packages
   apt:
-    pkg: "{{item}}"
-    state: present
-  with_items:
-    - apache2
+    pkg:
+      - apache2
 
 - name: remove default page
   file:

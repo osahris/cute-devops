@@ -1,6 +1,6 @@
 ---
 
-- include: setup_Debian.yml
+- import_tasks: setup_Debian.yml
 
 - name: enable modules
   apache2_module:
