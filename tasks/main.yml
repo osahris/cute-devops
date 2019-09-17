@@ -5,6 +5,12 @@
     pkg:
       - postfix
 
+- name: mailname
+  copy:
+    content: "{{mailname}}"
+    dest: /etc/mailname
+  notify: reload postfix
+
 - name: master configuration
   template:
     src: master.cf.j2
@@ -17,11 +23,29 @@
     dest: /etc/postfix/main.cf
   notify: reload postfix
 
-- name: mailname
-  copy:
-    content: "{{mailname}}"
-    dest: /etc/mailname
-  notify: reload postfix
+- name: postfix virtual_alias_domains
+  template:
+    src: virtual_alias_domains.j2
+    dest: /etc/postfix/virtual_alias_domains
+  notify: postmap virtual_alias_domains
+
+- name: postfix virtual_alias_maps
+  template:
+    src: virtual_alias_maps.j2
+    dest: /etc/postfix/virtual_alias_maps
+  notify: postmap virtual_alias_maps
+
+- name: postfix virtual_mailbox_domains
+  template:
+    src: virtual_mailbox_domains.j2
+    dest: /etc/postfix/virtual_mailbox_domains
+  notify: postmap virtual_mailbox_domains
+
+- name: postfix virtual_mailbox_maps
+  template:
+    src: virtual_mailbox_maps.j2
+    dest: /etc/postfix/virtual_mailbox_maps
+  notify: postmap virtual_mailbox_maps
 
 - import_tasks: spf.yaml
   when: postfix_check_spf
@@ -38,16 +62,3 @@
 - name: check postfix configuration
   command: postfix check
   changed_when: false
-
-- name: configuration pull directory
-  local_action: file
-  args:
-    path: ~/host_files/{{inventory_hostname}}/etc
-    state: directory
-
-- name: pull configuration
-  synchronize:
-    src: /etc/postfix
-    dest: ~/host_files/{{inventory_hostname}}/etc/
-    mode: pull
-    recursive: true

@@ -1,0 +1,3 @@
+postfix_smtpd_sasl_type: dovecot
+postfix_smtpd_sasl_path: private/auth
+postfix_smtpd_sasl_auth_enable: true
