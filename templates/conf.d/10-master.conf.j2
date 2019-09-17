@@ -1,3 +1,5 @@
+{{ansible_managed|comment}}
+
 #default_process_limit = 100
 #default_client_limit = 1000
 
@@ -12,7 +14,7 @@
 
 # Internal user is used by unprivileged processes. It should be separate from
 # login user, so that login processes can't disturb other processes.
-#default_internal_user = dovecot
+default_internal_user = dovecot
 
 service imap-login {
   inet_listener imap {
@@ -46,14 +48,21 @@ service pop3-login {
 }
 
 service lmtp {
+{% if dovecot_lmtp_inet_listener %}
+  inet_listener lmtp {
+    port = 24
+  }
+{% endif %}
   unix_listener lmtp {
     #mode = 0666
   }
+{% if dovecot_unix_listeners_for_postfix %}
   unix_listener /var/spool/postfix/private/dovecot-lmtp {
    group = postfix
    mode = 0600
    user = postfix
   }
+{% endif %}
 }
 
 service imap {
@@ -90,22 +99,30 @@ service auth {
     #group =
   }
 
+{% if dovecot_unix_listeners_for_postfix %}
   # Postfix smtp-auth
   unix_listener /var/spool/postfix/private/auth {
     mode = 0666
     user = postfix
     group = postfix
   }
+{% endif %}
+
+{% if dovecot_auth_inet_listener %}
+  inet_listener {
+    port = 3659
+  }
+{% endif %}
 
   # Auth process is run as this user.
-  #user = $default_internal_user
+  user = $default_internal_user
 }
 
 service auth-worker {
   # Auth worker process is run as root by default, so that it can access
   # /etc/shadow. If this isn't necessary, the user should be changed to
   # $default_internal_user.
-  #user = root
+  user = $default_internal_user
 }
 
 service dict {

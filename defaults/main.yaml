@@ -2,3 +2,6 @@ dovecot_postfixadmin_mysql_database: postfixadmin
 dovecot_postfixadmin_mysql_username: dovecot
 vmail_uid: 500
 vmail_gid: 500
+dovecot_lmtp_inet_listener: false
+dovecot_unix_listeners_for_postfix: false
+dovecot_auth_inet_listener: false

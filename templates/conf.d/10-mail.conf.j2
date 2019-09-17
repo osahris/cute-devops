@@ -1,3 +1,5 @@
+{{ansible_managed|comment}}
+
 ##
 ## Mailbox locations and namespaces
 ##
@@ -27,7 +29,7 @@
 #
 # <doc/wiki/MailLocation.txt>
 #
-#mail_home = /var/vmail/%d/%n
+mail_home = /home/vmail/%d/%n
 mail_location = mdbox:~/mail.mdbox
 
 # If you need to set multiple mailbox locations or want to change default
@@ -106,8 +108,8 @@ namespace inbox {
 # System user and group used to access mails. If you use multiple, userdb
 # can override these by returning uid or gid fields. You can use either numbers
 # or names. <doc/wiki/UserIds.txt>
-#mail_uid =
-#mail_gid =
+mail_uid = vmail
+mail_gid = vmail
 
 # Group to enable temporarily for privileged operations. Currently this is
 # used only with INBOX when either its initial creation or dotlocking fails.

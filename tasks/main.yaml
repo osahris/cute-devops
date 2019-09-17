@@ -1,12 +1,12 @@
 ---
 
-- name: install package
+- name: install packages
   apt:
-    pkg: "{{ item }}"
-  with_items:
-    - dovecot-imapd
-    - dovecot-lmtpd
-    - dovecot-mysql
+    pkg:
+      - dovecot-imapd
+      - dovecot-lmtpd
+      - dovecot-mysql
+      - ssl-cert
   notify:
     - reload dovecot
 
@@ -40,5 +40,4 @@
   notify:
     - reload dovecot
 
-- import_tasks: sql.yaml
-  when: "{{ dovecot_auth == 'sql' }}"
+- include_tasks: auth/{{dovecot_auth}}.yaml
