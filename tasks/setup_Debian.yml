@@ -4,6 +4,7 @@
   apt:
     pkg:
       - apache2
+      - ssl-cert
 
 - name: remove default page
   file:
