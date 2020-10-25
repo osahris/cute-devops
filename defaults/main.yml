@@ -3,7 +3,7 @@ mailname: "{{inventory_hostname}}"
 postfix_method: postfixadmin
 
 postfix_smtp_service: true
-postfix_submission_service: false
+postfix_submission_service: true
 
 postfix_postfixadmin_mysql_host: localhost
 postfix_postfixadmin_mysql_database: postfixadmin
@@ -19,4 +19,7 @@ postfix_virtual_transport: lmtp:unix:private/dovecot-lmtp
 
 postfix_submission_service_smtpd_sasl_path: private/auth
 
-postfix_smtps_service: false
+postfix_smtps_service: true
+
+postfix_certificate_fullchain_file: /etc/ssl/certs/ssl-cert-snakeoil.pem
+postfix_certificate_private_key_file: /etc/ssl/private/ssl-cert-snakeoil.key
