@@ -8,7 +8,7 @@
 
 - name: postfix sql map directory
   file:
-    path: /etc/postfix/sql/
+    path: /etc/postfix/postfixadmin-sql/
     state: directory
     mode: u=rwx,g=rx,o=
     group: postfix
@@ -34,6 +34,6 @@
     name: "{{postfix_postfixadmin_mysql_username}}"
     password: "{{postfix_postfixadmin_mysql_password}}"
     priv: "{{postfix_postfixadmin_mysql_database}}.*:SELECT"
-    host: "{{host_ip}}"
+    host: "{{postfix_postfixadmin_mysql_host}}"
     state: present
-  delegate_to: "{{postfix_postfixadmin_mysql_host}}"
+  delegate_to: "{{(postfix_postfixadmin_mysql_host=='localhost')|ternary(inventory_hostname,postfix_postfixadmin_mysql_host)}}"
