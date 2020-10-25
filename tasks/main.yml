@@ -23,6 +23,12 @@
     dest: /etc/postfix/main.cf
   notify: reload postfix
 
+- name: postfix transport_maps
+  template:
+    src: transport_maps.j2
+    dest: /etc/postfix/transport_maps
+  notify: postmap transport_maps
+
 - name: postfix virtual_alias_domains
   template:
     src: virtual_alias_domains.j2
