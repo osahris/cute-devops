@@ -5,4 +5,4 @@
     pkg:
       - openssl
       - certbot
-      - python-cryptography
+      - python3-cryptography
