@@ -19,7 +19,7 @@
   debconf:
     name: postfixadmin
     question: postfixadmin/dbconfig-{{item}}
-    answer: false
+    answer: 'false'
     vtype: boolean
   with_items:
     - install
@@ -63,24 +63,17 @@
 #    url: http://localhost/postfixadmin/setup.php
 #    dest:  /var/www/html/postfixadmin-setup-report.html
 
-- name: apache2 default vhost config
+- name: apache2 vhost config
   template:
-    src: apache2_default_vhost.conf.j2
-    dest: /etc/apache2/sites-available/000-default.conf
+    src: apache2-vhost.conf.j2
+    dest: /etc/apache2/sites-available/postfixadmin.conf
   notify:
     - apache2 reload
 
-- name: apache2 default-ssl vhost config
-  template:
-    src: apache2_default-ssl_vhost.conf.j2
-    dest: /etc/apache2/sites-available/default-ssl.conf
-  notify:
-    - apache2 reload
-
-- name: apache2 default-ssl vhost enable
+- name: apache2 vhost enable
   file:
-    src: ../sites-available/default-ssl.conf
-    dest: /etc/apache2/sites-enabled/default-ssl.conf
+    src: ../sites-available/postfixadmin.conf
+    dest: /etc/apache2/sites-enabled/postfixadmin.conf
     state: link
   notify:
     - apache2 reload
@@ -91,6 +84,11 @@
     state: present
   notify:
     - apache2 reload
+
+- name: disable postfixadmin apache2 config
+  file:
+    path: /etc/apache2/conf-enabled/postfixadmin.conf
+    state: absent
 
 - name: flush handlers
   meta: flush_handlers

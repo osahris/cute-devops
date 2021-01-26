@@ -8,9 +8,8 @@
                 CustomLog ${APACHE_LOG_DIR}/access.log combined
 
                 SSLEngine on
-
-                SSLCertificateFile      /etc/ssl/certs/ssl-cert-snakeoil.pem
-                SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key
+                SSLCertificateFile "{{postfixadmin_certificate_fullchain_file}}"
+                SSLCertificateKeyFile "{{postfixadmin_certificate_private_key_file}}"
 
                 <FilesMatch "\.(cgi|shtml|phtml|php)$">
                                 SSLOptions +StdEnvVars
