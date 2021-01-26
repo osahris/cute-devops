@@ -29,12 +29,11 @@
 
 - name: install packages
   apt:
-    pkg: "{{item}}"
+    pkg:
+      - postfixadmin
+      - ca-certificates
+      - ssl-cert
     install_recommends: no
-  with_items:
-    - postfixadmin
-    - ca-certificates
-    - ssl-cert
 
 - name: dbconfig
   template:
