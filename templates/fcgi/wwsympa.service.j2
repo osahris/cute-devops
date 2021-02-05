@@ -9,7 +9,7 @@ PIDFile=/var/run/wwsympa/wwsympa.pid
 ExecStart=/usr/bin/spawn-fcgi -F $FCGI_CHILDREN \
     -P /var/run/wwsympa/wwsympa.pid \
     -u $FCGI_USER -g $FCGI_GROUP $FCGI_OPTS -- \
-    {{ sympa_install_prefix }}/{{ sympa_install_dir_name }}/bin/wwsympa.fcgi
+    {{ sympa_install_directory }}/bin/wwsympa.fcgi
 Environment="FCGI_CHILDREN=5"
 Environment="FCGI_USER=sympa"
 Environment="FCGI_GROUP=sympa"

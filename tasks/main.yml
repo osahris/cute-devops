@@ -63,6 +63,3 @@
 - name: Enable Sympa startup
   tags: sympa_startup
   import_tasks: sympa_startup.yml
-
- # Include environment specific tasks
-# - include: "{{ inventory_dir }}/tasks/sympa.yml"

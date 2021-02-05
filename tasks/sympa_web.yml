@@ -1,8 +1,23 @@
 ---
 
+- import_role:
+    name: apache
+
+- import_role:
+    name: certificate
+  vars:
+    certificate_name: "{{sympa_web_domain}}"
+    certificate_common_name: "{{sympa_web_domain}}"
+    certificate_directory: /etc/ssl
+    certificate_key_usage:
+      - digitalSignature
+      - keyEncipherment
+    certificate_extended_key_usage:
+      - serverAuth
+
 - name: Installing Apache2
   apt:
-    name: 
+    name:
       - apache2
       - libapache2-mod-fcgid
       - spawn-fcgi
@@ -43,20 +58,26 @@
   when: not sympa_sympasoap_enabled
   tags: apache
 
-- name: Install Sympa web config
-  template: src=apache/sympa_web.conf.j2 dest=/etc/apache2/conf-available/sympa.conf
-  notify: Restart Apache
+- name: apache2 sympa vhost
+  template:
+    src: apache/apache_vhost.conf.j2
+    dest: /etc/apache2/sites-available/sympa.conf
+  notify: restart apache2
   tags: apache
 
-- name: Enable mod_rewrite
-  command: a2enmod proxy_fcgi
-  notify: Restart Apache
+- name: apache2 sympa vhost enabled
+  file:
+    src: ../sites-available/sympa.conf
+    dest: /etc/apache2/sites-enabled/sympa.conf
+    state: link
+  notify: restart apache2
+  tags: apache
 
-- name: Enable Sympa web config
-  command: a2enconf sympa
-  notify: Restart Apache
-
-- name: Enable mod_rewrite
-  command: a2enmod rewrite
-  notify: Restart Apache
-
+- name: apache2 modules
+  apache2_module:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - proxy_fcgi
+    - rewrite
+  notify: restart apache2

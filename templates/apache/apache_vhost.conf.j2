@@ -1,78 +1,53 @@
-{% if proxy %}
-<VirtualHost {{ item.ip }}:80>
-  ServerName {{ item.web.domain }}
-  RedirectMatch ^(.*)$ https://{{ item.web.domain }}$1
-</VirtualHost>
-{% endif %}
+{{ ansible_managed | comment }}
 
-<VirtualHost {{ item.ip }}:{{ item.port }}>
+<VirtualHost *:443>
     DocumentRoot /var/www/html
-    ServerAdmin {{ item.web.admin }}
 
-    ServerName {{ item.web.domain }}
+    ServerAdmin {{ sympa_admin_email }}
+
+    ServerName {{ sympa_web_domain }}
     ServerSignature off
 
     RewriteEngine On
     RewriteRule ^/?$ https://%{SERVER_NAME}/sympa [QSA,R=301,L]
 
-    ErrorLog ${APACHE_LOG_DIR}/error_{{ item.web.domain }}.log
-    CustomLog ${APACHE_LOG_DIR}/access_{{ item.web.domain }}.log combined
+    ErrorLog ${APACHE_LOG_DIR}/error_{{ sympa_web_domain }}.log
+    CustomLog ${APACHE_LOG_DIR}/access_{{ sympa_web_domain }}.log combined
 
-{% if item.ssl.enabled %}
-    # SSL/TLS Configuration
     SSLEngine on
-    SSLCertificateKeyFile /etc/ssl/private/{{ item.web.domain }}.key
-    SSLCertificateFile /etc/ssl/certs/{{ item.web.domain }}.crt
-{# Less strict cipher suits #}
-    SSLCipherSuite ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA:DHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA:DHE-RSA-AES128-SHA:AES256-GCM-SHA384:AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256:AES256-SHA:AES128-SHA
-{# Strict cipher suits
-    SSLCipherSuite ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA256:ECDHE-RSA-AES256-SHA:DHE-RSA-AES256-SHA:AES256-GCM-SHA384:AES256-SHA256:AES256-SHA
-#}
-    SSLHonorCipherOrder on
-    SSLCompression off
-    SSLProtocol all -SSLv2 -SSLv3
-{# 15768000 seconds = 6 months #}
-    Header always set Strict-Transport-Security max-age=15768000
-    {% if item.ssl.selfsignedcertificate is defined and item.ssl.selfsignedcertificate %}
-    SSLUseStapling on
-    {% else %}
-    SSLUseStapling off
+    SSLCertificateFile "/etc/ssl/certs/{{sympa_web_domain}}.cert.pem"
+    SSLCertificateKeyFile "/etc/ssl/private/{{sympa_web_domain}}.key.pem"
+    {% if not certificate_provider == "selfsigned" %}
+    SSLCertificateChainFile "/etc/ssl/certs/{{sympa_web_domain}}.chain.pem"
     {% endif %}
-{% endif %}
-{% if proxy %}
-  {% if 'sympa' in item %}
-    <Location /sympa>
-              Require all granted
-              RequestHeader set Front-End-Https "On"
-              ProxyPass         https://{{ hostvars[item.sympa.server]['ansible_eth1']['ipv4']['address'] }}/sympa
-              ProxyPassReverse  https://{{ hostvars[item.sympa.server]['ansible_eth1']['ipv4']['address'] }}/sympa
-              ProxyPreserveHost On
-    </Location>
-{% if sympa.sympasoap.enabled %}
-    <Location /sympasoap>
-              Require all granted
-              RequestHeader set Front-End-Https "On"
-              ProxyPass         https://{{ hostvars[item.sympa.server]['ansible_eth1']['ipv4']['address'] }}/sympasoap
-              ProxyPassReverse  https://{{ hostvars[item.sympa.server]['ansible_eth1']['ipv4']['address'] }}/sympasoap
-              ProxyPreserveHost On
-    </Location>
-{% endif %}
-    <Location /check-smtp-service-results>
-              Require all granted
-              RequestHeader set Front-End-Https "On"
-              ProxyPass         https://{{ hostvars[item.sympa.server]['ansible_eth1']['ipv4']['address'] }}/check-smtp-service-results
-              ProxyPassReverse  https://{{ hostvars[item.sympa.server]['ansible_eth1']['ipv4']['address'] }}/check-smtp-service-results
-              ProxyPreserveHost On
-    </Location>
+
+    Alias /static-sympa {{ sympa_install_directory }}/static_content
+
     <Location /static-sympa>
-              Require all granted
-              RequestHeader set Front-End-Https "On"
-              ProxyPass         https://{{ hostvars[item.sympa.server]['ansible_eth1']['ipv4']['address'] }}/static-sympa
-              ProxyPassReverse  https://{{ hostvars[item.sympa.server]['ansible_eth1']['ipv4']['address'] }}/static-sympa
-              ProxyPreserveHost On
+      Require all granted
     </Location>
-  {% endif %}
-{% else %}
-    Alias /check-smtp-service-results {{ sympa_install_prefix }}/check_smtp/results/{{ item.web.domain }}
-{% endif %}
+
+    <Location /sympa>
+      SetHandler "proxy:unix:/var/run/wwsympa/wwsympa.socket|fcgi://localhost"
+      Require all granted
+    </Location>
+
+    <Location /sympasoap>
+      SetHandler "proxy:unix:/var/run/sympasoap/sympasoap.socket|fcgi://localhost"
+      Require all granted
+    </Location>
+
+</VirtualHost>
+
+<VirtualHost *:80>
+
+  ServerAdmin {{ sympa_admin_email }}
+
+  ServerName {{ sympa_web_domain }}
+
+  RewriteEngine On
+  RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R,L]
+
+  Alias /.well-known/acme-challenge/ /var/www/default/.well-known/acme-challenge/
+
 </VirtualHost>

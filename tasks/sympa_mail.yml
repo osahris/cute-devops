@@ -2,72 +2,62 @@
 - name: Install list aliases file
   copy:
     src: files/list_aliases.tt2
-    dest: "{{ sympa_install_prefix }}/{{ sympa_install_dir_name }}/etc/list_aliases.tt2"
+    dest: "{{ sympa_config_directory }}/list_aliases.tt2"
     owner: sympa
     group: sympa
     mode: 0644
 
 - name: Creating Sympa aliases file (1/2)
   file:
-    path: "{{ sympa_mail_alias_directory }}"
-    state: directory
-    owner: sympa
-    group: sympa
-    mode: 0755
-
-- name: Creating Sympa aliases file (2/2)
-  file:
-    path: "{{ sympa_mail_alias_directory }}/{{ item }}"
+    path: "{{ sympa_mail_alias_file }}"
     state: touch
     owner: sympa
     group: sympa
     mode: 0644
-  with_items:
-    - "{{ sympa_mail_alias_file }}"
-    - "{{ sympa_mail_alias_file }}.db"
+
+- name: Creating Sympa aliases file (2/2)
+  file:
+    path: "{{ sympa_mail_alias_file }}.db"
+    state: touch
+    owner: sympa
+    group: sympa
+    mode: 0644
 
 - name: Compiling sympa_aliases
   command: "postmap {{ sympa_mail_alias_file }}"
 
 - name: Adding list domains as virtual domains
-  blockinfile:
-    path: /etc/postfix/domains.sympa
-    create: yes
-    state: present
-    marker: "# {mark} ANSIBLE MANAGED {{ item }} domain"
-    block: |
-      {{ item }}                # {{ item }} is a mailing list domain.
-  with_items: "{{ sympa_domains }}"
+  copy:
+    dest: /etc/postfix/domains.sympa
+    content: "{{ sympa_domains | join(\"\n\") }}"
 
-- name: Compiling Sympa transport
+- name: Compiling Sympa domains
   command: postmap /etc/postfix/domains.sympa
 
 - name: Adding required generic aliases
-  blockinfile:
-    path: /etc/postfix/virtual.sympa
-    create: yes
-    state: present
-    marker: "# {mark} ANSIBLE MANAGED {{ item }} aliases"
-    block: |
-      sympa-request@{{ item }}  postmaster@localhost
-      sympa-owner@{{ item }}    postmaster@localhost
-  with_items: "{{ sympa_domains }}"
+  copy:
+    dest: /etc/postfix/virtual.sympa
+    content: |-
+      {% for domain in sympa_domains %}
+      # {{domain}}
+      sympa-request@{{ domain }}  listmaster@localhost
+      sympa-owner@{{ domain }}    listmaster@localhost
+      {% endfor %}
 
 - name: Compiling Sympa transport
   command: postmap /etc/postfix/virtual.sympa
 
 - name: Adding required generic transports
-  blockinfile:
-    path: /etc/postfix/transport
-    create: yes
-    state: present
-    marker: "# {mark} ANSIBLE MANAGED {{ item }} transports"
-    block: |
-      sympa@{{ item }}          sympa:sympa@{{ item }}
-      listmaster@{{ item }}     sympa:listmaster@{{ item }}
-      bounce@{{ item }}         sympabounce:sympa@{{ item }}
-      abuse-feedback-report@{{ item }}  sympabounce:sympa@{{ item }}
-  with_items: "{{ sympa_domains }}"
+  copy:
+    dest: /etc/postfix/transport.sympa
+    content: |-
+      {% for domain in sympa_domains %}
+      # {{domain}}
+      sympa@{{ domain }}          sympa:sympa@{{ domain }}
+      listmaster@{{ domain }}     sympa:listmaster@{{ domain }}
+      bounce@{{ domain }}         sympabounce:sympa@{{ domain }}
+      abuse-feedback-report@{{ domain }}  sympabounce:sympa@{{ domain }}
+      {% endfor %}
 
 - name: Compiling Sympa transport
-  command: postmap /etc/postfix/transport
+  command: postmap /etc/postfix/transport.sympa
