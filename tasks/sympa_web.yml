@@ -1,0 +1,62 @@
+---
+
+- name: Installing Apache2
+  apt:
+    name: 
+      - apache2
+      - libapache2-mod-fcgid
+      - spawn-fcgi
+    state: present
+  tags: apache
+
+- name: install wwsympa service config
+  template: src=fcgi/wwsympa.service.j2 dest=/etc/systemd/system/wwsympa.service
+  tags: apache
+
+- name: start wwsympa
+  systemd:
+    state: started
+    name: wwsympa
+    enabled: yes
+    daemon_reload: yes
+  tags: apache
+
+- name: install sympasoap service config
+  template: src=fcgi/sympasoap.service.j2 dest=/etc/systemd/system/sympasoap.service
+  tags: apache
+
+- name: start sympasoap
+  systemd:
+    state: started
+    name: sympasoap
+    enabled: yes
+    daemon_reload: yes
+  when: sympa.sympasoap.enabled
+  tags: apache
+
+- name: stop sympasoap
+  systemd:
+    state: stopped
+    name: sympasoap
+    enabled: no
+    daemon_reload: yes
+  when: not sympa.sympasoap.enabled
+  tags: apache
+
+- name: Install Sympa web config
+  template: src=apache/sympa_web.conf.j2 dest=/etc/apache2/conf-available/sympa.conf
+  notify: Restart Apache
+  tags: apache
+
+- name: Enable mod_rewrite
+  command: a2enmod proxy_fcgi
+  notify: Restart Apache
+
+- name: Enable Sympa web config
+  command: a2enconf sympa
+  notify: Restart Apache
+
+- name: Enable mod_rewrite
+  command: a2enmod rewrite
+  notify: Restart Apache
+

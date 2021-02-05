@@ -1,0 +1,81 @@
+---
+
+- name: Build lists directory path
+  set_fact:
+    sympa: "{{ sympa | combine({ 'lists_path': install_prefix + '/' + sympa.install_dir_name + '/list_data'}) }}"
+  when: sympa.lists_path is not defined
+  tags: sympa
+
+- name: Build arc directory path
+  set_fact:
+    name: sympa.arc_path
+    sympa: "{{ sympa | combine({ 'arc_path': install_prefix + '/' + sympa.install_dir_name + '/arc'}) }}"
+  when: sympa.arc_path is not defined
+  tags: sympa
+
+- name: Ensure group "sympa" exists
+  group:
+    name: "{{ sympa.unix_group }}"
+    state: present
+
+- name: Add sympa user
+  user:
+    name: "{{ sympa.unix_user }}"
+    group: "{{ sympa.unix_group }}"
+    password: no
+
+- name: Install prerequisites for Sympa
+  tags: sympa_prereq
+  import_tasks: sympa_prereq.yml
+
+- name: Install and configure database
+  tags: sympa_db
+  include_tasks: "sympa_db_{{ sympa.db.type | lower }}.yml"
+
+- name: Getting source folder name
+  tags: always
+  include_vars: source_dir_repo.yml
+  when: sympa.install_from_repository
+
+- name: Getting source folder name
+  tags: always
+  include_vars: source_dir_tgz.yml
+  when: not sympa.install_from_repository
+
+- name: Download Sympa sources
+  tags: sympa_install
+  import_tasks: sympa_install/get_sources.yml
+
+- name: Install Sympa software
+  tags: sympa_install, reinstall
+  import_tasks: sympa_install/deploy.yml
+
+- name: Sympa post-install operations
+  tags: sympa_install
+  import_tasks: sympa_install/post_install.yml
+
+- name: Configure postfix and mail aliases
+  tags: sympa_mail
+  import_tasks: sympa_mail.yml
+
+- name: Configure Apache
+  tags: sympa_web
+  import_tasks: sympa_web.yml
+
+## Here we use loop_var to prevent conflicts on item var name with outer loops
+- name: Install and configure Sympa virtual robots
+  tags: virtual_hosts
+  include_role:
+    name: sympa_virtual_robot
+  vars:
+    robot: "{{ robot_item }}"
+  loop: "{{ sympa_vhosts }}"
+  loop_control:
+    loop_var: robot_item
+
+- name: Enable Sympa startup
+  tags: sympa_startup
+  import_tasks: sympa_startup.yml
+
+ # Include environment specific tasks
+# - include: "{{ inventory_dir }}/tasks/sympa.yml"

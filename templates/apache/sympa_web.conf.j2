@@ -1,0 +1,17 @@
+  DocumentRoot "/var/www/html/"
+  
+  Alias /static-sympa {{ install_prefix }}/{{ sympa.install_dir_name }}/static_content
+
+  <Location /static-sympa>
+    Require all granted
+  </Location>
+
+  <Location /sympa>
+    SetHandler "proxy:unix:/var/run/wwsympa/wwsympa.socket|fcgi://localhost"
+    Require all granted
+  </Location>
+
+  <Location /sympasoap>
+    SetHandler "proxy:unix:/var/run/sympasoap/sympasoap.socket|fcgi://localhost"
+    Require all granted
+  </Location>
