@@ -135,6 +135,12 @@ scalemail-backend unix	-	n	n	-	2	pipe
 mailman   unix  -       n       n       -       -       pipe
   flags=FR user=list argv=/usr/lib/mailman/bin/postfix-to-mailman.py
   ${nexthop} ${user}
+{% if postfix_with_sympa %}
+sympa unix - n n - - pipe
+  flags=hqRu user=sympa argv=/usr/local/sympa/bin/queue ${nexthop}
+sympabounce unix - n n - - pipe
+  flags=hqRu user=sympa argv=/usr/local/sympa/bin/bouncequeue ${nexthop}
+{% endif %}
 
 {% if postfix_check_spf %}
 # spf

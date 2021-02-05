@@ -46,7 +46,9 @@ smtp_tls_security_level = may
 ### transport configuration
 
 relay_domains = hash:/etc/postfix/transport_maps
-transport_maps = hash:/etc/postfix/transport_maps
+transport_maps =
+  hash:/etc/postfix/transport_maps,
+
 
 
 ### rules and restricitons
@@ -128,23 +130,41 @@ virtual_alias_domains =
 
 virtual_alias_maps =
   hash:/etc/postfix/virtual_alias_maps,
-{% if postfix_method == "postfixadmin" %}
+{% if postfix_with_postfixadmin %}
   proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_maps.cf,
   proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_maps.cf,
-  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_catchall_maps.cf
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_catchall_maps.cf,
+{% endif %}
+{% if postfix_with_sympa %}
+  hash:/etc/postfix/virtual.sympa,
 {% endif %}
 
 virtual_mailbox_domains =
   hash:/etc/postfix/virtual_mailbox_domains,
-{% if postfix_method == "postfixadmin" %}
-  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_domains_maps.cf
+{% if postfix_with_postfixadmin %}
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_domains_maps.cf,
+{% endif %}
+{% if postfix_with_sympa %}
+  hash:/etc/postfix/domains.sympa,
 {% endif %}
 
 virtual_mailbox_maps =
   hash:/etc/postfix/virtual_mailbox_maps,
-{% if postfix_method == "postfixadmin" %}
+{% if postfix_with_postfixadmin %}
   proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_mailbox_maps.cf,
-  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_mailbox_maps.cf
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_mailbox_maps.cf,
+{% endif %}
+{% if postfix_with_sympa %}
+  hash:/etc/postfix/transport.sympa,
+  hash:/var/lib/sympa/transport,
+  hash:/etc/postfix/virtual.sympa,
 {% endif %}
 
-virtual_transport = {{postfix_virtual_transport}}
+virtual_transport =
+{% if postfix_with_sympa %}
+  hash:/etc/postfix/transport.sympa,
+  hash:/var/lib/sympa/transport,
+{% endif %}
+{% if postfix_with_dovecot_lmtp %}
+  lmtp:unix:private/dovecot-lmtp,
+{% endif %}

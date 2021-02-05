@@ -63,7 +63,7 @@
   when: postfix_with_opendmarc
 
 - import_tasks: postfixadmin.yml
-  when: postfix_method == "postfixadmin"
+  when: postfix_with_postfixadmin
 
 - name: check postfix configuration
   command: postfix check
