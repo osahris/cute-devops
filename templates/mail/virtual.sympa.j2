@@ -1,0 +1,7 @@
+{{ ansible_managed | comment}}
+
+{% for domain in sympa_domains %}
+# {{domain}}
+sympa-request@{{ domain }}  listmaster@localhost
+sympa-owner@{{ domain }}    listmaster@localhost
+{% endfor %}

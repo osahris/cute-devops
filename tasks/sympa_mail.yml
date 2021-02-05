@@ -27,37 +27,25 @@
   command: "postmap {{ sympa_mail_alias_file }}"
 
 - name: Adding list domains as virtual domains
-  copy:
+  template:
+    src: mail/domains.sympa.j2
     dest: /etc/postfix/domains.sympa
-    content: "{{ sympa_domains | join(\"\n\") }}"
 
 - name: Compiling Sympa domains
   command: postmap /etc/postfix/domains.sympa
 
 - name: Adding required generic aliases
-  copy:
+  template:
+    src: mail/virtual.sympa.j2
     dest: /etc/postfix/virtual.sympa
-    content: |-
-      {% for domain in sympa_domains %}
-      # {{domain}}
-      sympa-request@{{ domain }}  listmaster@localhost
-      sympa-owner@{{ domain }}    listmaster@localhost
-      {% endfor %}
 
 - name: Compiling Sympa transport
   command: postmap /etc/postfix/virtual.sympa
 
 - name: Adding required generic transports
-  copy:
+  template:
+    src: mail/transport.sympa.j2
     dest: /etc/postfix/transport.sympa
-    content: |-
-      {% for domain in sympa_domains %}
-      # {{domain}}
-      sympa@{{ domain }}          sympa:sympa@{{ domain }}
-      listmaster@{{ domain }}     sympa:listmaster@{{ domain }}
-      bounce@{{ domain }}         sympabounce:sympa@{{ domain }}
-      abuse-feedback-report@{{ domain }}  sympabounce:sympa@{{ domain }}
-      {% endfor %}
 
 - name: Compiling Sympa transport
   command: postmap /etc/postfix/transport.sympa
