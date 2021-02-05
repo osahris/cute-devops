@@ -10,16 +10,21 @@ sympa_version: 6.2.60
 sympa_install_dir_name: sympa
 sympa_apply_patches: true
 
-sympa_mail_alias_directory: /etc/mail
-sympa_mail_alias_file: sympa_transport
+sympa_lists_path: /var/lib/sympa/lists
+sympa_arc_path: /var/lib/sympa/archives
+
 sympa_sympasoap_enabled: false
+
 sympa_db_type: mysql
 sympa_db_app_user: sympa
+sympa_db_readonly_user: sympareadonly
+
+
 sympa_language: 'en_US'
 sympa_log_level: 0
 
 sympa_vhosts: "{% set sympa_vhosts = [] %}{% for d in vhost_specific_variables.values() %}{% if 'sympa' in d and d.sympa.server == inventory_hostname %}{% set _ = sympa_vhosts.append(sympa|combine(d.sympa, recursive=True)|combine(d.common, recursive=True)) %}{% endif %}{% endfor %}{{ sympa_vhosts }}"
-mail_domains: "{% set mail_domains = [] %}{% for d in postfix_vhosts %}{% set _ = mail_domains.append(d.domain) %}{% endfor %}{{ mail_domains }}"
+sympa_domains: "{% set sympa_domains = [] %}{% for d in postfix_vhosts %}{% set _ = sympa_domains.append(d.domain) %}{% endfor %}{{ sympa_domains }}"
 web_domains: "{% set web_domains = [] %}{% for d in sympa_vhosts %}{% set _ = web_domains.append(d.web.domain) %}{% endfor %}{{ web_domains }}"
 
 

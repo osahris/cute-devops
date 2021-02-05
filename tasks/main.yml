@@ -1,24 +1,11 @@
 ---
 
-- name: Build lists directory path
-  set_fact:
-    sympa: "{{ sympa | combine({ 'lists_path': install_prefix + '/' + sympa_install_dir_name + '/list_data'}) }}"
-  when: sympa.lists_path is not defined
-  tags: sympa
-
-- name: Build arc directory path
-  set_fact:
-    name: sympa.arc_path
-    sympa: "{{ sympa | combine({ 'arc_path': install_prefix + '/' + sympa_install_dir_name + '/arc'}) }}"
-  when: sympa.arc_path is not defined
-  tags: sympa
-
-- name: Ensure group "sympa" exists
+- name: sympa unix group
   group:
     name: "{{ sympa_unix_group }}"
     state: present
 
-- name: Add sympa user
+- name: sympa unix user
   user:
     name: "{{ sympa_unix_user }}"
     group: "{{ sympa_unix_group }}"

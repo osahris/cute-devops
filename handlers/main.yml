@@ -1,13 +1,19 @@
 # handlers for the environment specific tasks of the common role
 
 - name: restart postfix
-  service: name=postfix state=restarted
+  service:
+    name: postfix
+    state: restarted
 
 - name: update postfix aliases database
   command: /usr/bin/newaliases
 
 - name: restart sympa
-  service: name=sympa state=restarted
+  service:
+    name: sympa
+    state: restarted
 
 - name: restart rsyslog
-  service: name=rsyslog state=restarted
+  service:
+    name: rsyslog
+    state: restarted

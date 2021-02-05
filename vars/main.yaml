@@ -1,0 +1,3 @@
+---
+
+sympa_mail_alias_file: /etc/postfix/transport.sympa

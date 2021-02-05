@@ -2,7 +2,7 @@
 - name: Install list aliases file
   copy:
     src: files/list_aliases.tt2
-    dest: "{{ install_prefix }}/{{ sympa_install_dir_name }}/etc/list_aliases.tt2"
+    dest: "{{ sympa_install_prefix }}/{{ sympa_install_dir_name }}/etc/list_aliases.tt2"
     owner: sympa
     group: sympa
     mode: 0644
@@ -27,7 +27,7 @@
     - "{{ sympa_mail_alias_file }}.db"
 
 - name: Compiling sympa_aliases
-  command: "postmap {{ sympa_mail_alias_directory }}/{{ sympa_mail_alias_file }}"
+  command: "postmap {{ sympa_mail_alias_file }}"
 
 - name: Adding list domains as virtual domains
   blockinfile:
@@ -37,7 +37,7 @@
     marker: "# {mark} ANSIBLE MANAGED {{ item }} domain"
     block: |
       {{ item }}                # {{ item }} is a mailing list domain.
-  with_items: "{{ mail_domains }}"
+  with_items: "{{ sympa_domains }}"
 
 - name: Compiling Sympa transport
   command: postmap /etc/postfix/domains.sympa
@@ -51,7 +51,7 @@
     block: |
       sympa-request@{{ item }}  postmaster@localhost
       sympa-owner@{{ item }}    postmaster@localhost
-  with_items: "{{ mail_domains }}"
+  with_items: "{{ sympa_domains }}"
 
 - name: Compiling Sympa transport
   command: postmap /etc/postfix/virtual.sympa
@@ -67,7 +67,7 @@
       listmaster@{{ item }}     sympa:listmaster@{{ item }}
       bounce@{{ item }}         sympabounce:sympa@{{ item }}
       abuse-feedback-report@{{ item }}  sympabounce:sympa@{{ item }}
-  with_items: "{{ mail_domains }}"
+  with_items: "{{ sympa_domains }}"
 
 - name: Compiling Sympa transport
   command: postmap /etc/postfix/transport

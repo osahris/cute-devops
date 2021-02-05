@@ -2,7 +2,7 @@
 
 - name: Create sympa directories
   file: dest={{ item }} state=directory mode=755 owner=sympa
-  with_items: ["{{ install_prefix }}/{{ sympa_install_dir_name }}", "{{ install_prefix }}/{{ sympa_install_dir_name }}/src"]
+  with_items: ["{{ sympa_install_prefix }}/{{ sympa_install_dir_name }}", "{{ sympa_install_prefix }}/{{ sympa_install_dir_name }}/src"]
 
 - name: Include retrieving sources from tar.gz task if needed
   import_tasks: get_sources_from_targz.yml

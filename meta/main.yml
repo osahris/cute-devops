@@ -1,8 +1,0 @@
----
-
-# Load the apache role and pass
-dependencies:
-  - role: apache
-    tags: apache
-  - role: postfix
-    tags: postfix
