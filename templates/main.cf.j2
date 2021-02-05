@@ -48,6 +48,11 @@ smtp_tls_security_level = may
 relay_domains = hash:/etc/postfix/transport_maps
 transport_maps =
   hash:/etc/postfix/transport_maps,
+{% if postfix_with_sympa %}
+  hash:/etc/postfix/transport.sympa,
+  hash:/var/lib/sympa/transport,
+  hash:/etc/postfix/virtual.sympa,
+{% endif %}
 
 
 
