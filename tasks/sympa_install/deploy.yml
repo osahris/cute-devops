@@ -1,29 +1,29 @@
 ---
 
 - name: "Install Sympa [1/3: configure]"
-  command: ./configure --prefix={{ install_prefix }}/{{ sympa.install_dir_name }} --with-lockdir=/var/lock --without-initdir --with-unitsdir=/etc/systemd/system --with-spooldir=/var/spool/sympa --with-expldir={{ sympa.lists_path }}
+  command: ./configure --prefix={{ install_prefix }}/{{ sympa_install_dir_name }} --with-lockdir=/var/lock --without-initdir --with-unitsdir=/etc/systemd/system --with-spooldir=/var/spool/sympa --with-expldir={{ sympa.lists_path }}
   args:
-    chdir: "{{ install_prefix }}/{{ sympa.install_dir_name }}/src/{{ source_dir }}"
+    chdir: "{{ install_prefix }}/{{ sympa_install_dir_name }}/src/{{ source_dir }}"
 
 - name: "Install Sympa [2/3: make]"
   command: make
   args:
-    chdir: "{{ install_prefix }}/{{ sympa.install_dir_name }}/src/{{ source_dir }}"
+    chdir: "{{ install_prefix }}/{{ sympa_install_dir_name }}/src/{{ source_dir }}"
 
 - name: "Install Sympa [3/3: make install]"
   command: make install
   args:
-    chdir: "{{ install_prefix }}/{{ sympa.install_dir_name }}/src/{{ source_dir }}"
+    chdir: "{{ install_prefix }}/{{ sympa_install_dir_name }}/src/{{ source_dir }}"
 
 - name: Fix ownership
   file:
-    path: "{{ install_prefix }}/{{ sympa.install_dir_name }}"
-    owner: "{{ sympa.unix_user }}"
-    group: "{{ sympa.unix_group }}"
+    path: "{{ install_prefix }}/{{ sympa_install_dir_name }}"
+    owner: "{{ sympa_unix_user }}"
+    group: "{{ sympa_unix_group }}"
     recurse: yes
 
 - name: Fix permissions
-  command: "find {{ install_prefix }}/{{ sympa.install_dir_name }} -type d -exec chmod 0755 '{}' \\;"
+  command: "find {{ install_prefix }}/{{ sympa_install_dir_name }} -type d -exec chmod 0755 '{}' \\;"
 
 - name: Ensuring archives directory is there
   file:

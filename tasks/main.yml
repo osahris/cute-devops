@@ -2,26 +2,26 @@
 
 - name: Build lists directory path
   set_fact:
-    sympa: "{{ sympa | combine({ 'lists_path': install_prefix + '/' + sympa.install_dir_name + '/list_data'}) }}"
+    sympa: "{{ sympa | combine({ 'lists_path': install_prefix + '/' + sympa_install_dir_name + '/list_data'}) }}"
   when: sympa.lists_path is not defined
   tags: sympa
 
 - name: Build arc directory path
   set_fact:
     name: sympa.arc_path
-    sympa: "{{ sympa | combine({ 'arc_path': install_prefix + '/' + sympa.install_dir_name + '/arc'}) }}"
+    sympa: "{{ sympa | combine({ 'arc_path': install_prefix + '/' + sympa_install_dir_name + '/arc'}) }}"
   when: sympa.arc_path is not defined
   tags: sympa
 
 - name: Ensure group "sympa" exists
   group:
-    name: "{{ sympa.unix_group }}"
+    name: "{{ sympa_unix_group }}"
     state: present
 
 - name: Add sympa user
   user:
-    name: "{{ sympa.unix_user }}"
-    group: "{{ sympa.unix_group }}"
+    name: "{{ sympa_unix_user }}"
+    group: "{{ sympa_unix_group }}"
     password: no
 
 - name: Install prerequisites for Sympa
@@ -30,17 +30,17 @@
 
 - name: Install and configure database
   tags: sympa_db
-  include_tasks: "sympa_db_{{ sympa.db.type | lower }}.yml"
+  include_tasks: "sympa_db_{{ sympa_db_type | lower }}.yml"
 
 - name: Getting source folder name
   tags: always
   include_vars: source_dir_repo.yml
-  when: sympa.install_from_repository
+  when: sympa_install_from_repository
 
 - name: Getting source folder name
   tags: always
   include_vars: source_dir_tgz.yml
-  when: not sympa.install_from_repository
+  when: not sympa_install_from_repository
 
 - name: Download Sympa sources
   tags: sympa_install
