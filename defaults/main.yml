@@ -1,6 +1,8 @@
 ---
 
 sympa_admin_email: "{{ admin_email }}"
+sympa_listmaster_emails:
+  - "{{ sympa_admin_email }}"
 
 sympa_unix_user: sympa
 sympa_unix_group: sympa

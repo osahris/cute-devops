@@ -26,7 +26,7 @@ gecos	SYMPA
 ## Sympa will associate listmaster privileges to these email addresses (mail
 ## and web interfaces). Some error reports may also be sent to these
 ## addresses.
-listmaster	{{ sympa_admin_email }}
+listmaster	{{ sympa_listmaster_emails | join(',') }}
 
 ## URL of main Web page
 wwsympa_url	https://{{ sympa_main_domain }}/sympa
