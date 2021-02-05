@@ -2,6 +2,7 @@
 
 {% for domain in sympa_domains %}
 # {{domain}}
+{{domain}}                  error:User unknown in recipient table
 sympa@{{ domain }}          sympa:sympa@{{ domain }}
 listmaster@{{ domain }}     sympa:listmaster@{{ domain }}
 bounce@{{ domain }}         sympabounce:sympa@{{ domain }}

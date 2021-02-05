@@ -26,20 +26,12 @@
 - name: Compiling sympa_aliases
   command: "postmap {{ sympa_mail_alias_file }}"
 
-- name: Adding list domains as virtual domains
-  template:
-    src: mail/domains.sympa.j2
-    dest: /etc/postfix/domains.sympa
-
-- name: Compiling Sympa domains
-  command: postmap /etc/postfix/domains.sympa
-
-- name: Adding required generic aliases
+- name: Adding required virtual aliases
   template:
     src: mail/virtual.sympa.j2
     dest: /etc/postfix/virtual.sympa
 
-- name: Compiling Sympa transport
+- name: Compiling Sympa virtual aliases
   command: postmap /etc/postfix/virtual.sympa
 
 - name: Adding required generic transports
