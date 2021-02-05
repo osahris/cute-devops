@@ -43,23 +43,10 @@ smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 smtp_tls_security_level = may
 
 
-### transport configuration
-
-relay_domains = hash:/etc/postfix/transport_maps
-transport_maps =
-  hash:/etc/postfix/transport_maps,
-{% if postfix_with_sympa %}
-  hash:/etc/postfix/transport.sympa,
-  hash:/var/lib/sympa/transport,
-  hash:/etc/postfix/virtual.sympa,
-{% endif %}
-
-
 
 ### rules and restricitons
 
 message_size_limit = 52428800
-
 
 # some rules from http://www.postfix.org/SMTPD_ACCESS_README.html
 
@@ -109,6 +96,7 @@ smtpd_end_of_data_restrictions = check_policy_service unix:private/policy
 #}
 
 
+
 ### DKIM and DMARC
 
 non_smtpd_milters =
@@ -116,7 +104,7 @@ non_smtpd_milters =
   unix:/run/opendkim/opendkim.sock,
 {% endif %}
 {% if postfix_with_opendmarc %}
-  unix:/run/opendmarc/opendmarc.sock
+  unix:/run/opendmarc/opendmarc.sock,
 {% endif %}
 
 smtpd_milters =
@@ -124,8 +112,22 @@ smtpd_milters =
   unix:/run/opendkim/opendkim.sock,
 {% endif %}
 {% if postfix_with_opendmarc %}
-  unix:/run/opendmarc/opendmarc.sock
+  unix:/run/opendmarc/opendmarc.sock,
 {% endif %}
+
+
+
+### transport configuration
+
+relay_domains =
+  hash:/etc/postfix/transport_maps,
+transport_maps =
+  hash:/etc/postfix/transport_maps,
+{% if postfix_with_sympa %}
+  hash:/etc/postfix/transport.sympa,
+  hash:/var/lib/sympa/transport,
+{% endif %}
+
 
 
 ### Virtual Domain Hosting
@@ -150,7 +152,7 @@ virtual_mailbox_domains =
   proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_domains_maps.cf,
 {% endif %}
 {% if postfix_with_sympa %}
-  hash:/etc/postfix/domains.sympa,
+  hash:/etc/postfix/transport.sympa,
 {% endif %}
 
 virtual_mailbox_maps =
