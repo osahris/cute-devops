@@ -175,3 +175,10 @@ virtual_transport =
 {% if postfix_with_dovecot_lmtp %}
   lmtp:unix:private/dovecot-lmtp,
 {% endif %}
+
+
+{% if postfix_with_sympa %}
+### sympa
+sympa_destination_recipient_limit = 1
+sympabounce_destination_recipient_limit = 1
+{% endif %}
