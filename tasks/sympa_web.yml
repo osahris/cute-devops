@@ -3,17 +3,20 @@
 - import_role:
     name: apache
 
-- import_role:
+- include_role:
     name: certificate
   vars:
-    certificate_name: "{{sympa_web_domain}}"
-    certificate_common_name: "{{sympa_web_domain}}"
+    certificate_name: "{{virtual_domain}}"
+    certificate_common_name: "{{virtual_domain}}"
     certificate_directory: /etc/ssl
     certificate_key_usage:
       - digitalSignature
       - keyEncipherment
     certificate_extended_key_usage:
       - serverAuth
+  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+  loop_control:
+    loop_var: virtual_domain
 
 - name: Installing Apache2
   apt:

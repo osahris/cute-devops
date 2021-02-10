@@ -1,6 +1,6 @@
 {{ ansible_managed | comment}}
 
-{% for domain in sympa_domains %}
+{% for domain in sympa_domains | union([sympa_main_domain]) %}
 # {{domain}}
 {{domain}}                  error:User unknown in recipient table
 sympa@{{ domain }}          sympa:sympa@{{ domain }}
