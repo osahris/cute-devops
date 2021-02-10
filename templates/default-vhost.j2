@@ -34,6 +34,8 @@
   RewriteRule ^\/\.well-known\/acme-challenge\/ - [L]
   RewriteRule (.*) https://%{SERVER_NAME}$1 [R,L]
 
+  Alias /.well-known/acme-challenge/ /var/www/default/.well-known/acme-challenge/
+
 </VirtualHost>
 
 # vim: syntax=apache ts=4 sw=4 sts=4 sr noet
