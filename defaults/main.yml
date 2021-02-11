@@ -31,6 +31,8 @@ sympa_db_readonly_user: sympareadonly
 sympa_language: 'en_US'
 sympa_log_level: 0
 
+sympa_create_list: listmaster
+
 sympa_web_domain: "{{ sympa_main_domain }}"
 
 sympa_domains: []
