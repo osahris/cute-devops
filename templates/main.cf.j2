@@ -167,14 +167,7 @@ virtual_mailbox_maps =
   hash:/etc/postfix/virtual.sympa,
 {% endif %}
 
-virtual_transport =
-{% if postfix_with_sympa %}
-  hash:/etc/postfix/transport.sympa,
-  hash:/var/lib/sympa/transport,
-{% endif %}
-{% if postfix_with_dovecot_lmtp %}
-  lmtp:unix:private/dovecot-lmtp,
-{% endif %}
+virtual_transport = {{postfix_virtual_transport}}
 
 
 {% if postfix_with_sympa %}

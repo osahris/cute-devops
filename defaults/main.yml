@@ -9,16 +9,15 @@ postfix_postfixadmin_mysql_host: localhost
 postfix_postfixadmin_mysql_database: postfixadmin
 postfix_postfixadmin_mysql_username: postfix
 
+postfix_virtual_transport: lmtp:unix:private/dovecot-lmtp
+
 postfix_check_spf: false
 postfix_check_spamhaus: false
 
 postfix_with_opendkim: false
 postfix_with_opendmarc: false
 
-postfix_virtual_transport:
-
 postfix_submission_service_smtpd_sasl_path: private/auth
-postfix_with_dovecot_lmtp: false
 
 postfix_smtps_service: true
 
