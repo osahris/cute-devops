@@ -1,0 +1,19 @@
+---
+
+- name: sympa sync unix group
+  group:
+    name: "{{ sympa_sync_unix_group }}"
+    state: present
+
+- name: sympa sync unix user
+  user:
+    name: "{{ sympa_sync_unix_user }}"
+    group: "{{ sympa_sync_unix_group }}"
+
+- name: sympa sync ssh directory
+  file:
+    path: ~/.ssh
+    file: directory
+  vars:
+    become: true
+    become_user: "{{ sympa_sync_unix_user }}"

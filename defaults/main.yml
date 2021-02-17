@@ -36,3 +36,6 @@ sympa_create_list: listmaster
 sympa_web_domain: "{{ sympa_main_domain }}"
 
 sympa_domains: []
+
+sympa_sync_unix_user: sympa-sync
+sympa_sync_unix_group: sympa-sync

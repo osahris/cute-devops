@@ -61,3 +61,7 @@
 - name: Enable Sympa startup
   tags: sympa_startup
   import_tasks: sympa_startup.yml
+
+- name: Sympa sync
+  tags: sympa_sync
+  import_tasks: sympa_sync.yaml
