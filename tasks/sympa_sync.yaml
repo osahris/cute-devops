@@ -13,7 +13,7 @@
 - name: sympa sync ssh directory
   file:
     path: ~/.ssh
-    file: directory
+    state: directory
   vars:
     become: true
     become_user: "{{ sympa_sync_unix_user }}"
