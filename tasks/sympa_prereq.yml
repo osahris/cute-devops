@@ -7,6 +7,7 @@
     name:
       - gcc
       - make
+      - postfix
     state: present
 
 - name: Install prerequisites for patching Sympa
