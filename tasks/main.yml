@@ -4,6 +4,7 @@
   apt:
     pkg:
       - postfix
+      #- libsasl2-modules-postfix
 
 - name: mailname
   copy:

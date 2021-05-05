@@ -25,7 +25,7 @@ myhostname = {{mailname}}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 mydestination = $myhostname, {{inventory_hostname}}, localhost.localdomain, localhost
-relayhost =
+relayhost = {{postfix_relayhost}}
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
 mailbox_size_limit = 0
 recipient_delimiter = +
@@ -33,15 +33,28 @@ inet_interfaces = all
 inet_protocols = all
 
 
+{% if postfix_relayhost_auth_enabled %}
+### outgoing relay auth
+# Enable auth
+smtp_sasl_auth_enable = yes
+# Set username and password
+smtp_sasl_password_maps = static:{{postfix_relayhost_auth_user}}:{{postfix_relayhost_auth_pass}}
+smtp_sasl_security_options = noanonymous
+# Turn on tls encryption
+smtp_tls_security_level = encrypt
+header_size_limit = 4096000
+{% endif %}
+
 ### TLS parameters
 
 smtpd_tls_cert_file={{postfix_certificate_fullchain_file}}
 smtpd_tls_key_file={{postfix_certificate_private_key_file}}
 smtpd_use_tls=yes
 smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+{% if not postfix_relayhost_auth_enabled %}
 smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 smtp_tls_security_level = may
-
+{% endif %}
 
 
 ### rules and restricitons
@@ -171,6 +184,7 @@ virtual_transport = {{postfix_virtual_transport}}
 
 
 {% if postfix_with_sympa %}
+
 ### sympa
 sympa_destination_recipient_limit = 1
 sympabounce_destination_recipient_limit = 1
