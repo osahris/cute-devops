@@ -5,6 +5,7 @@
     pkg:
       - postfix
       #- libsasl2-modules-postfix
+      - rsyslog
 
 - name: mailname
   copy:
