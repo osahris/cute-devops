@@ -39,17 +39,4 @@
     </Location>
 
 </VirtualHost>
-
-<VirtualHost *:80>
-
-  ServerAdmin {{ sympa_admin_email }}
-
-  ServerName {{ domain }}
-
-  RewriteEngine On
-  RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R,L]
-
-  Alias /.well-known/acme-challenge/ /var/www/default/.well-known/acme-challenge/
-
-</VirtualHost>
 {% endfor %}
