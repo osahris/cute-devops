@@ -4,7 +4,7 @@
 - name: Install Ansible prerequisites for MySQL modules
   apt:
     name:
-      - python-mysqldb
+      - python3-mysqldb
 
 - name: Create sympa database if needed
   mysql_db:

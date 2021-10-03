@@ -6,7 +6,7 @@
     name:
       - postgresql
       - libpq-dev
-      - python-psycopg2 # Required by Ansible
+      - python3-psycopg2 # Required by Ansible
     state: present
 
 - name: Create PostgreSQL database for Sympa
