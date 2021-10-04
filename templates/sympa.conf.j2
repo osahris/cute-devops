@@ -299,7 +299,7 @@ default_ttl	3600
 
 ## Default timeout between two action-triggered synchronizations of list
 ## members with data sources.
-default_distribution_ttl	300
+default_distribution_ttl	30
 
 ## Default timeout while performing a fetch for an include_sql_query sync
 default_sql_fetch_timeout	300
@@ -307,7 +307,7 @@ default_sql_fetch_timeout	300
 ###\\\\ S/MIME configuration ////###
 
 ## File containing trusted CA certificates
-cafile	{{ sympa_install_directory }}/default/ca-bundle.crt
+cafile /etc/ssl/certs/ca-certificates.crt
 
 ## Directory containing user certificates
 ssl_cert_dir	{{ sympa_install_directory }}/list_data/X509-user-certs
