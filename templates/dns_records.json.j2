@@ -1,7 +1,5 @@
 {
 {% for dkim_domain in dkim_domains %}
-"{{dkim_domain}}":
-{% set key = _dkim_public_keys[dkim_domain] %}
-"{{dkim_selector}}._domainkey IN TXT \"v=DKIM1; h=sha256; k=rsa; \" \"p={{key[0:253]}}\"{% for n in range((((key|length)-253)/255)|round|int) %} \"{{key[253+n*255:253+(n+1)*255]}}\"{% endfor %}"
+"{{dkim_selector}}._domainkey.{{dkim_domain}}": "v=DKIM1; h=sha256; k=rsa; p={{_dkim_public_keys[dkim_domain]}}",
 {% endfor %}
 }

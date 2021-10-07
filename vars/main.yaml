@@ -1,3 +1,4 @@
 ---
 _dkim_public_keys: "{{ lookup('template','public_keys.json.j2') }}"
 _dkim_dns_records: "{{ lookup('template','dns_records.json.j2') }}"
+_dkim_dns_splitted_records: "{{ lookup('template','dns_splitted_records.json.j2') }}"

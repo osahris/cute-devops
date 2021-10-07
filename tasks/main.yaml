@@ -61,6 +61,10 @@
   debug:
     msg: "{{_dkim_dns_records}}"
 
+- name: show dkim splitted dns records
+  debug:
+    msg: "{{_dkim_dns_splitted_records}}"
+
 - name: opendkim key table
   template:
     src: key.table.j2
