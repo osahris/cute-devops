@@ -48,3 +48,11 @@
     owner: sympa
     group: sympa
     mode: 0755
+
+- name: Ensuring bounce directory is there
+  file:
+    path: "{{sympa_bounce_path}}"
+    state: directory
+    owner: sympa
+    group: sympa
+    mode: 0755

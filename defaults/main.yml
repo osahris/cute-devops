@@ -20,6 +20,7 @@ sympa_spool_directory: /var/spool/sympa
 sympa_mail_alias_file: "{{ sympa_lib_directory }}/transport"
 sympa_lists_path: /var/lib/sympa/lists
 sympa_arc_path: /var/lib/sympa/archives
+sympa_bounce_path: /var/lib/sympa/bounce
 
 sympa_sympasoap_enabled: false
 
