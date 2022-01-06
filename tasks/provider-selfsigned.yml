@@ -24,6 +24,12 @@
   notify: certificate changed
   when: _certificate_checkend.rc == 1
 
+- name: link certificate chain file
+  file:
+    src: "{{ certificate_file }}"
+    dest: "{{ certificate_chain_file }}"
+    state: link
+
 - name: link full certificate chain file
   file:
     src: "{{ certificate_file }}"
