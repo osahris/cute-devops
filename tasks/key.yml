@@ -1,5 +1,14 @@
 ---
 
+- name: dir for private key file
+  ansible.builtin.file:
+    path: "{{ certificate_private_key_file | dirname }}"
+    state: directory
+    # TODO: these are the debian default perms; check if they are generically applicable for us
+    owner: root
+    group: ssl-cert
+    mode: "0710"
+
 - name: private key
   command: openssl genrsa
     -out "{{certificate_private_key_file}}"
