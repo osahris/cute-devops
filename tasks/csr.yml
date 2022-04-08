@@ -1,5 +1,13 @@
 ---
 
+- name: dirs for CSR files
+  loop:
+    - "{{ certificate_signing_request_config_file | dirname }}"
+    - "{{ certificate_signing_request_file | dirname }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+
 - name: certificate signing request config
   template:
     src: csr.cnf.j2
