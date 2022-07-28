@@ -1,5 +1,0 @@
----
-
-- include_tasks: setup-{{ansible_os_family}}.yml
-
-- include_tasks: configure.yml
