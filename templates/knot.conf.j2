@@ -4,7 +4,7 @@ server:
     listen: ::@53
 {% else %}
 {% for ip in nameserver_ips %}
-    listen: {{ip|ipaddr('address')}}@53
+    listen: {{ip|ansible.utils.ipaddr('address')}}@53
 {% endfor %}
 {% endif %}
     user: knot:knot
@@ -17,7 +17,7 @@ template:
   - id: slave
     storage: /var/lib/knot/slave
 {% if nameserver_zonefile_directory is defined %}
-  - id: managed
+  - id: default
     storage: {{nameserver_zonefile_directory}}
     semantic-checks: on
 {% endif %}
@@ -65,11 +65,10 @@ acl:
 zone:
 {% if nameserver_zones is defined %}
 {% for zone in nameserver_zones %}
-{% if zone.type|default('managed') != 'slave' %}
+{% if not 'type' in zone %}
   - domain: {{zone.domain}}
-    template: managed
     file: {{zone.domain}}.zone
-{% elif zone.type|default('managed') == 'slave' %}
+{% elif zone.type == 'slave' %}
   - domain: {{zone.domain}}
     template: slave
     master: {{zone.domain}}/master
