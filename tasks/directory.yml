@@ -20,6 +20,6 @@
     path: "{{ certificate_directory }}/private"
     # TODO: these are the debian default perms; check if they are generically applicable for us
     owner: root
-    group: ssl-cert
+    #group: ssl-cert
     mode: 0710
 
