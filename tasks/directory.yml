@@ -18,5 +18,8 @@
 - name: private directory
   file:
     path: "{{ certificate_directory }}/private"
-    mode: 0750
-    state: directory
+    # TODO: these are the debian default perms; check if they are generically applicable for us
+    owner: root
+    group: ssl-cert
+    mode: 0710
+
