@@ -3,3 +3,4 @@
 - include_tasks: setup-{{ansible_os_family}}.yaml
 
 - import_tasks: configure.yaml
+  tags: knot-config
