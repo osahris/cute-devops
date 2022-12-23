@@ -14,8 +14,8 @@ log:
     any: info
 
 template:
-  - id: slave
-    storage: /var/lib/knot/slave
+  - id: secondary
+    storage: /var/lib/knot/secondary
 {% if nameserver_zonefile_directory is defined %}
   - id: default
     storage: {{nameserver_zonefile_directory}}
@@ -25,19 +25,19 @@ template:
 remote:
 {% if nameserver_zones is defined %}
 {% for zone in nameserver_zones %}
-{% if zone.type|default('managed') == 'slave' %}
-  - id: {{zone.domain}}/master
-    address: {{zone.master.ip}}
-{% if zone.master.via is defined%}
-    via: {{zone.master.via}}
+{% if zone.type|default('managed') == 'secondary' %}
+  - id: {{zone.domain}}/primary
+    address: {{zone.primary.ip}}
+{% if zone.primary.via is defined %}
+    via: {{zone.primary.via}}
 {% endif %}
 {% endif %}
-{% if zone.slaves is defined %}
-{% for slave in zone.slaves %}
-  - id: {{zone.domain}}/slave/{{slave.name}}
-    address: {{slave.ip}}
-{% if slave.via is defined%}
-    via: {{slave.via}}
+{% if zone.secondaries is defined %}
+{% for secondary in zone.secondaries %}
+  - id: {{zone.domain}}/secondary/{{secondary.name}}
+    address: {{secondary.ip}}
+{% if secondary.via is defined%}
+    via: {{secondary.via}}
 {% endif %}
 {% endfor %}
 {% endif %}
@@ -47,15 +47,15 @@ remote:
 acl:
 {% if nameserver_zones is defined %}
 {% for zone in nameserver_zones %}
-{% if zone.type|default('managed') == 'slave' %}
-  - id: {{zone.domain}}/master/allow_notify
-    address: {{zone.master.ip}}
+{% if zone.type|default('managed') == 'secondary' %}
+  - id: {{zone.domain}}/primary/allow_notify
+    address: {{zone.primary.ip}}
     action: notify
 {% endif %}
-{% if zone.slaves is defined %}
-{% for slave in zone.slaves %}
-  - id: {{zone.domain}}/slave/{{slave.name}}/allow_transfer
-    address: {{slave.ip}}
+{% if zone.secondaries is defined %}
+{% for secondary in zone.secondaries %}
+  - id: {{zone.domain}}/secondary/{{secondary.name}}/allow_transfer
+    address: {{secondary.ip}}
     action: transfer
 {% endfor %}
 {% endif %}
@@ -68,17 +68,17 @@ zone:
 {% if not 'type' in zone %}
   - domain: {{zone.domain}}
     file: {{zone.domain}}.zone
-{% elif zone.type == 'slave' %}
+{% elif zone.type == 'secondary' %}
   - domain: {{zone.domain}}
-    template: slave
-    master: {{zone.domain}}/master
+    template: secondary
+    master: {{zone.domain}}/primary
     file: {{zone.domain}}.zone
-    acl: {{zone.domain}}/master/allow_notify
+    acl: {{zone.domain}}/primary/allow_notify
 {% endif %}
-{% if zone.slaves is defined %}
-{% for slave in zone.slaves %}
-    notify: {{zone.domain}}/slave/{{slave.name}}
-    acl: {{zone.domain}}/slave/{{slave.name}}/allow_transfer
+{% if zone.secondaries is defined %}
+{% for secondary in zone.secondaries %}
+    notify: {{zone.domain}}/secondary/{{secondary.name}}
+    acl: {{zone.domain}}/secondary/{{secondary.name}}/allow_transfer
 {% endfor %}
 {% endif %}
 {% endfor %}
