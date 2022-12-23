@@ -12,5 +12,6 @@
     state: restarted
 
 - name: check zones
-  command: knotc zone-check {{item.domain}}
+  command: kzonecheck {{item.domain}}
   loop: "{{nameserver_zones}}"
+  
