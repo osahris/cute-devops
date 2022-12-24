@@ -1,43 +1,43 @@
 server:
 {% if not nameserver_ips is defined%}
-    listen: 0.0.0.0@53
-    listen: ::@53
+  listen: 0.0.0.0@53
+  listen: ::@53
 {% else %}
 {% for ip in nameserver_ips %}
-    listen: {{ip|ansible.utils.ipaddr('address')}}@53
+  listen: {{ip|ansible.utils.ipaddr('address')}}@53
 {% endfor %}
 {% endif %}
-    user: knot:knot
+  user: knot:knot
 
 log:
-  - target: syslog
-    any: info
+- target: syslog
+  any: info
 
 template:
-  - id: secondary
-    storage: /var/lib/knot/secondary
+- id: secondary
+  storage: /var/lib/knot/secondary
 {% if nameserver_zonefile_directory is defined %}
-  - id: default
-    storage: {{nameserver_zonefile_directory}}
-    semantic-checks: on
+- id: default
+  storage: {{nameserver_zonefile_directory}}
+  semantic-checks: on
 {% endif %}
 
 remote:
 {% if nameserver_zones is defined %}
 {% for zone in nameserver_zones %}
 {% if zone.type|default('managed') == 'secondary' %}
-  - id: {{zone.domain}}/primary
-    address: {{zone.primary.ip}}
+- id: {{zone.domain}}/primary
+  address: {{zone.primary.ip}}
 {% if zone.primary.via is defined %}
-    via: {{zone.primary.via}}
+  via: {{zone.primary.via}}
 {% endif %}
 {% endif %}
 {% if zone.secondaries is defined %}
 {% for secondary in zone.secondaries %}
-  - id: {{zone.domain}}/secondary/{{secondary.name}}
-    address: {{secondary.ip}}
+- id: {{zone.domain}}/secondary/{{secondary.name}}
+  address: {{secondary.ip}}
 {% if secondary.via is defined%}
-    via: {{secondary.via}}
+  via: {{secondary.via}}
 {% endif %}
 {% endfor %}
 {% endif %}
@@ -48,15 +48,15 @@ acl:
 {% if nameserver_zones is defined %}
 {% for zone in nameserver_zones %}
 {% if zone.type|default('managed') == 'secondary' %}
-  - id: {{zone.domain}}/primary/allow_notify
-    address: {{zone.primary.ip}}
-    action: notify
+- id: {{zone.domain}}/primary/allow_notify
+  address: {{zone.primary.ip}}
+  action: notify
 {% endif %}
 {% if zone.secondaries is defined %}
 {% for secondary in zone.secondaries %}
-  - id: {{zone.domain}}/secondary/{{secondary.name}}/allow_transfer
-    address: {{secondary.ip}}
-    action: transfer
+- id: {{zone.domain}}/secondary/{{secondary.name}}/allow_transfer
+  address: {{secondary.ip}}
+  action: transfer
 {% endfor %}
 {% endif %}
 {% endfor %}
@@ -66,19 +66,19 @@ zone:
 {% if nameserver_zones is defined %}
 {% for zone in nameserver_zones %}
 {% if not 'type' in zone %}
-  - domain: {{zone.domain}}
-    file: {{zone.domain}}.zone
+- domain: {{zone.domain}}
+  file: {{zone.domain}}.zone
 {% elif zone.type == 'secondary' %}
-  - domain: {{zone.domain}}
-    template: secondary
-    master: {{zone.domain}}/primary
-    file: {{zone.domain}}.zone
-    acl: {{zone.domain}}/primary/allow_notify
+- domain: {{zone.domain}}
+  template: secondary
+  master: {{zone.domain}}/primary
+  file: {{zone.domain}}.zone
+  acl: {{zone.domain}}/primary/allow_notify
 {% endif %}
 {% if zone.secondaries is defined %}
 {% for secondary in zone.secondaries %}
-    notify: {{zone.domain}}/secondary/{{secondary.name}}
-    acl: {{zone.domain}}/secondary/{{secondary.name}}/allow_transfer
+  notify: {{zone.domain}}/secondary/{{secondary.name}}
+  acl: {{zone.domain}}/secondary/{{secondary.name}}/allow_transfer
 {% endfor %}
 {% endif %}
 {% endfor %}
