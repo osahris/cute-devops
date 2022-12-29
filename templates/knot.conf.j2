@@ -36,7 +36,7 @@ remote:
 {% for secondary in zone.secondaries %}
 - id: {{zone.domain}}/secondary/{{secondary.name}}
   address: {{secondary.ip}}
-{% if secondary.via is defined%}
+{% if secondary.via is defined %}
   via: {{secondary.via}}
 {% endif %}
 {% endfor %}

@@ -1,0 +1,11 @@
+---
+
+- name: copy zonefiles
+  copy:
+    src: zonefiles/{{zone.domain}}.zone
+    dest: /etc/zonefiles/{{zone.domain}}.zone
+  notify: "knot : reload knot"
+  loop: "{{ nameserver_zones }}"
+  loop_control:
+    loop_var: zone
+    label: "{{ zone.domain }}"

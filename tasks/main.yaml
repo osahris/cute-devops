@@ -4,3 +4,7 @@
 
 - import_tasks: configure.yaml
   tags: knot-config
+
+- import_tasks: zonefiles.yaml
+
+- import_tasks: check.yaml
