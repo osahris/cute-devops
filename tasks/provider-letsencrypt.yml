@@ -45,6 +45,7 @@
         acme_version: 2
         terms_agreed: yes
         data: "{{ _letsencrypt_request }}"
+        remaining_days : 30
       register: _letsencrypt
       
   when: _letsencrypt_request.changed
