@@ -1,0 +1,7 @@
+{{ansible_managed|comment}}
+
+{% if postfix_virtual_alias_domains is defined %}
+{% for domain in postfix_virtual_alias_domains %}
+{{domain}}  OK
+{% endfor %}
+{% endif %}

@@ -1,0 +1,21 @@
+---
+
+- import_role:
+    name: opendkim
+  vars:
+    opendkim_socket: local:/var/spool/postfix/run/opendkim/opendkim.sock
+
+- name: opendkim run directory in postfix spool
+  file:
+    path: /var/spool/postfix/run/opendkim
+    state: directory
+    owner: opendkim
+    group: opendkim
+    mode: 0755
+
+- name: ensure postfix user is in opendkim group
+  user:
+    name: postfix
+    groups: opendkim
+    append: true
+  notify: restart postfix

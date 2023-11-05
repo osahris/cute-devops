@@ -1,0 +1,72 @@
+---
+
+- name: install packages
+  apt:
+    pkg:
+      - postfix
+      #- libsasl2-modules-postfix
+      - rsyslog
+
+- name: mailname
+  copy:
+    content: "{{mailname}}"
+    dest: /etc/mailname
+  notify: reload postfix
+
+- name: master configuration
+  template:
+    src: master.cf.j2
+    dest: /etc/postfix/master.cf
+  notify: restart postfix
+
+- name: main configuration
+  template:
+    src: main.cf.j2
+    dest: /etc/postfix/main.cf
+  notify: reload postfix
+
+- name: postfix transport_maps
+  template:
+    src: transport_maps.j2
+    dest: /etc/postfix/transport_maps
+  notify: postmap transport_maps
+
+- name: postfix virtual_alias_domains
+  template:
+    src: virtual_alias_domains.j2
+    dest: /etc/postfix/virtual_alias_domains
+  notify: postmap virtual_alias_domains
+
+- name: postfix virtual_alias_maps
+  template:
+    src: virtual_alias_maps.j2
+    dest: /etc/postfix/virtual_alias_maps
+  notify: postmap virtual_alias_maps
+
+- name: postfix virtual_mailbox_domains
+  template:
+    src: virtual_mailbox_domains.j2
+    dest: /etc/postfix/virtual_mailbox_domains
+  notify: postmap virtual_mailbox_domains
+
+- name: postfix virtual_mailbox_maps
+  template:
+    src: virtual_mailbox_maps.j2
+    dest: /etc/postfix/virtual_mailbox_maps
+  notify: postmap virtual_mailbox_maps
+
+- import_tasks: spf.yaml
+  when: postfix_check_spf
+
+- import_tasks: opendkim.yaml
+  when: postfix_with_opendkim
+
+- import_tasks: opendmarc.yaml
+  when: postfix_with_opendmarc
+
+- import_tasks: postfixadmin.yml
+  when: postfix_with_postfixadmin
+
+- name: check postfix configuration
+  command: postfix check
+  changed_when: false
