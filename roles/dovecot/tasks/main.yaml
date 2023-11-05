@@ -1,0 +1,43 @@
+---
+
+- name: install packages
+  apt:
+    pkg:
+      - dovecot-imapd
+      - dovecot-lmtpd
+      - dovecot-mysql
+      - ssl-cert
+  notify:
+    - reload dovecot
+
+- name: vmail group
+  group:
+    name: vmail
+    gid: "{{vmail_gid}}"
+    system: yes
+
+- name: vmail user
+  user:
+    name: vmail
+    uid: "{{vmail_uid}}"
+    group: vmail
+    system: yes
+    home: /home/vmail
+
+- name: dovecot configuration files
+  template:
+    src: "{{ item }}.j2"
+    dest: /etc/dovecot/{{ item }}
+  with_items:
+    - dovecot.conf
+    - conf.d/10-master.conf
+    - conf.d/10-mail.conf
+    - conf.d/10-auth.conf
+    - conf.d/auth-{{dovecot_auth}}.conf.ext
+    - conf.d/10-ssl.conf
+    - conf.d/20-lmtp.conf
+    - conf.d/90-plugin.conf
+  notify:
+    - reload dovecot
+
+- include_tasks: auth/{{dovecot_auth}}.yaml
