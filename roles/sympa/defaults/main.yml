@@ -1,0 +1,42 @@
+---
+
+sympa_admin_email: "{{ admin_email }}"
+sympa_listmaster_emails:
+  - "{{ sympa_admin_email }}"
+
+sympa_unix_user: sympa
+sympa_unix_group: sympa
+sympa_repository: https://github.com/sympa-community/sympa.git
+sympa_repository_version: sympa-6.2
+sympa_install_from_repository: false
+sympa_source: https://github.com/sympa-community/sympa/releases/download/
+sympa_version: 6.2.60
+sympa_apply_patches: true
+
+sympa_install_directory: /opt/sympa
+sympa_config_directory: "{{ sympa_install_directory }}/etc"
+sympa_lib_directory: /var/lib/sympa
+sympa_spool_directory: /var/spool/sympa
+sympa_mail_alias_file: "{{ sympa_lib_directory }}/transport"
+sympa_lists_path: /var/lib/sympa/lists
+sympa_arc_path: /var/lib/sympa/archives
+sympa_bounce_path: /var/lib/sympa/bounce
+
+sympa_sympasoap_enabled: false
+
+sympa_db_type: mysql
+sympa_db_name: sympa
+sympa_db_app_user: sympa
+sympa_db_readonly_user: sympareadonly
+
+sympa_language: 'en_US'
+sympa_log_level: 0
+
+sympa_create_list: listmaster
+
+sympa_web_domain: "{{ sympa_main_domain }}"
+
+sympa_domains: []
+
+sympa_sync_unix_user: sympa-sync
+sympa_sync_unix_group: sympa-sync

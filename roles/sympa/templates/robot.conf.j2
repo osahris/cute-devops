@@ -1,0 +1,10 @@
+## configuration for virtual robot {{ robot_domain }}
+
+wwsympa_url     https://{{ robot_domain }}/sympa
+soap_url	      https://{{ robot_domain }}/sympasoap
+cookie_domain   {{ robot_domain }}
+listmaster      {{ sympa_listmaster_emails | join(',') }}
+create_list	public_listmaster
+default_home    lists
+title           {{ robot_domain }}
+lang	{{ sympa_language }}

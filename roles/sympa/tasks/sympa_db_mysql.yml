@@ -1,0 +1,19 @@
+---
+# Install and configure Sympa database
+
+- name: Install Ansible prerequisites for MySQL modules
+  apt:
+    name:
+      - python3-mysqldb
+
+- name: Create sympa database if needed
+  mysql_db:
+    name: "{{ sympa_db_name }}"
+    state: present
+
+- name: Configure sympa user for MySQL server
+  mysql_user:
+    name: "{{ sympa_db_app_user }}"
+    password: "{{ sympa_db_app_password }}"
+    host: localhost
+    priv: "sympa.*:ALL"

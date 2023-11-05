@@ -1,0 +1,67 @@
+---
+
+- name: sympa unix group
+  group:
+    name: "{{ sympa_unix_group }}"
+    state: present
+
+- name: sympa unix user
+  user:
+    name: "{{ sympa_unix_user }}"
+    group: "{{ sympa_unix_group }}"
+
+- name: Install prerequisites for Sympa
+  tags: sympa_prereq
+  import_tasks: sympa_prereq.yml
+
+- name: Install and configure database
+  tags: sympa_db
+  include_tasks: "sympa_db_{{ sympa_db_type | lower }}.yml"
+
+- name: Getting source folder name
+  tags: always
+  include_vars: source_dir_repo.yml
+  when: sympa_install_from_repository
+
+- name: Getting source folder name
+  tags: always
+  include_vars: source_dir_tgz.yml
+  when: not sympa_install_from_repository
+
+- name: Download Sympa sources
+  tags: sympa_install
+  import_tasks: sympa_install/get_sources.yml
+
+- name: Install Sympa software
+  tags: sympa_install, reinstall
+  import_tasks: sympa_install/deploy.yml
+
+- name: Sympa post-install operations
+  tags: sympa_install
+  import_tasks: sympa_install/post_install.yml
+
+- name: Configure postfix and mail aliases
+  tags: sympa_mail
+  import_tasks: sympa_mail.yml
+
+- name: Configure Apache
+  tags: sympa_web
+  import_tasks: sympa_web.yml
+
+## Here we use loop_var to prevent conflicts on item var name with outer loops
+- name: Install and configure Sympa virtual robots
+  tags: virtual_hosts
+  include_tasks: sympa_robot.yaml
+  vars:
+    robot: "{{ robot_domain }}"
+  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+  loop_control:
+    loop_var: robot_domain
+
+- name: Enable Sympa startup
+  tags: sympa_startup
+  import_tasks: sympa_startup.yml
+
+- name: Sympa sync
+  tags: sympa_sync
+  import_tasks: sympa_sync.yaml
