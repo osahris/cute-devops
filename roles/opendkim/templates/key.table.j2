@@ -1,0 +1,11 @@
+{{ansible_managed|comment}}
+
+# dkim_domains
+{% for domain in dkim_domains %}
+{{ domain }} {{domain}}:{{dkim_selector}}:/etc/opendkim/keys/{{domain}}/{{dkim_selector}}.private
+{% endfor %}
+
+# dkim_cname_domains
+{% for domain in dkim_cname_domains.keys() %}
+{{ domain }} {{domain}}:{{dkim_selector}}:/etc/opendkim/keys/{{dkim_cname_domains[domain]}}/{{dkim_selector}}.private
+{% endfor %}

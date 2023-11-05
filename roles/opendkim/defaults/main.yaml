@@ -1,0 +1,6 @@
+---
+dkim_domains: []
+dkim_cname_domains: {}
+dkim_selector: "{{ inventory_hostname_short }}"
+opendkim_key_size: 2048
+opendkim_socket: local:/var/run/opendkim/opendkim.sock

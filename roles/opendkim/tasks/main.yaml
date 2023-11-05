@@ -1,0 +1,94 @@
+---
+
+- name: opendkim debian packages
+  apt:
+    pkg:
+      - opendkim
+      - opendkim-tools
+      - python-openssl
+
+- name: opendkim config
+  template:
+    src: opendkim.conf.j2
+    dest: /etc/opendkim.conf
+  notify: restart opendkim
+
+- name: opendkim config directory
+  file:
+    path: /etc/opendkim
+    state: directory
+    owner: opendkim
+    group: opendkim
+    mode: 0755
+  with_items: "{{dkim_domains}}"
+
+- name: dkim keys directories
+  file:
+    path: /etc/opendkim/keys/{{item}}
+    state: directory
+    owner: opendkim
+    group: opendkim
+    mode: 0700
+  with_items: "{{dkim_domains}}"
+
+- name: dkim private keys
+  openssl_privatekey:
+    path: /etc/opendkim/keys/{{item}}/{{dkim_selector}}.private
+    size: "{{opendkim_key_size}}"
+    owner: opendkim
+    group: opendkim
+    mode: 0600
+  with_items: "{{dkim_domains}}"
+  notify: reload opendkim
+
+- name: dkim public keys
+  openssl_publickey:
+    privatekey_path: /etc/opendkim/keys/{{item}}/{{dkim_selector}}.private
+    path: /etc/opendkim/keys/{{item}}/{{dkim_selector}}.public
+    owner: opendkim
+    group: opendkim
+    mode: 0600
+  with_items: "{{dkim_domains}}"
+  notify: reload opendkim
+
+- name: read dkim public keys
+  command: cat /etc/opendkim/keys/{{item}}/{{dkim_selector}}.public
+  with_items: "{{dkim_domains}}"
+  changed_when: false
+  register: _opendkim_read_public_key
+
+- name: show dkim dns records
+  debug:
+    msg: "{{_dkim_dns_records}}"
+
+- name: show dkim splitted dns records
+  debug:
+    msg: "{{_dkim_dns_splitted_records}}"
+
+- name: opendkim key table
+  template:
+    src: key.table.j2
+    dest: /etc/opendkim/key.table
+    group: opendkim
+    mode: 0640
+  notify: reload opendkim
+
+- name: opendkim signing table
+  template:
+    src: signing.table.j2
+    dest: /etc/opendkim/signing.table
+    group: opendkim
+    mode: 0640
+  notify: reload opendkim
+
+- name: opendkim trusted hosts
+  template:
+    src: trusted.hosts.j2
+    dest: /etc/opendkim/trusted.hosts
+    group: opendkim
+    mode: 0640
+  notify: reload opendkim
+
+- name: test opendkim configuration
+  command: opendkim -n
+  changed_when: false
