@@ -1,0 +1,5 @@
+---
+- hosts: mailservers
+  become: true
+  roles:
+    - role: rps_package_mail
