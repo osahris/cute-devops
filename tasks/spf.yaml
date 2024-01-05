@@ -1,5 +1,0 @@
----
-
-- name: postfix debian packages for SPF
-  apt:
-    pkg: postfix-policyd-spf-python

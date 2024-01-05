@@ -1,7 +1,0 @@
-{{ansible_managed|comment}}
-
-{% if postfix_transport_maps is defined %}
-{% for m in postfix_transport_maps %}
-{{m.domain}}  {{m.transport}}
-{% endfor %}
-{% endif %}

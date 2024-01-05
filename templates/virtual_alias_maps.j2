@@ -1,8 +1,0 @@
-{{ansible_managed|comment}}
-
-{% if postfix_virtual_alias_maps is defined %}
-{% for from in postfix_virtual_alias_maps %}
-{% set to = postfix_virtual_alias_maps[from] %}
-{{from}}  {{to}}
-{% endfor %}
-{% endif %}

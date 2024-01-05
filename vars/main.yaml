@@ -1,3 +1,0 @@
-postfix_smtpd_recipient_restrictions:
-  - permit_mynetworks
-  - permit_sasl_authenticated

@@ -1,6 +1,0 @@
-# handles catch-all settings of target-domain
-user = {{postfix_postfixadmin_mysql_username}}
-password = {{postfix_postfixadmin_mysql_password}}
-hosts = {{postfix_postfixadmin_mysql_host}}
-dbname = {{postfix_postfixadmin_mysql_database}}
-query  = SELECT goto FROM alias,alias_domain WHERE alias_domain.alias_domain = '%d' and alias.address = CONCAT('@', alias_domain.target_domain) AND alias.active = 1 AND alias_domain.active='1'
