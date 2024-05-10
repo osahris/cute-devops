@@ -7,6 +7,7 @@
       - dovecot-lmtpd
       - dovecot-mysql
       - ssl-cert
+      - python3-pymysql
   notify:
     - reload dovecot
 
