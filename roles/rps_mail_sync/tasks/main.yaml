@@ -1,0 +1,13 @@
+---
+
+- name: Install required debian packages
+  apt:
+    pkg:
+      - python3-pip
+      - python3-virtualenv
+      - git
+
+- name: Install rps-admin-tools pip package from git repo
+  pip:
+    name: git+https://gitlab.com/idcohorts/rps/rps-admin-tools.git#{{ rps_mail_sync_admin_tools_version }}
+    virtualenv: /opt/rps-admin-tools

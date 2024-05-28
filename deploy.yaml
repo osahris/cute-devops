@@ -2,4 +2,5 @@
 - hosts: mailservers
   become: true
   roles:
-    - role: dovecot
+    #- role: dovecot
+    - role: rps_mail_sync
