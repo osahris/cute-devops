@@ -1,0 +1,6 @@
+[
+"CA:{{certificate_authority|ternary('TRUE','FALSE')}}",
+{% if certificate_pathlen is defined %}
+"pathlen:{{certificate_pathlen}}",
+{% endif %}
+]
