@@ -1,0 +1,46 @@
+---
+
+- name: sympa unix group
+  group:
+    name: "{{ sympa_unix_group }}"
+    state: present
+
+- name: sympa unix user
+  user:
+    name: "{{ sympa_unix_user }}"
+    group: "{{ sympa_unix_group }}"
+
+- name: Install prerequisites for Sympa
+  tags: sympa-setup
+  import_tasks: setup.yaml
+
+- name: Install and configure database
+  tags: sympa-db
+  import_tasks: db.yaml
+
+
+- name: Sympa post-install operations
+  tags: sympa-config
+  import_tasks: config.yaml
+
+- name: Configure postfix and mail aliases
+  tags: sympa-mail
+  import_tasks: mail.yaml
+
+- name: Configure Apache
+  tags: sympa-web
+  import_tasks: web.yaml
+
+## Here we use loop_var to prevent conflicts on item var name with outer loops
+- name: Install and configure Sympa virtual robots
+  tags: virtual_hosts
+  include_tasks: sympa_robot.yaml
+  vars:
+    robot: "{{ robot_domain }}"
+  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+  loop_control:
+    loop_var: robot_domain
+
+- name: Enable Sympa service
+  tags: sympa-service
+  import_tasks: service.yaml

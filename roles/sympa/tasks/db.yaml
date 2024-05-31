@@ -1,14 +1,6 @@
 ---
 # Install and configure Sympa database
 
-- name: Install required packages for PostgreSQL
-  apt:
-    name:
-      - postgresql
-      - libpq-dev
-      - python3-psycopg2 # Required by Ansible
-    state: present
-
 - name: Create PostgreSQL database for Sympa
   postgresql_db:
     name: sympa

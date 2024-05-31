@@ -1,0 +1,6 @@
+---
+
+- name: Install sympa debian packages
+  apt:
+    pkg:
+      - sympa
