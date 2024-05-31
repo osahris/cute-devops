@@ -1,2 +1,2 @@
 [mailservers]
-mail.dev.research-project-suite.org
+mail-dev.research-project-suite.org ansible_user=root
