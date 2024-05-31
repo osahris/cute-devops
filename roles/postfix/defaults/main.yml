@@ -3,8 +3,8 @@ mailname: "{{inventory_hostname}}"
 postfix_relayhost: null
 postfix_relayhost_auth_enabled: false
 
-postfix_smtp_service: true
-postfix_submission_service: false
+postfix_with_smtp_service: true
+postfix_with_submission_service: false
 
 postfix_with_postfixadmin: false
 postfix_postfixadmin_mysql_host: localhost
@@ -13,15 +13,15 @@ postfix_postfixadmin_mysql_username: postfix
 
 postfix_virtual_transport: lmtp:unix:private/dovecot-lmtp
 
-postfix_check_spf: false
-postfix_check_spamhaus: false
+postfix_with_spf_check: false
+postfix_with_spamhaus_check: false
 
 postfix_with_opendkim: false
 postfix_with_opendmarc: false
 
-postfix_submission_service_smtpd_sasl_path: private/auth
+postfix_with_submission_service_smtpd_sasl_path: private/auth
 
-postfix_smtps_service: true
+postfix_with_smtps_service: true
 
 postfix_certificate_fullchain_file: /etc/ssl/certs/ssl-cert-snakeoil.pem
 postfix_certificate_private_key_file: /etc/ssl/private/ssl-cert-snakeoil.key

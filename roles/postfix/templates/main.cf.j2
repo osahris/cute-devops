@@ -6,7 +6,7 @@
 # line of that file to be used as the name.  The Debian default
 # is /etc/mailname.
 
-smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
+smtpd_banner = {{mailname}} ESMTP $mail_name (Debian/GNU)
 biff = no
 
 # appending .domain is the MUA's job.
@@ -14,17 +14,15 @@ append_dot_mydomain = no
 
 readme_directory = no
 
-# See http://www.postfix.org/COMPATIBILITY_README.html -- default to 2 on
-# fresh installs.
-compatibility_level = 2
+# See http://www.postfix.org/COMPATIBILITY_README.html
+compatibility_level = 3.6
 
 
 ### general settings
 
-myhostname = {{mailname}}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
-mydestination = $myhostname, {% if mailname != inventory_hostname %}{{inventory_hostname}},{% endif %} localhost.localdomain, localhost
+mydestination = {{mailname}}, {% if mailname != inventory_hostname %}{{inventory_hostname}},{% endif %} localhost.localdomain, localhost
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
 mailbox_size_limit = 0
 recipient_delimiter = +
@@ -83,10 +81,10 @@ message_size_limit = 52428800
 smtpd_recipient_restrictions =
   permit_mynetworks,
   permit_sasl_authenticated,
-{% if postfix_check_spf %}
+{% if postfix_with_spf_check %}
   check_policy_service unix:private/policyd-spf,
 {% endif %}
-{% if postfix_check_spamhaus %}
+{% if postfix_with_spamhaus_check %}
   reject_rbl_client zen.spamhaus.org,
   reject_rhsbl_reverse_client dbl.spamhaus.org,
   reject_rhsbl_helo dbl.spamhaus.org,
@@ -101,10 +99,6 @@ smtpd_relay_restrictions =
 
 # Block clients that speak too early.
 smtpd_data_restrictions = reject_unauth_pipelining
-
-{% if postfix_check_spf %}
-policy-spf_time_limit = 3600
-{% endif %}
 
 {#
 # Enforce mail volume quota via policy service callouts.

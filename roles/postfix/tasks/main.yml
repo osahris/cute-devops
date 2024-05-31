@@ -56,7 +56,7 @@
   notify: postmap virtual_mailbox_maps
 
 - import_tasks: spf.yaml
-  when: postfix_check_spf
+  when: postfix_with_spf_check
 
 - import_tasks: opendkim.yaml
   when: postfix_with_opendkim

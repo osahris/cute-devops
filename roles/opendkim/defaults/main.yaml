@@ -1,5 +1,6 @@
 ---
-dkim_domains: []
+dkim_domains:
+  - "{{ mailname }}"
 dkim_cname_domains: {}
 dkim_selector: "{{ inventory_hostname_short }}"
 opendkim_key_size: 2048
