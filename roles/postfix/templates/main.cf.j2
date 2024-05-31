@@ -24,24 +24,29 @@ compatibility_level = 2
 myhostname = {{mailname}}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
-mydestination = $myhostname, {{inventory_hostname}}, localhost.localdomain, localhost
-relayhost = {{postfix_relayhost}}
+mydestination = $myhostname, {% if mailname != inventory_hostname %}{{inventory_hostname}},{% endif %} localhost.localdomain, localhost
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
 mailbox_size_limit = 0
 recipient_delimiter = +
 inet_interfaces = all
 inet_protocols = all
 
-
+### outgoing relay
+{% if postfix_relayhost %}
+relayhost = {{postfix_relayhost}}
 {% if postfix_relayhost_auth_enabled %}
-### outgoing relay auth
-# Enable auth
+## relay auth
 smtp_sasl_auth_enable = yes
 # Set username and password
 smtp_sasl_password_maps = static:{{postfix_relayhost_auth_user}}:{{postfix_relayhost_auth_pass}}
 smtp_sasl_security_options = noanonymous
 # Turn on tls encryption
 #smtp_tls_security_level = encrypt
+{% else %}
+# no relay auth configured
+{% endif %}
+{% else %}
+# no outgoing relayhost configured
 {% endif %}
 
 ### TLS parameters
@@ -85,7 +90,7 @@ smtpd_recipient_restrictions =
   reject_rbl_client zen.spamhaus.org,
   reject_rhsbl_reverse_client dbl.spamhaus.org,
   reject_rhsbl_helo dbl.spamhaus.org,
-  reject_rhsbl_sender dbl.spamhaus.org
+  reject_rhsbl_sender dbl.spamhaus.org,
 {% endif %}
 
 # Relay control: local clients and authenticated clients
@@ -182,7 +187,6 @@ virtual_transport = {{postfix_virtual_transport}}
 
 
 {% if postfix_with_sympa %}
-
 ### sympa
 sympa_destination_recipient_limit = 1
 sympabounce_destination_recipient_limit = 1
