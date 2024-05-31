@@ -11,3 +11,9 @@
   pip:
     name: git+https://gitlab.com/idcohorts/rps/rps-admin-tools.git#{{ rps_mail_sync_admin_tools_version }}
     virtualenv: /opt/rps-admin-tools
+
+- name: Create symlink for rps-admin command
+  file:
+    src: /opt/rps-admin-tools/bin/rps-admin
+    dest: /usr/local/bin/rps-admin
+    state: link
