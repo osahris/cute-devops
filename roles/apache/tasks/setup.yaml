@@ -1,6 +1,6 @@
 ---
 
-- name: debian packages
+- name: Install required debian packages
   apt:
     pkg:
       - apache2
@@ -10,8 +10,3 @@
   file:
     path: /var/www/html/index.html
     state: absent
-
-- name: make sure default directory exists
-  file:
-    path: /var/www/default/
-    state: directory
