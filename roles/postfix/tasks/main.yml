@@ -6,6 +6,7 @@
       - postfix
       #- libsasl2-modules-postfix
       - rsyslog
+      - mailutils
 
 - name: mailname
   copy:
