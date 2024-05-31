@@ -1,6 +1,6 @@
 mailname: "{{inventory_hostname}}"
 
-postfix_relayhost: ""
+postfix_relayhost: null
 postfix_relayhost_auth_enabled: false
 
 postfix_smtp_service: true
