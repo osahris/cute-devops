@@ -1,86 +1,41 @@
 ---
 
-- import_role:
-    name: apache
+# - include_role:
+#     name: certificate
+#   vars:
+#     certificate_name: "{{virtual_domain}}"
+#     certificate_common_name: "{{virtual_domain}}"
+#     certificate_directory: /etc/ssl
+#     certificate_key_usage:
+#       - digitalSignature
+#       - keyEncipherment
+#     certificate_extended_key_usage:
+#       - serverAuth
+#   loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+#   loop_control:
+#     loop_var: virtual_domain
 
-- include_role:
-    name: certificate
-  vars:
-    certificate_name: "{{virtual_domain}}"
-    certificate_common_name: "{{virtual_domain}}"
-    certificate_directory: /etc/ssl
-    certificate_key_usage:
-      - digitalSignature
-      - keyEncipherment
-    certificate_extended_key_usage:
-      - serverAuth
-  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
-  loop_control:
-    loop_var: virtual_domain
+# - name: apache2 sympa vhost
+#   template:
+#     src: apache/apache_vhost.conf.j2
+#     dest: /etc/apache2/sites-available/sympa.conf
+#   notify: restart apache2
 
-- name: Installing Apache2
-  apt:
-    name:
-      - apache2
-      - libapache2-mod-fcgid
-      - spawn-fcgi
-    state: present
-  tags: apache
+# - name: apache2 sympa vhost enabled
+#   file:
+#     src: ../sites-available/sympa.conf
+#     dest: /etc/apache2/sites-enabled/sympa.conf
+#     state: link
+#   notify: restart apache
 
-- name: install wwsympa service config
-  template: src=fcgi/wwsympa.service.j2 dest=/etc/systemd/system/wwsympa.service
-  tags: apache
-
-- name: start wwsympa
-  systemd:
-    state: started
-    name: wwsympa
-    enabled: yes
-    daemon_reload: yes
-  tags: apache
-
-- name: install sympasoap service config
-  template: src=fcgi/sympasoap.service.j2 dest=/etc/systemd/system/sympasoap.service
-  tags: apache
-
-- name: start sympasoap
-  systemd:
-    state: started
-    name: sympasoap
-    enabled: yes
-    daemon_reload: yes
-  when: sympa_sympasoap_enabled
-  tags: apache
-
-- name: stop sympasoap
-  systemd:
-    state: stopped
-    name: sympasoap
-    enabled: no
-    daemon_reload: yes
-  when: not sympa_sympasoap_enabled
-  tags: apache
-
-- name: apache2 sympa vhost
-  template:
-    src: apache/apache_vhost.conf.j2
-    dest: /etc/apache2/sites-available/sympa.conf
-  notify: restart apache2
-  tags: apache
-
-- name: apache2 sympa vhost enabled
-  file:
-    src: ../sites-available/sympa.conf
-    dest: /etc/apache2/sites-enabled/sympa.conf
-    state: link
-  notify: restart apache2
-  tags: apache
-
-- name: apache2 modules
+- name: Enabe Apache2 proxy_fcgi module
   apache2_module:
-    name: "{{ item }}"
+    name: proxy_fcgi
     state: present
-  with_items:
-    - proxy_fcgi
-    - rewrite
-  notify: restart apache2
+  notify: restart apache
+
+- name: Ensure wwsympa systemd socket is started and enabled
+  systemd:
+    name: wwsympa.socket
+    enabled: yes
+    state: started
