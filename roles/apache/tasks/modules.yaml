@@ -1,10 +1,10 @@
 ---
 
-- name: enable modules
+- name: Enabe modules
   apache2_module:
     name: "{{item}}"
     state: present
   with_items:
     - rewrite
     - ssl
-    - proxy_fcgi
+  notify: restart apache
