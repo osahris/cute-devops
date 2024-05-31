@@ -24,3 +24,5 @@ sympa_domains: []
 
 sympa_sync_unix_user: sympa-sync
 sympa_sync_unix_group: sympa-sync
+
+sympa_postgres_password: "{{ ansible_local.sympa.sympa_postgres_password }}"

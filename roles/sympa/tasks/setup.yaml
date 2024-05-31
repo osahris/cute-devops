@@ -1,5 +1,15 @@
 ---
 
+- name: Preconfigure sympa debconf questions
+  ansible.builtin.debconf:
+    name: sympa
+    question: "{{ item.question }}"
+    value: "{{ item.value }}"
+    vtype: "{{ item.vtype }}"
+  loop: "{{ sympa_debconf }}"
+  loop_control:
+    label: "{{ item.question }}"
+
 - name: Install sympa debian packages
   apt:
     pkg:

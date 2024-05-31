@@ -1,5 +1,9 @@
 ---
 
+- name: Generate Sympa secrets
+  tags: sympa-secrets
+  import_tasks: secrets.yaml
+
 - name: Setup Sympa
   tags: sympa-setup
   import_tasks: setup.yaml
