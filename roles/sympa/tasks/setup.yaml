@@ -12,7 +12,7 @@
     name: sympa
     question: sympa/pgsql/app-pass
     value: "{{ sympa_postgres_password }}"
-    vtype: select
+    vtype: password
   no_log: True
 
 - name: Install sympa debian packages
