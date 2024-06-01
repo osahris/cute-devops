@@ -1,11 +1,4 @@
 ---
-- name: Install list aliases file
-  copy:
-    src: files/list_aliases.tt2
-    dest: "{{ sympa_config_directory }}/list_aliases.tt2"
-    owner: sympa
-    group: sympa
-    mode: 0644
 
 - name: Creating Sympa aliases file (1/2)
   file:
