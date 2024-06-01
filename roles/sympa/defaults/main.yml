@@ -1,6 +1,9 @@
 ---
 
-sympa_admin_email: "{{ admin_email }}"
+mailname: "{{ inventory_hostname }}"
+sympa_main_domain: lists.{{ mailname }}
+
+sympa_admin_email: "{{ admin_email | default('listmaster@'+mailname) }}"
 sympa_listmaster_emails:
   - "{{ sympa_admin_email }}"
 
@@ -12,7 +15,7 @@ sympa_lists_path: /var/lib/sympa/lists
 sympa_arc_path: /var/lib/sympa/archives
 sympa_bounce_path: /var/lib/sympa/bounce
 
-sympa_sympasoap_enabled: false
+sympa_with_sympasoap: false
 
 sympa_language: 'en_US'
 sympa_log_level: 0
