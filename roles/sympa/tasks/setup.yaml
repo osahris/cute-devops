@@ -1,14 +1,19 @@
 ---
 
-- name: Preconfigure sympa debconf questions
+- name: Preconfigure sympa database type with debconf
   ansible.builtin.debconf:
     name: sympa
-    question: "{{ item.question }}"
-    value: "{{ item.value }}"
-    vtype: "{{ item.vtype }}"
-  loop: "{{ sympa_debconf }}"
-  loop_control:
-    label: "{{ item.question }}"
+    question: sympa/database-type
+    value: pgsql
+    vtype: select
+
+- name: Preconfigure sympa database password with debconf
+  ansible.builtin.debconf:
+    name: sympa
+    question: sympa/pgsql/app-pass
+    value: "{{ sympa_postgres_password }}"
+    vtype: select
+  no_log: True
 
 - name: Install sympa debian packages
   apt:
