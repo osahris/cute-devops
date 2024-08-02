@@ -1,0 +1,10 @@
+[Unit]
+Description=RPS-Admin Service (create family.xml)
+Requires=rps-admin@{{virtual_domain}}.service
+
+[Timer]
+Unit=rps-admin@{{virtual_domain}}.service
+OnCalendar=*-*-* *:*:00
+
+[Install]
+WantedBy=timers.target

@@ -9,7 +9,7 @@
 
 - name: Install rps-admin-tools pip package from git repo
   pip:
-    name: git+https://gitlab.com/idcohorts/rps/rps-admin-tools.git#{{ rps_mail_sync_admin_tools_version }}
+    name: git+https://gitlab.com/idcohorts/rps/rps-admin-tools.git@{{ rps_mail_sync_admin_tools_version }}
     virtualenv: /opt/rps-admin-tools
 
 - name: Create symlink for rps-admin command
@@ -17,3 +17,17 @@
     src: /opt/rps-admin-tools/bin/rps-admin
     dest: /usr/local/bin/rps-admin
     state: link
+
+- name: loop over sympa_domains to create directories
+  include_tasks: create-envs.yaml
+  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+  loop_control:
+    loop_var: virtual_domain
+    index_var: virtual_domain_index
+
+- name: loop over sympa_domains to create systemd services
+  include_tasks: create-systemd.yaml
+  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+  loop_control:
+    loop_var: virtual_domain
+    index_var: virtual_domain_index

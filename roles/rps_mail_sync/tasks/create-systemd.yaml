@@ -1,0 +1,23 @@
+---
+
+- name: template rps-admin@.service
+  template:
+    src: rps-admin@.service.j2
+    dest: /usr/lib/systemd/system/rps-admin@.service
+
+- name: template rps-admin@.timer
+  template:
+    src: rps-admin@.timer.j2
+    dest: /usr/lib/systemd/system/rps-admin@{{virtual_domain}}.timer
+
+- name: enable rps-admin@{{virtual_domain}}.timer
+  command: systemctl enable rps-admin@{{virtual_domain}}.timer
+
+- name: enable rps-admin@{{virtual_domain}}.service
+  command: systemctl enable rps-admin@{{virtual_domain}}.service
+
+- name: start rps-admin@{{virtual_domain}}.timer
+  command: systemctl start rps-admin@{{virtual_domain}}.timer
+
+- name: systemctl daemon-reload
+  command: systemctl daemon-reload

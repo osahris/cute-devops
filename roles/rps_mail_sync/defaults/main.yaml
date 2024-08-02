@@ -1,3 +1,3 @@
 ---
 rps_mail_sync_admin_tools_version: feature/rps-mail-sync
-rps_mail_sync_admin_tools_pip_package: git+https://gitlab.com/idcohorts/rps/rps-admin-tools.git#{{ rps_mail_sync_admin_tools_version }}
+rps_mail_sync_admin_tools_pip_package: git+https://gitlab.com/idcohorts/rps/rps-admin-tools.git@{{ rps_mail_sync_admin_tools_version }}

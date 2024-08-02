@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<family> 
+{% for i in range(x|length - 1) %}
+{% set g = x[i] %}
+    <list>
+    <listname>{{g.group_name|escape}}</listname>
+    <subject>{{g.attributes.title|escape}}</subject>
+    <custom_subject>{{g.group_name}}</custom_subject>
+    <description>{{g.attributes.description|default('')|escape}}</description>
+    <type>confidential</type>
+    <status>open</status>
+    <visibility>{{d.visibility}}</visibility>
+    {# <send>{{d.send}}</send> #}
+    <subscribe>{{d.subscribe}}</subscribe>
+    <max_size>{{d.max_size}}</max_size>
+    <process_archive>{{d.process_archive}}</process_archive>
+    <archive_web_access>{{d.archive_web_access}}</archive_web_access>
+    <archive_mail_access>{{d.archive_mail_access}}</archive_mail_access>
+    <dmarc_protection_mode>{{d.dmarc_protection_mode}}</dmarc_protection_mode>
+    <dmarc_protection_phrase>{{d.dmarc_protection_phrase}}</dmarc_protection_phrase>
+    <distribution_ttl>{{d.distribution_ttl}}</distribution_ttl>
+    </list>
+    {% endfor %}
+</family>
