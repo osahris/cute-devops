@@ -1,0 +1,15 @@
+postfix_with_postfixadmin: false
+postfix_postfixadmin_mysql_password: "testing_pass"
+dovecot_postfixadmin_mysql_password: "testing_pass"
+# dovecot_auth: passwdfile
+
+sympa_domains:
+  - lists.another.iodatalabs.dev
+  - third.iodatalabs.dev
+mailname: "{{ inventory_hostname }}"
+sympa_main_domain: lists.{{ mailname }}
+
+admin_email: "email@tomraja.de"
+sympa_admin_email: "{{ admin_email | default('listmaster@'+mailname) }}"
+sympa_listmaster_emails:
+  - "{{ sympa_admin_email }}"
