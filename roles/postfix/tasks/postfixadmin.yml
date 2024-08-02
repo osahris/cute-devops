@@ -4,7 +4,8 @@
   apt:
     pkg:
       - postfix
-      - postfix-mysql
+      # - postfix-mysql
+      - postfix-pgsql
 
 - name: postfix sql map directory
   file:
