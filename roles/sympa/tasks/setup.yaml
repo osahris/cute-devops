@@ -19,3 +19,6 @@
   apt:
     pkg:
       - sympa
+
+# - name: chown sympa:sympa /etc/aliases.db
+#   command: chown sympa:sympa /etc/aliases.db

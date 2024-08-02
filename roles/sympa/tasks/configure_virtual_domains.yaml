@@ -1,0 +1,81 @@
+---
+
+- name: create directory for virtual domain
+  file:
+    path: "{{ sympa_config_directory }}/{{ virtual_domain }}"
+    state: directory
+    owner: sympa
+    group: sympa
+    # mode: 0644
+
+- name: create data_sources directory
+  file:
+    path: "{{ sympa_config_directory }}/{{ virtual_domain }}/data_sources"
+    state: directory
+    owner: sympa
+    group: sympa
+#     mode: 0644
+  
+- name: create families directory
+  file:
+    path: "{{ sympa_config_directory }}/{{ virtual_domain }}/families"
+    state: directory
+    owner: sympa
+    group: sympa
+    # mode: 0644
+
+- name: create rps-sync directory
+  file:
+    path: "{{ sympa_config_directory }}/{{ virtual_domain }}/families/rps-sync"
+    state: directory
+    owner: sympa
+    group: sympa
+    # mode: 0644
+
+- name: create rps-sync config file
+  template:
+    src: rps-sync.incl.j2
+    dest: "{{ sympa_config_directory }}/{{ virtual_domain }}/data_sources/rps-sync.incl"
+    owner: sympa
+    group: sympa
+#     mode: 0644
+
+- name: create robot.conf file
+  template:
+    src: robot.conf.j2
+    dest: "{{ sympa_config_directory }}/{{ virtual_domain }}/families/rps-sync/robot.conf"
+    owner: sympa
+    group: sympa
+    # mode: 0644
+
+- name: create robot.conf file
+  template:
+    src: robot.conf.j2
+    dest: "{{ sympa_config_directory }}/{{ virtual_domain }}/robot.conf"
+    owner: sympa
+    group: sympa
+    # mode: 0644
+
+- name: create param_constraint.conf file
+  template:
+    src: param_constraint.conf.j2
+    dest: "{{ sympa_config_directory }}/{{ virtual_domain }}/families/rps-sync/param_constraint.conf"
+    owner: sympa
+    group: sympa
+    # mode: 0644
+
+# - name: create config.tt2 file
+#   template:
+#     src: config.tt2.j2
+#     dest: "{{ sympa_config_directory }}/{{ virtual_domain }}/config.tt2"
+#     owner: sympa
+#     group: sympa
+#     mode: 0644
+
+- name: "copy family.xml.j2 to {{ sympa_config_directory }}/{{ virtual_domain }}/families/rps-sync/config.tt2"
+  copy:
+    src: templates/config.tt2.j2
+    dest: "{{ sympa_config_directory }}/{{ virtual_domain }}/families/rps-sync/config.tt2"
+    owner: sympa
+    group: sympa
+    # mode: 0644

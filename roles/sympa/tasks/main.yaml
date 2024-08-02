@@ -23,17 +23,22 @@
 - name: Configure Apache
   tags: sympa-web
   import_tasks: web.yaml
+  # TODO: add certificate generation
+  # TODO: add apache vhost configuration
 
-## Here we use loop_var to prevent conflicts on item var name with outer loops
-# - name: Install and configure Sympa virtual robots
-#   tags: virtual_hosts
-#   include_tasks: sympa_robot.yaml
-#   vars:
-#     robot: "{{ robot_domain }}"
-#   loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
-#   loop_control:
-#     loop_var: robot_domain
+- name: loop over sympa_domains to create virtual robots
+  tags: sympa-robots
+  include_tasks: configure_virtual_domains.yaml
+  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+  loop_control:
+    loop_var: virtual_domain
+    index_var: virtual_domain_index
 
-# - name: Enable Sympa service
-#   tags: sympa-service
-#   import_tasks: service.yaml
+- name: restart postfix
+  command: systemctl restart postfix
+
+- name: restart sympa
+  command: systemctl restart sympa
+
+- name: restart wwsympa
+  command: systemctl restart wwsympa

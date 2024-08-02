@@ -1,42 +1,27 @@
 {{ ansible_managed | comment }}
 
 {% for domain in sympa_domains | union([sympa_main_domain]) %}
+
 <VirtualHost *:443>
-    DocumentRoot /var/www/html
 
-    ServerAdmin {{ sympa_admin_email }}
+  ServerName {{ domain }}
 
-    ServerName {{ domain }}
-    ServerSignature off
+  ErrorLog ${APACHE_LOG_DIR}/error-sympa-{{ domain }}.log
+  CustomLog ${APACHE_LOG_DIR}/access-sympa-{{ domain }}.log combined
 
-    RewriteEngine On
-    RewriteRule ^/?$ https://%{SERVER_NAME}/sympa [QSA,R=301,L]
+  DocumentRoot /var/www/html
 
-    ErrorLog ${APACHE_LOG_DIR}/error_{{ domain }}.log
-    CustomLog ${APACHE_LOG_DIR}/access_{{ domain }}.log combined
+  RewriteEngine On
+  RewriteRule ^/?$ https://%{SERVER_NAME}/wws [QSA,R=301,L]
 
-    SSLEngine on
-    SSLCertificateFile "/etc/ssl/certs/{{domain}}.cert.pem"
-    SSLCertificateKeyFile "/etc/ssl/private/{{domain}}.key.pem"
-    {% if not certificate_provider == "selfsigned" %}
-    SSLCertificateChainFile "/etc/ssl/certs/{{domain}}.chain.pem"
-    {% endif %}
+  include /etc/apache2/conf-available/sympa.conf
 
-    Alias /static-sympa {{ sympa_install_directory }}/static_content
-
-    <Location /static-sympa>
-      Require all granted
-    </Location>
-
-    <Location /sympa>
-      SetHandler "proxy:unix:/var/run/wwsympa/wwsympa.socket|fcgi://localhost"
-      Require all granted
-    </Location>
-
-    <Location /sympasoap>
-      SetHandler "proxy:unix:/var/run/sympasoap/sympasoap.socket|fcgi://localhost"
-      Require all granted
-    </Location>
-
+  SSLEngine on
+  SSLCertificateFile "/etc/ssl/certs/{{domain}}.cert.pem"
+  SSLCertificateKeyFile "/etc/ssl/private/{{domain}}.key.pem"
+  {% if not certificate_provider == "selfsigned" %}
+  SSLCertificateChainFile "/etc/ssl/certs/{{domain}}.chain.pem"
+  {% endif %}
 </VirtualHost>
+
 {% endfor %}

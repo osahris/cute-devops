@@ -1,0 +1,37 @@
+family_name rps-sync
+
+subject [% subject %]
+
+member_include
+source_parameters [% listname %]
+source rps-sync
+
+status [% status %]
+
+visibility [% visibility %]
+
+send [% send %]
+
+process_archive [% process_archive %]
+
+archive
+  mail_access [% archive_mail_access %]
+  web_access [% archive_web_access %]
+
+subscribe [% subscribe %]
+
+shared_doc
+  d_edit [% shared_edit %]
+  d_read [% shared_read %]
+
+custom_subject [% custom_subject %]
+
+distribution_ttl [% distribution_ttl %]
+
+dmarc_protection
+  mode [% dmarc_protection_mode %]
+  phrase [% dmarc_protection_phrase %]
+
+max_size [% max_size %]
+
+ttl 300
