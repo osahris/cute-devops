@@ -1,5 +1,5 @@
 {{ansible_managed|comment}}
 
-{% for name , user in dovecot_users.items() %}
-{{name}}:{{user.password}}::::::
+{% for user in dovecot_users %}
+{{user.username}}:{{user.password_hash}}::::::
 {% endfor %}
