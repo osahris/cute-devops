@@ -1,5 +1,7 @@
 ---
-postfix_mailname: "{{mailname}}"
+postfix_domain: "{{mailname}}"
+postfix_hostname: "{{mailname}}"
+postfix_origin: "{{mailname}}"
 
 postfix_relayhost: null
 postfix_relayhost_auth_enabled: false

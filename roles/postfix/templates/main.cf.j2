@@ -2,12 +2,11 @@
 
 ### common settings
 
-# Debian specific:  Specifying a file name will cause the first
-# line of that file to be used as the name.  The Debian default
-# is /etc/mailname.
-myorigin = /etc/mailname
+mydomain = {{postfix_domain}}
+myhostname = {{postfix_hostname}}
+myorigin = {{postfix_origin}}
 
-smtpd_banner = {{postfix_mailname}} ESMTP $mail_name (Debian/GNU)
+smtpd_banner = {{postfix_origin}} ESMTP $mail_name (Debian/GNU)
 biff = no
 
 # appending .domain is the MUA's job.
@@ -23,7 +22,7 @@ compatibility_level = 3.6
 
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
-mydestination = {{postfix_mailname}}, {% if postfix_mailname != inventory_hostname %}{{inventory_hostname}},{% endif %} localhost.localdomain, localhost
+mydestination = {{postfix_hostname}}, {% if postfix_hostname != postfix_domain %}{{postfix_domain}},{% endif %} localhost.localdomain, localhost
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
 mailbox_size_limit = 0
 recipient_delimiter = +

@@ -9,6 +9,6 @@ sympa_domains:
 sympa_main_domain: lists.{{ mailname }}
 
 admin_email: "email@tomraja.de"
-sympa_admin_email: "{{ admin_email | default('listmaster@'+postfix_mailname) }}"
+sympa_admin_email: "{{ admin_email | default('listmaster@'+mailname) }}"
 sympa_listmaster_emails:
   - "{{ sympa_admin_email }}"
