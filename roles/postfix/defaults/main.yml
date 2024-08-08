@@ -19,8 +19,8 @@ postfix_virtual_transport: lmtp:unix:private/dovecot-lmtp
 postfix_with_spf_check: false
 postfix_with_spamhaus_check: false
 
-postfix_with_opendkim: false
-postfix_with_opendmarc: false
+postfix_with_opendkim: true
+postfix_with_opendmarc: true
 
 postfix_with_submission_service_smtpd_sasl_path: private/auth
 
