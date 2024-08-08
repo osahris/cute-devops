@@ -12,12 +12,6 @@
       - rsyslog
       - mailutils
 
-- name: mailname
-  copy:
-    content: "{{mailname}}"
-    dest: /etc/mailname
-  notify: reload postfix
-
 - name: master configuration
   template:
     src: master.cf.j2

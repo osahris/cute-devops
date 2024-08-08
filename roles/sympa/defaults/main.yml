@@ -1,6 +1,4 @@
 ---
-
-mailname: "{{ inventory_hostname }}"
 sympa_main_domain: lists.{{ mailname }}
 
 sympa_admin_email: "{{ admin_email | default('listmaster@'+mailname) }}"

@@ -24,3 +24,5 @@
   service:
     name: postfix
     state: reloaded
+  listen:
+    - new mailname

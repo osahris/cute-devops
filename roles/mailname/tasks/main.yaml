@@ -1,0 +1,6 @@
+---
+- name: mailname
+  copy:
+    content: "{{ mailname }}"
+    dest: /etc/mailname
+  notify: new mailname

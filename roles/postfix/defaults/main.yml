@@ -1,4 +1,5 @@
-mailname: "{{inventory_hostname}}"
+---
+postfix_mailname: "{{mailname}}"
 
 postfix_relayhost: null
 postfix_relayhost_auth_enabled: false
