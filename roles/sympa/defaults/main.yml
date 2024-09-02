@@ -8,7 +8,7 @@ sympa_listmaster_emails:
 sympa_config_directory: /etc/sympa
 sympa_lib_directory: /var/lib/sympa
 sympa_spool_directory: /var/spool/sympa
-sympa_mail_alias_file: "{{ sympa_lib_directory }}/transport"
+sympa_mail_alias_file: /var/lib/sympa/transport
 sympa_lists_path: /var/lib/sympa/lists
 sympa_arc_path: /var/lib/sympa/archives
 sympa_bounce_path: /var/lib/sympa/bounce

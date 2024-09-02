@@ -98,3 +98,10 @@ pictures_path	/var/lib/sympa/pictures
 ## URL for subscribers pictures
 ## HTTP server have to map it with "pictures_path" directory.
 pictures_url	/pictures-sympa
+
+
+###\\\\ Postfix files ////###
+
+sendmail_aliases {{sympa_mail_alias_file}}
+aliases_program postmap
+aliases_db_type hash
