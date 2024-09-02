@@ -16,15 +16,40 @@
   tags: sympa-config
   import_tasks: config.yaml
 
-# - name: Configure postfix and mail aliases
-#   tags: sympa-mail
-#   import_tasks: mail.yaml
+- name: Configure postfix and mail aliases
+  tags: sympa-mail
+  import_tasks: mail.yaml
 
 - name: Configure Apache
   tags: sympa-web
   import_tasks: web.yaml
   # TODO: add certificate generation
   # TODO: add apache vhost configuration
+
+- name: testing
+  debug:
+    msg: "{{ sympa_domains | union([sympa_main_domain]) }}"
+
+- name: gather secrets again
+  tags: sympa-secrets
+  import_tasks: secrets.yaml
+
+- name: loop over remote_facts.yaml
+  include_tasks: remote_facts.yaml
+  loop: "{{ sympa_gather_facts_from }}"
+  loop_control:
+    loop_var: remote_facts_from
+    index_var: remote_facts_from_index
+
+- name: testing 2
+  debug:
+    msg: "{{ hostvars['dev.numhub.de']['ansible_facts']['ansible_local']['accounts.dev.numhub.de']['keycloak_admin_password'] }}"
+
+# TODO: rps-mail-sync needs to be deployed before sympa ()
+- name: testing 3
+  debug:
+    msg: "{{ sympa_mailinglist_envs }}"
+
 
 - name: loop over sympa_domains to create virtual robots
   tags: sympa-robots

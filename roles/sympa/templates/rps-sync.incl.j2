@@ -1,3 +1,3 @@
 include_remote_file
   name rps-sync
-  url http://127.0.0.2{{virtual_domain_index}}:8000/[% param.0 %]/members
+  url http://{{sympa_mailinglist_envs[virtual_domain].sympa_source_webserver_ip}}:{{sympa_mailinglist_envs[virtual_domain].sympa_source_webserver_port}}/[% param.0 %]/members

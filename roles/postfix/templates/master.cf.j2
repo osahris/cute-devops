@@ -143,9 +143,9 @@ mailman   unix  -       n       n       -       -       pipe
   ${nexthop} ${user}
 {% if postfix_with_sympa %}
 sympa unix - n n - - pipe
-  flags=hqRu user=sympa argv=/opt/sympa/bin/queue ${nexthop}
+  flags=hqRu user=sympa argv=/usr/lib/sympa/lib/sympa/queue ${nexthop}
 sympabounce unix - n n - - pipe
-  flags=hqRu user=sympa argv=/opt/sympa/bin/bouncequeue ${nexthop}
+  flags=hqRu user=sympa argv=/usr/lib/sympa/lib/sympa/bouncequeue ${nexthop}
 {% endif %}
 
 {% if postfix_with_spf_check %}

@@ -90,6 +90,8 @@
 #   command: chown root:postfix /etc/postfix/transport_maps.db
 
 
+# TODO: first run sympa & then run postfix again with certificate role
+
 - include_role:
     name: certificate
   vars:
@@ -101,3 +103,16 @@
       - keyEncipherment
     certificate_extended_key_usage:
       - serverAuth
+
+# repair permissions for opendkim and opendmarc
+- name: repair permissions for opendkim
+  command: chown -R opendkim:opendkim /var/run/opendkim
+  when: postfix_with_opendkim
+
+- name: repair permissions for opendmarc
+  command: chown -R opendmarc:opendmarc /var/run/opendmarc
+  when: postfix_with_opendmarc
+
+- name: restart postfix opendkim opendmarc
+  command: systemctl restart postfix opendkim opendmarc
+  notify: restart postfix
