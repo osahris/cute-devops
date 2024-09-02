@@ -72,8 +72,8 @@
 #     group: sympa
 #     mode: 0644
 
-- name: "copy family.xml.j2 to {{ sympa_config_directory }}/{{ virtual_domain }}/families/rps-sync/config.tt2"
-  copy:
+- name: "template family.xml.j2 to {{ sympa_config_directory }}/{{ virtual_domain }}/families/rps-sync/config.tt2"
+  template:
     src: templates/config.tt2.j2
     dest: "{{ sympa_config_directory }}/{{ virtual_domain }}/families/rps-sync/config.tt2"
     owner: sympa
