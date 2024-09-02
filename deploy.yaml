@@ -1,8 +1,26 @@
 ---
+# get hostvars from rps_servers and debug them
+# - hosts: rps_servers
+#   become: true
+#   tasks:
+#     - debug: 
+#         msg: "{{ hostvars['staging.numhub.de'].ansible_local['accounts.staging.numhub.de'].keycloak_admin_password }}"
+#       register: temp_pass
+      # sympa_mailinglist_envs['eliasham.iodatalabs.dev'].keycloak_admin_password
+
 - hosts: mailservers
   become: true
+  # tasks: 
+    # - name: Gather facts
+    #   setup:
+    #   delegate_to: staging.numhub.de
+    #   register: staging_facts
+
+    # - name: Debug staging_facts
+    #   debug:
+    #     var: staging_facts.ansible_facts.ansible_local['accounts.staging.numhub.de'].keycloak_admin_password
   roles:
-    - role: sympa
-    #- role: dovecot
-    #- role: postfix
-    #- role: rps_mail_sync
+    - role: postfix
+    - role: dovecot
+    # - role: sympa
+    # - role: rps_mail_sync

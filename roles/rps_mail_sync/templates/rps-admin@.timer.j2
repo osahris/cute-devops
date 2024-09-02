@@ -4,7 +4,7 @@ Requires=rps-admin@{{virtual_domain}}.service
 
 [Timer]
 Unit=rps-admin@{{virtual_domain}}.service
-OnCalendar=*-*-* *:*:00
+OnCalendar=*-*-* *:0/15:00
 
 [Install]
 WantedBy=timers.target

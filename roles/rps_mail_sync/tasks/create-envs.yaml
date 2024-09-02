@@ -26,8 +26,9 @@
     src: templates/family.xml.j2
     dest: "/opt/rps-admin-tools/{{ virtual_domain }}/rps_sync_services/mail-templates/family.xml.j2"
 
-- name: copy test.env.j2 to directory
+- name: copy {{virtual_domain}}.env to directory
   template:
-    src: test.env.j2
-    dest: "/opt/rps-admin-tools/{{ virtual_domain }}/test.env"
+    src: env.j2
+    # src: test.env.j2
+    dest: "/etc/rps-admin-tools/mailinglists/{{virtual_domain}}.env"
     

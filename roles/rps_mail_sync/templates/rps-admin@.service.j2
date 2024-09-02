@@ -3,7 +3,11 @@ Description=RPS-Admin Service (create family.xml)
 
 [Service]
 Environment=SUITE=%i
-ExecStart=/bin/bash -c 'cd /opt/rps-admin-tools/%i && source /opt/rps-admin-tools/%i/test.env && rps-admin sync sympa family && mv /opt/rps-admin-tools/%i/family.xml /etc/sympa/%i/families/rps-sync/rps-sync.xml && chown -R sympa:sympa /etc/sympa/ && /usr/lib/sympa/bin/sympa.pl --debug --log_level=3 --instantiate_family rps-sync --robot %i --close_unknown --input_file /etc/sympa/%i/families/rps-sync/rps-sync.xml'
-
+WorkingDirectory=/opt/rps-admin-tools/%i
+ExecStart=/bin/bash -c 'source /etc/rps-admin-tools/mailinglists/%i.env && rps-admin sync sympa family'
+ExecStart=mv /opt/rps-admin-tools/%i/family.xml /etc/sympa/%i/families/rps-sync/rps-sync.xml
+ExecStart=/usr/lib/sympa/bin/sympa.pl --debug --log_level=3 --instantiate_family rps-sync --robot %i --close_unknown --input_file /etc/sympa/%i/families/rps-sync/rps-sync.xml
+Type=oneshot
+RemainAfterExit=true
 [Install]
 WantedBy=multi-user.target

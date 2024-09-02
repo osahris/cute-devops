@@ -1,2 +1,0 @@
-[mailservers]
-eliasham.iodatalabs.dev ansible_user=root

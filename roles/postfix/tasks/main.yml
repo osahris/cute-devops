@@ -88,3 +88,16 @@
 
 # - name: chown root:postfix transport_maps
 #   command: chown root:postfix /etc/postfix/transport_maps.db
+
+
+- include_role:
+    name: certificate
+  vars:
+    certificate_name: "{{mailname}}"
+    certificate_common_name: "{{mailname}}"
+    certificate_directory: /etc/ssl
+    certificate_key_usage:
+      - digitalSignature
+      - keyEncipherment
+    certificate_extended_key_usage:
+      - serverAuth
