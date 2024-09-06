@@ -3,6 +3,7 @@ postfix_with_sympa: true
 sympa_admin_email: "{{ admin_email | default('listmaster@'+mailname) }}"
 sympa_listmaster_emails:
   - "{{ sympa_admin_email }}"
+  - postmaster@{{ mailname }}
   
 sympa_domains:
   # - lists.another.iodatalabs.dev

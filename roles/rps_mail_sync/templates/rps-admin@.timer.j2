@@ -1,10 +1,11 @@
 [Unit]
-Description=RPS-Admin Service (create family.xml)
-Requires=rps-admin@{{virtual_domain}}.service
+Description=Run RPS-Admin Service every 5 minutes
+Requires=rps-admin@%i.service
 
 [Timer]
-Unit=rps-admin@{{virtual_domain}}.service
-OnCalendar=*-*-* *:0/15:00
+Unit=rps-admin@%i.service
+OnCalendar=*-*-* *:*:00
+Persistent=true
 
 [Install]
-WantedBy=timers.target
+WantedBy=multi-user.target

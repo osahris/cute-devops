@@ -1,19 +1,22 @@
 ---
-
+  
 - name: template rps-admin@.service
   template:
     src: rps-admin@.service.j2
-    dest: /usr/lib/systemd/system/rps-admin@.service
+    dest: /etc/systemd/system/rps-admin@.service
 
 - name: template rps-admin@.timer
   template:
     src: rps-admin@.timer.j2
-    dest: /usr/lib/systemd/system/rps-admin@{{virtual_domain}}.timer
+    dest: /etc/systemd/system/rps-admin@.timer
 
 - name: template rps-admin-webserver@.service
   template:
     src: rps-admin-webserver@.service.j2
-    dest: /usr/lib/systemd/system/rps-admin-webserver@.service
+    dest: /etc/systemd/system/rps-admin-webserver@.service
+
+- name: systemctl daemon-reload
+  command: systemctl daemon-reload
 
 - name: enable rps-admin@{{virtual_domain}}.timer
   command: systemctl enable rps-admin@{{virtual_domain}}.timer
@@ -29,6 +32,3 @@
 
 - name: start rps-admin-webserver@{{virtual_domain}}
   command: systemctl start rps-admin-webserver@{{virtual_domain}}
-
-- name: systemctl daemon-reload
-  command: systemctl daemon-reload

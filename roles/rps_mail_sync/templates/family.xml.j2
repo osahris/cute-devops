@@ -3,8 +3,12 @@
 {% for i in range(x|length - 1) %}
 {% set g = x[i] %}
     <list>
-    <listname>{{g.group_name|escape}}</listname>
+    <listname>{{g.path[1:].replace('/','_')|escape}}</listname>
+    {%if g.attributes.title%}
     <subject>{{g.attributes.title|escape}}</subject>
+    {% else %}
+    <subject>{{g.group_name|escape}}</subject>
+    {% endif %}
     <custom_subject>{{g.group_name}}</custom_subject>
     <description>{{g.attributes.description|default('')|escape}}</description>
     <type>confidential</type>
