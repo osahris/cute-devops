@@ -1,0 +1,27 @@
+---
+
+- include_role:
+    name: certificate
+  vars:
+    certificate_name: "{{mailname}}"
+    certificate_common_name: "{{mailname}}"
+    certificate_directory: /etc/ssl
+    certificate_key_usage:
+      - digitalSignature
+      - keyEncipherment
+    certificate_extended_key_usage:
+      - serverAuth
+
+- name: apache2 webserver vhost
+  template:
+    src: apache/apache_vhost.conf.j2
+    dest: /etc/apache2/sites-available/webserver.conf
+
+- name: apache2 webserver vhost enabled
+  file:
+    src: ../sites-available/webserver.conf
+    dest: /etc/apache2/sites-enabled/webserver.conf
+    state: link
+
+- name: restart apache2
+  command: systemctl restart apache2

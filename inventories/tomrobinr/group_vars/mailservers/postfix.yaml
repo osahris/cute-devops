@@ -2,7 +2,7 @@ postfix_with_postfixadmin: false
 mailname: tomrobinr.iodatalabs.dev
 
 certificate_provider: letsencrypt
-
+postfix_with_ssl: true
 
 postfix_with_submission_service: true
 postfix_with_smtps_service: true

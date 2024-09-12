@@ -1,5 +1,8 @@
 ---
-
+- name: update apt cache
+  apt:
+    update_cache: yes
+    
 - name: Install required debian packages
   apt:
     pkg:

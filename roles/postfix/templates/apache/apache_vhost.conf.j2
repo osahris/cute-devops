@@ -1,0 +1,22 @@
+{{ ansible_managed | comment }}
+
+<VirtualHost *:443>
+
+  ServerName {{ mailname }}
+
+  ErrorLog ${APACHE_LOG_DIR}/error-sympa-{{ mailname }}.log
+  CustomLog ${APACHE_LOG_DIR}/access-sympa-{{ mailname }}.log combined
+
+  DocumentRoot /var/www/html
+
+  RewriteEngine On
+  RewriteRule ^/?$ https://%{SERVER_NAME}/wws [QSA,R=301,L]
+
+  SSLEngine on
+  SSLCertificateFile "/etc/ssl/certs/{{mailname}}.cert.pem"
+  SSLCertificateKeyFile "/etc/ssl/private/{{mailname}}.key.pem"
+  {% if not certificate_provider == "selfsigned" %}
+  SSLCertificateChainFile "/etc/ssl/certs/{{mailname}}.chain.pem"
+  {% endif %}
+</VirtualHost>
+
