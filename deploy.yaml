@@ -16,9 +16,9 @@
     
     - role: dovecot
       tags: dovecot
-
-    - role: sympa
-      tags: sympa
     
     - role: rps_mail_sync
       tags: rps_mail_sync, mail_sync, mail-sync
+
+    - role: sympa
+      tags: sympa
