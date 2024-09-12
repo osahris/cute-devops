@@ -41,16 +41,6 @@
     loop_var: remote_facts_from
     index_var: remote_facts_from_index
 
-- name: testing 2
-  debug:
-    msg: "{{ hostvars['dev.numhub.de']['ansible_facts']['ansible_local']['accounts.dev.numhub.de']['keycloak_admin_password'] }}"
-
-# TODO: rps-mail-sync needs to be deployed before sympa ()
-- name: testing 3
-  debug:
-    msg: "{{ sympa_mailinglist_envs }}"
-
-
 - name: loop over sympa_domains to create virtual robots
   tags: sympa-robots
   include_tasks: configure_virtual_domains.yaml
