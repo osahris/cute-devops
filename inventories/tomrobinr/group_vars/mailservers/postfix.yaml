@@ -22,3 +22,10 @@ postfix_certificate_private_key_file: /etc/ssl/private/{{mailname}}.key.pem
 # dkim_cname_domains:
 #   third.iodatalabs.dev: tomrobinr.iodatalabs.dev
 #   lists.another.iodatalabs.dev: tomrobinr.iodatalabs.dev
+
+postfix_virtual_mailbox_maps: |
+  {
+    "postmaster@{{ mailname }}": "{{ mailname }}/postmaster",
+    "accounts@{{ mailname }}": "{{ mailname }}/accounts",
+    "support@{{ mailname }}": "{{ mailname }}/support"
+  }
