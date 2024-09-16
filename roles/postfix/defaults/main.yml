@@ -30,3 +30,9 @@ postfix_certificate_fullchain_file: /etc/ssl/certs/ssl-cert-snakeoil.pem
 postfix_certificate_private_key_file: /etc/ssl/private/ssl-cert-snakeoil.key
 
 postfix_with_sympa: false
+
+
+postfix_virtual_mailbox_maps: >-
+          {{
+            dict(dovecot_users | map(attribute='username') | zip(dovecot_users | map(attribute='username') | map('split', '@') | map('first') | map('regex_replace', '^', mailname + '/')))
+          }}
