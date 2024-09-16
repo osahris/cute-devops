@@ -13,9 +13,6 @@ dovecot_auth: passwdfile
 
 admin_email: "email@tomraja.de"
 
-# postfix_certificate_fullchain_file: /etc/letsencrypt/live/{{mailname}}/fullchain.pem
-# postfix_certificate_private_key_file: /etc/letsencrypt/live/{{mailname}}/privkey.pem
-
 postfix_certificate_fullchain_file: /etc/ssl/certs/{{mailname}}.cert.pem
 postfix_certificate_private_key_file: /etc/ssl/private/{{mailname}}.key.pem
 
@@ -23,9 +20,9 @@ postfix_certificate_private_key_file: /etc/ssl/private/{{mailname}}.key.pem
 #   third.iodatalabs.dev: tomrobinr.iodatalabs.dev
 #   lists.another.iodatalabs.dev: tomrobinr.iodatalabs.dev
 
-postfix_virtual_mailbox_maps: |
-  {
-    "postmaster@{{ mailname }}": "{{ mailname }}/postmaster",
-    "accounts@{{ mailname }}": "{{ mailname }}/accounts",
-    "support@{{ mailname }}": "{{ mailname }}/support"
-  }
+# postfix_virtual_mailbox_maps: |
+#   {
+#     "postmaster@{{ mailname }}": "{{ mailname }}/postmaster",
+#     "accounts@{{ mailname }}": "{{ mailname }}/accounts",
+#     "support@{{ mailname }}": "{{ mailname }}/support"
+#   }
