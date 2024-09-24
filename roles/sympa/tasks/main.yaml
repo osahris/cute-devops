@@ -12,6 +12,10 @@
 #   tags: sympa-db
 #   import_tasks: db.yaml
 
+- name: Apply patch for Sympa.pl
+  tags: sympa-patch
+  import_tasks: patch-sympa-pl.yaml
+
 - name: Sympa post-install operations
   tags: sympa-config
   import_tasks: config.yaml
