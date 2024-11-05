@@ -40,6 +40,14 @@
     group: sympa
 #     mode: 0644
 
+- name: create rps-sync-editors config file
+  template:
+    src: rps-sync-editors.incl.j2
+    dest: "{{ sympa_config_directory }}/{{ virtual_domain }}/data_sources/rps-sync-editors.incl"
+    owner: sympa
+    group: sympa
+#     mode: 0644
+
 - name: create robot.conf file
   template:
     src: robot.conf.j2
