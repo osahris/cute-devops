@@ -5,8 +5,6 @@ import starlight from "@astrojs/starlight";
 import fs from "fs";
 import path from "path";
 
-import tailwind from "@astrojs/tailwind";
-
 const docsPath = "./docs/";
 
 const topSidebar = [
