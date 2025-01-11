@@ -97,15 +97,15 @@ SERVICE.md
 ### Start/Stop
 ```bash
 cd /srv/{hostname}
-docker compose up -d    # Start
-docker compose down     # Stop
+docker-compose up -d    # Start
+docker-compose down     # Stop
 ```
 
 ### Updates
 ```bash
 cd /srv/{hostname}
-docker compose pull
-docker compose up -d
+docker-compose pull
+docker-compose up -d
 ```
 
 ## Anti-patterns ⚠️
@@ -119,3 +119,4 @@ docker compose up -d
 - Use .env-File for configuration
 - Enable health checks
 - Keep proxy network configuration separate in override file
+- On Debian Stable the docker-compose command is based on the old Python compose implementation. Because of this you need to write `docker-compose` and not `docker compose`
