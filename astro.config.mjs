@@ -7,7 +7,7 @@ export default defineConfig({
   site: "https://patterns.mkbrechtel.dev",
   trailingSlash: "never",
   build: {
-    format: "file",
+    format: "preserve",
   },
   integrations: [
     starlight({
