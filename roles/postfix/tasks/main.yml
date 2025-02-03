@@ -1,5 +1,4 @@
 ---
-
 - name: update apt cache
   apt:
     update_cache: yes
@@ -89,8 +88,11 @@
 # - name: chown root:postfix transport_maps
 #   command: chown root:postfix /etc/postfix/transport_maps.db
 
-- import_tasks: configure-ssl.yaml
+- import_tasks: certbot.yaml
   when: postfix_with_ssl
+
+# - import_tasks: configure-ssl.yaml
+#   when: postfix_with_ssl
 
 # repair permissions for opendkim and opendmarc
 - name: repair permissions for opendkim
