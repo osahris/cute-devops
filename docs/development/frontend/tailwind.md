@@ -1,7 +1,7 @@
 ---
 title: Tailwind Pattern
-sidebar:
-  hidden: true
+# sidebar:
+#   hidden: true
 ---
 
 WIP
