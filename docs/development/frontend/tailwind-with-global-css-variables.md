@@ -22,22 +22,30 @@ Create a CSS file with your global variables:
 ```css
 /* public/global.css */
 :root {
-  --color-primary: #3b82f6;
-  --color-primary-light: #60a5fa;
-  --color-primary-dark: #2563eb;
+  /* Colors in light mode */
+  --global-color-primary: #60a5fa;
+  --global-color-primary-dark: #2563eb;
 
-  --color-secondary: #10b981;
-  --color-secondary-light: #34d399;
-  --color-secondary-dark: #059669;
+  --global-color-secondary: #34d399;
+  --global-color-secondary-dark: #059669;
 
-  --color-accent: #f59e0b;
-  --color-accent-light: #fbbf24;
-  --color-accent-dark: #d97706;
+  --global-color-accent: #fbbf24;
+  --global-color-accent-dark: #d97706;
 
-  --color-text: #1f2937;
-  --color-background: #ffffff;
+  --global-color-text: #1f2937;
+  --global-color-background: #ffffff;
+
+  /* Dark mode colors */
+  --global-color-text-dark: #f3f4f6;
+  --global-color-background-dark: #111827;
+
+  /* Fonts */
+  --global-font-sans: ui-sans-serif, system-ui, sans-serif,;
+  --global-font-serif: ui-serif;
+  --global-font-mono: ui-monospace, monospace;
 }
 ```
+> Note: The variables are prefixed with `--global-` here to indicate their usage across the entire application. You could use another prefix like `--site-`, `--project-`, or your project name (e.g., `--hello-`). Choosing a distinctive prefix prevents potential naming conflicts with third-party libraries or framework-specific variables.
 
 ### 2. Load Global CSS Variables at Runtime
 
@@ -54,7 +62,7 @@ To ensure the global variables are available at runtime and not part of the Vite
   <!-- Load global CSS variables directly -->
   <link rel="stylesheet" href="/global.css">
   <!-- Then load your compiled Tailwind CSS -->
-  <link rel="stylesheet" href="/main.css">
+  <link rel="stylesheet" href="/tailwind.css">
 </head>
 <body>
   <!-- Your application content -->
@@ -92,49 +100,49 @@ export default defineConfig({
 
 ### 5. Create Tailwind CSS Main File
 
-Create a main CSS file that imports only Tailwind (without the variables):
+Create a main CSS file that imports Tailwind and define your theme variables:
 
 ```css
-/* main.css */
+/* tailwind.css */
 @import "tailwindcss";
+
+@theme {
+  /* Define color theme variables that map to your global variables */
+  --color-primary: var(--global-color-primary);
+  --color-primary-dark: var(--global-color-primary-dark);
+
+  --color-secondary: var(--global-color-secondary);
+  --color-secondary-dark: var(--global-color-secondary-dark);
+
+  --color-accent: var(--global-color-accent);
+  --color-accent-dark: var(--global-color-accent-dark);
+
+  /* Configure dark mode to use dark variables */
+}
+
+/* Configure dark mode variant to use class selector for manual toggling */
+@custom-variant dark (&:where(.dark, .dark *));
 ```
 
-Note that we're not importing global variables here since they will be loaded directly at runtime.
+This approach allows Tailwind to generate utility classes based on your theme variables, which in turn reference your global CSS variables.
 
-### 6. Configure Tailwind
+### 6. Using Theme Variables in Your HTML
 
-Extend your Tailwind configuration to use the runtime CSS variables:
+With Tailwind v4, the theme configuration is done directly in CSS using the `@theme` directive. Now you can use these theme variables in your HTML:
 
-```javascript
-// tailwind.config.js
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  content: ["./src/**/*.{html,js,jsx,ts,tsx}"],
-  theme: {
-    extend: {
-      colors: {
-        primary: {
-          DEFAULT: 'var(--color-primary)',
-          light: 'var(--color-primary-light)',
-          dark: 'var(--color-primary-dark)',
-        },
-        secondary: {
-          DEFAULT: 'var(--color-secondary)',
-          light: 'var(--color-secondary-light)',
-          dark: 'var(--color-secondary-dark)',
-        },
-        accent: {
-          DEFAULT: 'var(--color-accent)',
-          light: 'var(--color-accent-light)',
-          dark: 'var(--color-accent-dark)',
-        },
-        text: 'var(--color-text)',
-        background: 'var(--color-background)',
-      },
-    },
-  },
-  plugins: [],
-}
+```html
+<div class="bg-primary text-white dark:bg-primary-dark">
+  This uses the primary color from your theme in light mode
+  and primary-dark in dark mode.
+</div>
+```
+
+You can toggle dark mode by adding the `dark` class to an ancestor element, typically the html or body tag:
+
+```html
+<html class="dark">
+  <!-- This will activate dark mode for the entire page -->
+</html>
 ```
 
 ### 7. Start Your Build Process
@@ -153,7 +161,7 @@ For more dynamic theming, you can manipulate CSS variables with JavaScript:
 
 ```javascript
 // Example: Dynamically change theme at runtime
-document.documentElement.style.setProperty('--color-primary', '#8B5CF6');
+document.documentElement.style.setProperty('--global-color-primary', '#8B5CF6');
 ```
 
 ### Site-wide Theme Configuration
