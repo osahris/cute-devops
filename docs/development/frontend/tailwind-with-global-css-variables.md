@@ -1,8 +1,7 @@
 ---
 title: Tailwind CSS with Global Variables Pattern 🎨
-# sidebar:
-#   hidden: true
 ---
+
 ## Overview 📋
 The Tailwind CSS with Global Variables Pattern offers a maintainable approach to theme management by combining Tailwind's utility-first methodology with CSS custom properties (variables). This allows for consistent theming across applications while maintaining the flexibility to change colors without recompiling Tailwind.
 
@@ -62,7 +61,7 @@ To ensure the global variables are available at runtime and not part of the Vite
   <!-- Load global CSS variables directly -->
   <link rel="stylesheet" href="/global.css">
   <!-- Then load your compiled Tailwind CSS -->
-  <link rel="stylesheet" href="/tailwind.css">
+  <link rel="stylesheet" href="/src/tailwind.css">
 </head>
 <body>
   <!-- Your application content -->
@@ -103,7 +102,7 @@ export default defineConfig({
 Create a main CSS file that imports Tailwind and define your theme variables:
 
 ```css
-/* tailwind.css */
+/* src/tailwind.css */
 @import "tailwindcss";
 
 @theme {
