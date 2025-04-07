@@ -20,7 +20,7 @@ The Tailwind CSS with Global Variables Pattern offers a maintainable approach to
 Create a CSS file with your global variables:
 
 ```css
-/* global.css */
+/* public/global.css */
 :root {
   --color-primary: #3b82f6;
   --color-primary-light: #60a5fa;
