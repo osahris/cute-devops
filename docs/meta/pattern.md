@@ -176,4 +176,13 @@ graph LR
 ## Related Patterns 🔗
 - Pattern 1
 - Pattern 2
+
+## References 📚
+
+Example implementation:
+- [Example Project](https://github.com/example/project)
+
+Documentation:
+- Links to relevant resources, articles, books
+
 ```
