@@ -147,9 +147,10 @@ npm run dev
 
 ## Additional Approaches (Optional)
 
-For more dynamic theming, you can manipulate CSS variables with JavaScript:
 
 ### Dynamic Color Switching
+For more dynamic theming, you can manipulate CSS variables with JavaScript:
+
 ```javascript
 // Example: Dynamically change theme at runtime
 document.documentElement.style.setProperty('--color-primary', '#8B5CF6');
