@@ -1,3 +1,8 @@
+---
+title: Tailwind CSS with Global Variables Pattern
+# sidebar:
+#   hidden: true
+---
 # Tailwind CSS with Global Variables Pattern 🎨
 
 ## Overview 📋
