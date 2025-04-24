@@ -6,8 +6,8 @@
 - include_role:
     name: certificate
   vars:
-    certificate_name: "{{mailname}}"
-    certificate_common_name: "{{mailname}}"
+    certificate_name: "{{mailserver_domain_name}}"
+    certificate_common_name: "{{mailserver_domain_name}}"
     certificate_directory: /etc/ssl
     certificate_key_usage:
       - digitalSignature

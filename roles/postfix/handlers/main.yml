@@ -25,4 +25,4 @@
     name: postfix
     state: reloaded
   listen:
-    - new mailname
+    - new mailserver_domain_name

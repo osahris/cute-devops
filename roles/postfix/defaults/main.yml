@@ -1,7 +1,7 @@
 ---
-postfix_domain: "{{mailname}}"
-postfix_hostname: "{{mailname}}"
-postfix_origin: "{{mailname}}"
+postfix_domain: "{{mailserver_domain_name}}"
+postfix_hostname: "{{mailserver_domain_name}}"
+postfix_origin: "{{mailserver_domain_name}}"
 
 postfix_relayhost: null
 postfix_relayhost_auth_enabled: false
@@ -34,5 +34,5 @@ postfix_with_sympa: false
 
 postfix_virtual_mailbox_maps: >-
           {{
-            dict(dovecot_users | map(attribute='username') | zip(dovecot_users | map(attribute='username') | map('split', '@') | map('first') | map('regex_replace', '^', mailname + '/')))
+            dict(dovecot_users | map(attribute='username') | zip(dovecot_users | map(attribute='username') | map('split', '@') | map('first') | map('regex_replace', '^', mailserver_domain_name + '/')))
           }}
