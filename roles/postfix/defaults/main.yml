@@ -2,7 +2,7 @@
 postfix_domain: "{{mailserver_domain_name}}"
 postfix_hostname: "{{mailserver_domain_name}}"
 postfix_origin: "{{mailserver_domain_name}}"
-
+postfix_admin_email: "{{rps_admin_email}}"
 postfix_relayhost: null
 postfix_relayhost_auth_enabled: false
 

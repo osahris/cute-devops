@@ -12,7 +12,7 @@
     -d {{ mailserver_domain_name }}
     --agree-tos
     -n
-    --email {{ admin_email }}
+    --email {{ postfix_admin_email }}
   args:
     creates: "/etc/letsencrypt/live/{{ mailserver_domain_name }}/fullchain.pem"
 

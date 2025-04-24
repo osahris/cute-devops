@@ -11,7 +11,7 @@ postfix_virtual_mailbox_domains:
   - tomrobinr.iodatalabs.dev
 dovecot_auth: passwdfile
 
-admin_email: "email@tomraja.de"
+postfix_admin_email: "email@tomraja.de"
 
 postfix_certificate_fullchain_file: /etc/ssl/certs/{{mailserver_domain_name}}.cert.pem
 postfix_certificate_private_key_file: /etc/ssl/private/{{mailserver_domain_name}}.key.pem
