@@ -22,4 +22,3 @@
     job: "/usr/bin/certbot renew --quiet --post-hook 'systemctl reload postfix'"
     minute: "30"
     hour: "3"
-    weekday: "1" # Run weekly on Monday at 3:30 AM
