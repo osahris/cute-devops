@@ -1,6 +1,6 @@
 ## Global variables
 
-- `mailname`: name of the mailserver, e.g. mx.example.org
+- `mailserver_domain_name`: name of the mailserver, e.g. mx.example.org
 
 ## manual steps to deploy with portal & steps after full mailserver deployment
 - `git submodule add https://gitlab.com/idcohorts/rps/rps-mail.git ansible_collections/rps/mail` to use rps-mail in portal repository (e.g. onconnect-portal)
@@ -14,7 +14,7 @@ mx.example.com ansible_host=127.0.0.1
 
 - postfix.yaml
 ```
-mailname: mx.example.com
+mailserver_domain_name: mx.example.com
 
 dkim_cname_domains:
   example.com: mx.example.com

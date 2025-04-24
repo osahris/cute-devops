@@ -9,12 +9,12 @@
 - name: Create certificate using certbot
   command: >
     certbot certonly --apache
-    -d {{ mailname }}
+    -d {{ mailserver_domain_name }}
     --agree-tos
     -n
-    --email {{ admin_email }}
+    --email {{ postfix_admin_email }}
   args:
-    creates: "/etc/letsencrypt/live/{{ mailname }}/fullchain.pem"
+    creates: "/etc/letsencrypt/live/{{ mailserver_domain_name }}/fullchain.pem"
 
 - name: Add certbot renewal to crontab
   cron:
@@ -22,4 +22,3 @@
     job: "/usr/bin/certbot renew --quiet --post-hook 'systemctl reload postfix'"
     minute: "30"
     hour: "3"
-    weekday: "1" # Run weekly on Monday at 3:30 AM

@@ -1,15 +1,15 @@
 postfix_with_sympa: true
 
-sympa_admin_email: "{{ admin_email | default('listmaster@'+mailname) }}"
+sympa_admin_email: "{{ postfix_admin_email | default('listmaster@'+mailserver_domain_name) }}"
 sympa_listmaster_emails:
   - "{{ sympa_admin_email }}"
-  - postmaster@{{ mailname }}
+  - postmaster@{{ mailserver_domain_name }}
   
 sympa_domains:
   # - lists.another.iodatalabs.dev
   # - third.iodatalabs.dev
   - lists.tomrobinr.iodatalabs.dev
-sympa_main_domain: lists.{{ mailname }}
+sympa_main_domain: lists.{{ mailserver_domain_name }}
 
 sympa_gather_facts_from:
   - dev.numhub.de
