@@ -1,6 +1,6 @@
 ---
 
-- name: Enabe modules
+- name: Enable modules
   apache2_module:
     name: "{{item}}"
     state: present

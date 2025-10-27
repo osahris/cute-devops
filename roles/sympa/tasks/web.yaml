@@ -35,7 +35,7 @@
   # notify: restart apache2
 
 
-- name: Enabe Apache2 proxy_fcgi module
+- name: Enable Apache2 proxy_fcgi module
   apache2_module:
     name: proxy_fcgi
     state: present
