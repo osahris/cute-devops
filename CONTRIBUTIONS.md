@@ -1,9 +1,10 @@
 We thank all contributors of this project!
 
 # Developers
-- Markus Katharina Brechtel (Working Group Cohorts in Infectious Diseases and Oncology; University Hospital Cologne / University Hospital Frankfurt)
-- Christian Akele (Working Group Cohorts in Infectious Diseases and Oncology; University Hospital Cologne / University Hospital Frankfurt)
-- Vasily Tulsky (Working Group Cohorts in Infectious Diseases and Oncology; University Hospital Frankfurt)
+- Markus Katharina Brechtel (Institute for Digital Medicine and Clinical Data Sciences; Goethe University Frankfurt)
+- Tom-Robin Raja
+- Christian Akele (Institute for Digital Medicine and Clinical Data Sciences; Goethe University Frankfurt)
+- Vasilii Tulskii (Institute for Digital Medicine and Clinical Data Sciences; Goethe University Frankfurt)
 - Andreas Streichardt
 
 # AI Coding Support
