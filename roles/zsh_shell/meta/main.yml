@@ -5,7 +5,7 @@
 ---
 galaxy_info:
   author: mkbrechtel
-  description: Fish shell configuration
+  description: Zsh shell configuration
   company: mkbrechtel
   license: AGPL-3.0-or-later
   min_ansible_version: "2.14"
@@ -16,6 +16,6 @@ galaxy_info:
         - trixie
   galaxy_tags:
     - shell
-    - fish
+    - zsh
 
 dependencies: []

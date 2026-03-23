@@ -28,7 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Email notification support for deployment status
   - Test roles: test_ohai, test_fail
 
+### Added
+- New `bash_shell` role for Bash shell configuration
+- New `elvish_shell` role for Elvish shell configuration
+- New `zsh_shell` role for Zsh shell configuration
+
 ### Changed
+- Renamed `fish` role to `fish_shell`
 - Renamed `debian_sources` role to `debian_apt_sources`
 - Removed obsolete `debian_repos` role (refactored into `debian_apt_sources`)
 - Changed `updates` role to use meta dependency on `debian_apt_sources` instead of import_role

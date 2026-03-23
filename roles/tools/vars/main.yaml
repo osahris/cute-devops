@@ -16,6 +16,9 @@ tools_packages:
   - elvish
   - sash
 
+  # shell prompt
+  - powerline-go
+
   # shell tools
   - tmux
   - socat

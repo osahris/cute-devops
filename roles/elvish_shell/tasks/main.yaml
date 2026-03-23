@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: install elvish
+  ansible.builtin.apt:
+    name: elvish
+    state: present
+
+- name: elvish config directory
+  ansible.builtin.file:
+    path: /etc/elvish/lib
+    state: directory
+
+- name: elvish powerline-go prompt
+  ansible.builtin.copy:
+    src: powerline-go.elv
+    dest: /etc/elvish/lib/powerline-go.elv
+    mode: "0644"

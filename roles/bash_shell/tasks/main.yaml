@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: install bash
+  ansible.builtin.apt:
+    name: bash
+    state: present
+
+- name: bash powerline-go prompt
+  ansible.builtin.copy:
+    src: powerline-go.sh
+    dest: /etc/profile.d/powerline-go.sh
+    mode: "0644"

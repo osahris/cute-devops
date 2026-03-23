@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+galaxy_info:
+  author: mkbrechtel
+  description: Elvish shell configuration
+  company: mkbrechtel
+  license: AGPL-3.0-or-later
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - shell
+    - elvish
+
+dependencies: []

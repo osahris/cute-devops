@@ -39,7 +39,10 @@ ansible-galaxy collection install mkbrechtel.sysops
 - **resolvconf**: Resolvconf DNS configuration
 - **sysctl_tweaks**: System sysctl performance tweaks
 - **microcode**: CPU microcode updates
-- **fish**: Fish shell configuration
+- **bash_shell**: Bash shell configuration
+- **elvish_shell**: Elvish shell configuration
+- **fish_shell**: Fish shell installation and configuration
+- **zsh_shell**: Zsh shell configuration
 - **updates**: System updates management
 - **users**: User account management with home directory configuration
 - **podman**: Podman container runtime with DNS support

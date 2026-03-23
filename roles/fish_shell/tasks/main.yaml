@@ -4,6 +4,11 @@
 
 ---
 
+- name: install fish
+  ansible.builtin.apt:
+    name: fish
+    state: present
+
 - name: fish config directory
   file:
     path: /etc/fish/conf.d
