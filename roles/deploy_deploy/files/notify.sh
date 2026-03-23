@@ -28,6 +28,8 @@ mkdir -p "$NOTIFIERS_DIR"
 # Find all executable files in the notifiers directory
 notifiers=($(find "$NOTIFIERS_DIR" -type f -executable 2>/dev/null | sort))
 
+echo "Deploy '$DEPLOY_ID' finished with exit code $EXIT_CODE"
+
 if [[ ${#notifiers[@]} -eq 0 ]]; then
     echo "No notifiers found in $NOTIFIERS_DIR"
     exit 0
