@@ -4,13 +4,23 @@
 
 ---
 
+- name: Install locales package
+  ansible.builtin.apt:
+    name: "{{ locales_with_all | ternary('locales-all', 'locales') }}"
+    state: present
+
 - name: Ensure a locale exists
   community.general.locale_gen:
-    name: "{{item}}"
+    name: "{{ item }}"
     state: present
-  loop: "{{locales_gen}}"
+  loop: "{{ locales_gen }}"
 
-- name: default locale
-  template:
+- name: Configure /etc/locale.conf
+  ansible.builtin.template:
+    src: default_locale.j2
+    dest: /etc/locale.conf
+
+- name: Configure /etc/default/locale
+  ansible.builtin.template:
     src: default_locale.j2
     dest: /etc/default/locale

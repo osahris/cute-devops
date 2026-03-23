@@ -2,9 +2,24 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-locales_default:
-  lang: de_DE.UTF-8
-  language: de
+locales_with_all: false
 
 locales_gen:
   - de_DE.UTF-8
+
+locales_lang: de_DE.UTF-8
+locales_language: de_DE:de:en
+locales_lc_address: "{{ undef() }}"
+locales_lc_all: "{{ undef() }}"
+locales_lc_collate: "{{ undef() }}"
+locales_lc_ctype: "{{ undef() }}"
+locales_lc_identification: "{{ undef() }}"
+locales_lc_measurement: "{{ undef() }}"
+locales_lc_messages: C.UTF-8
+locales_lc_monetary: "{{ undef() }}"
+locales_lc_name: "{{ undef() }}"
+locales_lc_numeric: "{{ undef() }}"
+locales_lc_paper: "{{ undef() }}"
+locales_lc_response: "{{ undef() }}"
+locales_lc_telephone: "{{ undef() }}"
+locales_lc_time: "{{ undef() }}"
