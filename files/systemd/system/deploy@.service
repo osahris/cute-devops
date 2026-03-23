@@ -7,7 +7,7 @@ Description=Deploy %i!
 
 [Service]
 WorkingDirectory=/etc/deploy/%i
-ExecStart=/usr/bin/run-parts /etc/deploy/%i
+ExecStart=/usr/bin/run-parts --verbose /etc/deploy/%i
 ExecStopPost=/etc/deploy/notify.sh "%H" "%i" "${EXIT_STATUS}" "/run/deploy/%i.out"
 EnvironmentFile=/etc/deploy/%i/deploy.env
 
