@@ -28,7 +28,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: >-
           apt-get update && apt-get install -y --no-install-recommends
-          git ansible-core
+          ca-certificates git ansible-core
 
       - name: Checkout code
         uses: actions/checkout@v6

@@ -25,7 +25,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: >-
           apt-get update && apt-get install -y --no-install-recommends
-          git reuse
+          ca-certificates git reuse
 
       - name: Checkout code
         uses: actions/checkout@v6
