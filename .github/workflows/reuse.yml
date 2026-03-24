@@ -1,0 +1,35 @@
+---
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: REUSE Lint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_call:
+
+jobs:
+  reuse:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+    steps:
+      - name: Install prerequisites
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: >-
+          apt-get update && apt-get install -y --no-install-recommends
+          git reuse
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Run REUSE lint
+        run: >-
+          reuse lint

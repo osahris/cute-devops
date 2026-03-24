@@ -14,8 +14,11 @@ jobs:
   lint:
     uses: ./.github/workflows/lint.yml
 
+  reuse:
+    uses: ./.github/workflows/reuse.yml
+
   release:
-    needs: lint
+    needs: [lint, reuse]
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
