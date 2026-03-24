@@ -24,7 +24,7 @@ jobs:
           git ansible-core
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get version from tag
         id: get_version
