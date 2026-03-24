@@ -5,7 +5,7 @@
 - name: Assert system hostname matches expected hostname
   ansible.builtin.assert:
     that:
-      - ansible_hostname == hostname | regex_replace('\..*$', '')
+      - ansible_hostname == hostname_name | regex_replace('\..*$', '')
     fail_msg: "System hostname '{{ ansible_hostname }}' does not match expected hostname '{{ hostname_name }}'"
     success_msg: "System hostname '{{ ansible_hostname }}' matches expected hostname '{{ hostname_name }}'"
   when: not hostname_update
@@ -19,10 +19,10 @@
   ansible.builtin.lineinfile:
     dest: "{{ root_target_directory | default('') }}/etc/hosts"
     regexp: "^127\\.0\\.0\\.1"
-    line: "127.0.0.1 localhost {{ hostname_name }}{% if '.' in hostname %} {{ hostname | regex_replace('\\..*$', '') }}{% endif %}"
+    line: "127.0.0.1 localhost {{ hostname_name }}{% if '.' in hostname_name %} {{ hostname_name | regex_replace('\\..*$', '') }}{% endif %}"
 
 - name: Localhost ipv6 entry
   ansible.builtin.lineinfile:
     dest: "{{ root_target_directory | default('') }}/etc/hosts"
     regexp: "^::1"
-    line: "::1 localhost ip6-localhost ip6-loopback {{ hostname_name }}{% if '.' in hostname %} {{ hostname | regex_replace('\\..*$', '') }}{% endif %}"
+    line: "::1 localhost ip6-localhost ip6-loopback {{ hostname_name }}{% if '.' in hostname_name %} {{ hostname_name | regex_replace('\\..*$', '') }}{% endif %}"

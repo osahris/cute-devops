@@ -3,10 +3,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-- name: Set user unit installation mode
-  ansible.builtin.set_fact:
-    _deploy_deploy_user_install_mode: "{{ deploy_deploy_user_install_mode | default('global') }}"
-
 - name: Ensure /etc/deploy directory exists
   ansible.builtin.file:
     path: /etc/deploy
@@ -34,46 +30,7 @@
   loop_control:
     label: "{{ item | basename }}"
   become: true
-  when: deploy_deploy_systemd_units_scope == "system"
-  notify: Reload systemd system daemon
-
-- name: Install user units globally
-  ansible.builtin.copy:
-    src: "{{ item }}"
-    dest: "/etc/systemd/user/{{ item | basename }}"
-    mode: "0644"
-  with_fileglob:
-    - "systemd/user/*"
-  loop_control:
-    label: "{{ item | basename }}"
-  become: true
-  when:
-    - deploy_deploy_systemd_units_scope == "user"
-    - _deploy_deploy_user_install_mode == "global"
-  notify: Reload systemd user daemon
-
-- name: Create user systemd directory
-  ansible.builtin.file:
-    path: ~/.config/systemd/user
-    state: directory
-    mode: "0755"
-  when:
-    - deploy_deploy_systemd_units_scope == "user"
-    - _deploy_deploy_user_install_mode == "home"
-
-- name: Install user units to home directory
-  ansible.builtin.copy:
-    src: "{{ item }}"
-    dest: ~/.config/systemd/user/{{ item | basename }}
-    mode: "0644"
-  with_fileglob:
-    - "systemd/user/*"
-  loop_control:
-    label: "{{ item | basename }}"
-  when:
-    - deploy_deploy_systemd_units_scope == "user"
-    - _deploy_deploy_user_install_mode == "home"
-  notify: Reload systemd user daemon
+  notify: Reload systemd daemon
 
 - name: Flush all handlers after unit file copying is finished
   ansible.builtin.meta: flush_handlers

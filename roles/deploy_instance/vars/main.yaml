@@ -4,7 +4,4 @@
 
 ---
 
-deploy_instance_path: "{{ deploy_instance_scope_map_instance_path_prefix[deploy_instance_scope] }}/{{ deploy_instance_id }}"
-deploy_instance_scope_map_instance_path_prefix:
-  system: /etc/deploy/
-  user: ~/deploy/
+deploy_instance_path: "/etc/deploy/{{ deploy_instance_id }}"

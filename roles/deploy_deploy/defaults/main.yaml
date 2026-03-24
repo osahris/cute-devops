@@ -4,9 +4,6 @@
 
 ---
 
-deploy_deploy_systemd_units_scope: system
-deploy_deploy_user_install_mode: global # global or home
-
 # Notification settings
 deploy_deploy_notify_email_to: ""
 deploy_deploy_notify_email_from: "deploy@{{ ansible_hostname }}"

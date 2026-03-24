@@ -13,7 +13,6 @@
     - /etc/deploy/notifiers
     - /var/lib/deploy
     - /var/lib/deploy/notify_email
-  when: deploy_deploy_systemd_units_scope == "system"
 
 - name: Copy notification scripts
   ansible.builtin.copy:
@@ -23,14 +22,12 @@
   loop:
     - notify.sh
     - notify-email.sh
-  when: deploy_deploy_systemd_units_scope == "system"
 
 - name: Copy deploy.py script
   ansible.builtin.copy:
     src: deploy.py
     dest: /usr/local/bin/deploy
     mode: "0755"
-  when: deploy_deploy_systemd_units_scope == "system"
 
 - name: Template email notification configuration
   ansible.builtin.template:
@@ -38,7 +35,6 @@
     dest: /etc/deploy/notify_email.env
     mode: "0644"
   when:
-    - deploy_deploy_systemd_units_scope == "system"
     - deploy_deploy_notify_email_to != ""
 
 - name: Make email notifier executable
@@ -47,5 +43,4 @@
     src: /etc/deploy/notify-email.sh
     state: link
   when:
-    - deploy_deploy_systemd_units_scope == "system"
     - deploy_deploy_notify_email_to != ""

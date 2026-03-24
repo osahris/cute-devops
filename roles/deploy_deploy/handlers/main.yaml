@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-- name: Reload systemd daemon for scope {{ deploy_deploy_systemd_units_scope }}
+- name: Reload systemd daemon
   ansible.builtin.systemd:
-    scope: "{{ deploy_deploy_systemd_units_scope }}"
+    scope: system
     daemon_reload: true
