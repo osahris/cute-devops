@@ -2,15 +2,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-[vms]
-sysops-test-common
-
-[setup_deploy]
-sysops-test-common
-
-[knot_nameservers]
-sysops-test-ns
-
-[vms:children]
-setup_deploy
-knot_nameservers
+---
+nameserver_zones:
+  - domain: test.example
