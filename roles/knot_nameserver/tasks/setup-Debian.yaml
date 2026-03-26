@@ -1,0 +1,8 @@
+---
+
+- name: install debian packages
+  apt:
+    pkg:
+    - knot
+    - knot-dnsutils
+    - bind9-dnsutils

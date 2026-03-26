@@ -1,0 +1,16 @@
+---
+
+- name: zonefiles directory
+  file:
+    path: "{{ nameserver_zonefile_directory }}"
+    state: directory
+
+- name: copy zonefiles
+  copy:
+    src: zonefiles/{{zone.domain}}.zone
+    dest: "{{nameserver_zonefile_directory}}/{{zone.domain}}.zone"
+  notify: "knot : reload knot"
+  loop: "{{ nameserver_zones }}"
+  loop_control:
+    loop_var: zone
+    label: "{{ zone.domain }}"

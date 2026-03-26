@@ -1,0 +1,9 @@
+---
+
+- name: check zonefiles
+  command: kzonecheck -v "{{nameserver_zonefile_directory}}/{{zone.domain}}.zone"
+  loop: "{{ nameserver_zones }}"
+  loop_control:
+    loop_var: zone
+    label: "{{ zone.domain }}"
+  changed_when: false

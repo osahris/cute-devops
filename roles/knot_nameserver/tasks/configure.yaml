@@ -1,0 +1,16 @@
+---
+
+- name: knot configuration
+  template:
+    src: knot.conf.j2
+    dest: /etc/knot/knot.conf
+  notify: reload knot
+
+- name: working directory
+  file:
+    path: /var/lib/knot
+    state: directory
+    owner: knot
+    group: knot
+    recurse: yes
+  notify: restart knot
