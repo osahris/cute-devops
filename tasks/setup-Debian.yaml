@@ -4,5 +4,6 @@
   apt:
     pkg:
     - knot
+    - knot-dnssecutils
     - knot-dnsutils
     - bind9-dnsutils

@@ -11,6 +11,10 @@ sysops-test-common
 [devboxes]
 sysops-test-devbox
 
+[knot_nameservers]
+sysops-test-ns
+
 [vms:children]
 setup_deploy
 devboxes
+knot_nameservers

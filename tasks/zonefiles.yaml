@@ -9,7 +9,7 @@
   copy:
     src: zonefiles/{{zone.domain}}.zone
     dest: "{{nameserver_zonefile_directory}}/{{zone.domain}}.zone"
-  notify: "knot : reload knot"
+  notify: "reload knot"
   loop: "{{ nameserver_zones }}"
   loop_control:
     loop_var: zone
