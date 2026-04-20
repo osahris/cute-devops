@@ -15,7 +15,7 @@ Depends on: [secrets.feature.md](secrets.feature.md).
 Two possible specification surfaces (or a combination):
 
 - **Declarative in the role invocation**: the caller lists `post_rotate: [{ service: postgresql, action: restart }, …]` alongside the secret definition.
-- **Filesystem convention**: a script at `/etc/devops/secrets/<service>/<name>.post-rotate` is executed automatically if present.
+- **Filesystem convention**: a script at `/etc/secrets/<service>/<name>.post-rotate` is executed automatically if present.
 
 Both is friendly to users but doubles the code paths and makes the "what will happen on rotation?" question harder to answer at a glance.
 

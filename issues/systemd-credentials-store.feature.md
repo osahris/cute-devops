@@ -6,7 +6,7 @@ status: draft
 
 ## Goal
 
-Prototype `systemd-credentials` as a store backend for the secrets role. With `LoadCredential=` and `systemd-creds` encrypt-at-rest, services receive secrets at start time without an unencrypted copy ever sitting on disk — a meaningful hardening step over plain files under `/etc/devops/secrets/`.
+Prototype `systemd-credentials` as a store backend for the secrets role. With `LoadCredential=` and `systemd-creds` encrypt-at-rest, services receive secrets at start time without an unencrypted copy ever sitting on disk — a meaningful hardening step over plain files under `/etc/secrets/`.
 
 Open research question: does this model fit the role's source/store abstraction cleanly, and is the operational complexity worth the win?
 

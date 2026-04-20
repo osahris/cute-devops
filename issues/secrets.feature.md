@@ -12,7 +12,7 @@ Secrets can live on the host where they are used. This role provides a uniform i
 
 ### Identity
 
-Secrets are identified by a service and a name, and typed by a file-extension suffix. Default storage location is `/etc/devops/secrets/<service>/<name>.<type>` (e.g. `/etc/devops/secrets/restic/repo-passphrase.env`).
+Secrets are identified by a service and a name, and typed by a file-extension suffix. Default storage location is `/etc/secrets/<service>/<name>.<type>` (e.g. `/etc/secrets/restic/repo-passphrase.env`).
 
 Roles that need a secret at a specific path (e.g. `/etc/restic/password`) may create a symlink to that secret — the role provides an option for this.
 
@@ -48,7 +48,7 @@ Later: centralized password managers like HashiCorp Vault — see [hashicorp-vau
 
 ### Stores (where the secret lives)
 
-- **file** (default): written to the remote machine at `/etc/devops/secrets/<service>/<name>.<type>` (or override path).
+- **file** (default): written to the remote machine at `/etc/secrets/<service>/<name>.<type>` (or override path).
 - **local-pass**: stored only in the control node's `pass` store — the secret never touches the target filesystem. The lookup plugin fetches it at play time and injects into templates or tasks. For the case where a secret should not reside on the host.
 - **ansible-vault**: vault-encrypted file shared via the ansible repo. Ansible handles decryption at play time via the standard vault password mechanism; this store writes or updates the entry.
 
@@ -111,7 +111,7 @@ First-class support via the typed files above. TLS keys, SSH keys, and multi-lin
 
 ### Bootstrap
 
-On a fresh host, requesting a secret "just works" with sane defaults: the consumer asks for a secret by service and name, gets a default-strength random `.env` entry written under `/etc/devops/secrets/<service>/<name>.env/`, and proceeds. No per-call configuration is required for the common case. The first role run authenticates as root via Ansible to create `/etc/devops/secrets/` and write the initial entries.
+On a fresh host, requesting a secret "just works" with sane defaults: the consumer asks for a secret by service and name, gets a default-strength random `.env` entry written under `/etc/secrets/<service>/<name>.env/`, and proceeds. No per-call configuration is required for the common case. The first role run authenticates as root via Ansible to create `/etc/secrets/` and write the initial entries.
 
 ## Design notes
 
