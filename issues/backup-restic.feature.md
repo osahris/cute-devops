@@ -8,20 +8,23 @@ status: draft
 
 Working `restic_client`, `restic_server`, and `restic_monitor` roles as one of two backup paths (alongside borg) to satisfy 3-2-1. The three roles are the load-bearing triad: the client produces snapshots, the server holds the near repos password-free, the monitor carries read-only keys and does all the work that needs keys (freshness checks, integrity checks, offsite replication).
 
-Per-host isolation on the server side, two backup levels on the client side, monitored end-to-end, single near-target for clients with offsite cascade handled by the monitor.
+Per-host isolation on the server side, three backup levels on the client side (machine / host / service) delivered as three systemd job classes, monitored end-to-end, single near-target for clients with offsite cascade handled by the monitor.
 
 ## Status quo
 
-The collection already ships working `restic_client` and `restic_server` roles inherited from an earlier project. This ticket defines the target shape. Implementation is a rework that keeps what works (systemd timer + oneshot pattern, client-generates-then-delegates htpasswd) and swaps out the parts that do not scale (single-server URL as the only config knob, inline plaintext `key:` in inventory, two flavors of job in one list, no monitoring role at all, no offsite cascade, no integrity checks). The new `restic_monitor` role is net-new and is specified in `backup-monitor-host.feature.md`.
+The collection already ships working `restic_client` and `restic_server` roles inherited from an earlier project. This ticket defines the target shape. Implementation is a rework that keeps what works (systemd timer + oneshot pattern, client-generates-then-delegates htpasswd) and swaps out the parts that do not scale (single-server URL as the only config knob, inline plaintext `key:` in inventory, two flavors of job in one list, no monitoring role at all, no offsite cascade, no integrity checks). The new `restic_monitor` role is net-new and specified in the Monitor section below.
 
 ## Scope
 
 ### Backup levels
 
-- **host** — filesystem paths on the guest.
-- **service** — streamed export from a running service (database dump, Keycloak realm export, Grafana dashboards, virtual-machine export, disk image) via restic's `--stdin` mode. Depends on `service-export-import.feature.md`.
+- **Host** (`fs-` class) — filesystem paths on the guest. **Implemented in this ticket.**
+- **Service** (`srv-` class) — streamed export from a running service (database dump, Keycloak realm export, Grafana dashboards, …) via restic's `--stdin` mode. **Shape defined here; wiring depends on `service-export-import.feature.md`.**
+- **Virtual Machine** (`vm-` class) — VM disk volumes exported from the hypervisor layer, writing into the per-project `<project>/vms` repo. **Specified here as a named class with a stub drop-in; the actual export mechanism lands in a future hypervisor-backup ticket.**
 
-Machine-level backups (VM disk volumes) are not a distinct level at this role — they are produced at the hypervisor layer and appear to this role as service-level streamed exports from the hypervisor's point of view, writing into a per-project `<project>/vms` repo.
+The three levels map one-to-one onto three job classes on the systemd side (see Unit model). Each class is a dash-prefix on the instance name; each gets its own class drop-in for activation, privileges, and trigger mechanism. Specifying all three classes up front — even for the not-yet-implemented vm case — reserves the namespace and pins the convention so a future ticket does not reshape it.
+
+**Class-tag convention.** Every snapshot is tagged `vm`, `fs`, or `srv` at `restic backup` time. The class drop-in carries the tag (see Unit model), so the convention is enforced by the unit files, not by admin discipline. Snapshots in a shared repo stay filterable by level (`restic snapshots --tag fs`, `restic snapshots --tag srv`, etc.) without needing a naming convention on the snapshot side.
 
 ### Default repo model
 
@@ -40,8 +43,8 @@ Restic's content-defined chunking uses a per-repo crypto parameters picked at `r
 Per-project chunker alignment uses a dedicated **project base repo** as the crypto parameter anchor:
 
 1. Project bootstrap creates `/<project>/.restic-base-repo` on the backup server — an empty repo whose sole purpose is holding the project's chunker polynomial. It never receives real snapshots.
-2. Every other repo in the project — near repos on the server, the `<project>/vms` repo, the aggregated offsite repo on Hetzner — is initialized with `restic init --copy-chunker-params --from-repo …/<project>/.restic-base-repo`. Same crypto parameters, dedup works across the whole project.
-3. Init is idempotent: on re-run, the monitor (which owns this ritual — see `backup-monitor-host.feature.md`) checks whether a repo already exists; if yes, it verifies the chunker polynomial matches the project base and warns if it does not match.
+2. Every other repo in the project — near repos on the server, the `<project>/vms` repo, the aggregated offsite repo on Hetzner — is initialized with `restic init --copy-chunker-params --from-repo <backup-server-url>/<project>/.restic-base-repo`. Same crypto parameters, dedup works across the whole project.
+3. Init is idempotent: on re-run, the monitor (which owns this ritual — see the Monitor section below) checks whether a repo already exists; if yes, it verifies the chunker polynomial matches the project base and warns if it does not match.
 
 Using a dedicated base repo rather than "whichever repo was first" removes ambiguity about which polynomial a project uses and makes the bootstrap ritual explicit: create `/<project>/.restic-base-repo`, then every subsequent repo is derived. The base repo is tiny (just metadata) and can be read-shared project-wide so any future init from any host works without project-admin credentials.
 
@@ -49,7 +52,7 @@ This same mechanism resolves the hypervisor-VM dedup case: the project's `<proje
 
 **Access to the base repo under `--private-repos`.** restic-server's private-repos mode restricts each user to paths matching their username. For the base repo at `/<project>/.restic-base-repo`, that means the user account itself has to be named `<project>/.restic-base-repo`. The base-repo password is stored only on the monitor (provisioned via the secrets role, same machinery as per-host repo credentials).
 
-The client still owns the init code path. When a near repo needs to be initialized, the controller fetches the base-repo password from the monitor into a transient Ansible fact (`no_log` throughout), runs `restic init --copy-chunker-params --from-repo …/<project>/.restic-base-repo` on the client with both passwords in its environment, and the fact is discarded at the end of the play. The base-repo password never lands on the client's disk; the init logic lives in one place (the client role) and is not duplicated on the monitor.
+The client still owns the init code path. When a near repo needs to be initialized, the controller fetches the base-repo password from the monitor into a transient Ansible fact (`no_log` throughout), runs `restic init --copy-chunker-params --from-repo <backup-server-url>/<project>/.restic-base-repo` on the client with both passwords in its environment, and the fact is discarded at the end of the play. The base-repo password never lands on the client's disk; the init logic lives in one place (the client role) and is not duplicated on the monitor.
 
 Whether restic-rest accepts usernames containing `/` under `--private-repos` is tracked as an open question below — the entire per-host / per-project scoping scheme here depends on it.
 
@@ -57,7 +60,7 @@ Whether restic-rest accepts usernames containing `/` under `--private-repos` is 
 
 The aggregated per-project offsite repo on Hetzner deduplicates across all hosts in the project. That is the main storage payoff of the cascade — twenty similar hosts do not produce twenty copies of shared content offsite, they produce one.
 
-Whether the server's near repos also share storage on disk across hosts (via a hardlink pass on `/srv/restic`) is an empirical question, not assumed. Tracked below.
+Whether the server's near repos also share storage on disk across hosts (via a hardlink pass on `/srv/restic`) is an open question, not assumed. Tracked below.
 
 Cross-project dedup never happens — different chunker parameters, different repo keys, by design.
 
@@ -81,7 +84,7 @@ Clients never configure an offsite repo directly. If a client needs a snapshot i
 
 ### Client — `restic_client`
 
-Three top-level lists, no conditional fields, no fan-out per job. Default ships a single full-filesystem job against the near repo and no stream jobs:
+Four top-level lists (one for repos, one per class), no conditional fields, no fan-out per job. Default ships a single full-filesystem host-level job against the near repo; service and vm lists are empty unless a service or hypervisor role populates them:
 
 ```yaml
 restic_repos:
@@ -90,7 +93,7 @@ restic_repos:
     username: "{{ ansible_hostname }}"
     auth_secret: { service: restic, name: near-auth }       # env-typed secret
 
-restic_file_backup_jobs:
+restic_host_backup_jobs:               # Host-level (fs- class)
   - name: root                          # the default job
     paths: ["/"]
     excludes:                           # virtual + volatile filesystems
@@ -102,25 +105,32 @@ restic_file_backup_jobs:
       - /var/tmp
       - /mnt
       - /media
-    flags: ["-x"]                       # stay on the root filesystem; other mounts need their own job
+    flags: []                           # no -x: descend into every mount under /
     repo: near
     retention: { keep_daily: 365 }
     schedule: daily
 
-# restic_stream_backup_jobs is empty by default. Shape (once the stream contract
-# is finalized in service-export-import.feature.md):
-# restic_stream_backup_jobs:
+# restic_service_backup_jobs — Service-level (srv- class), empty by default.
+# Shape (once the stream contract is finalized in service-export-import.feature.md):
+# restic_service_backup_jobs:
 #   - name: pg
 #     stream_command: "…"                 # how to read the service-published export; TBD
 #     stdin_filename: pg-dumpall.sql
 #     repo: near
 #     retention: { keep_daily: 365 }
 #     schedule: daily
+
+# restic_vm_backup_jobs — Virtual Machine-level (vm- class). Not implemented
+# in this ticket. The list, the class prefix, and a stub drop-in are reserved
+# here so the future hypervisor-backup ticket slots in without reshaping
+# anything. On delivery, this list would be populated by the hypervisor role.
 ```
 
-The default `root` job backs up everything on the root filesystem, with `-x` preventing descent into other mounts (`/var/lib/data`, `/home` on a separate partition, etc. — those go in their own jobs). The excludes list covers kernel virtual filesystems (`/proc`, `/sys`, `/dev`, `/run`), scratch space (`/tmp`, `/var/tmp`), and mountpoint shells (`/mnt`, `/media`). Distribution-specific additions (say `/var/lib/containers/storage` for a podman host) extend the list via role defaults, not inventory.
+The default `root` job backs up everything under `/` — no `-x`, so additional mounts (`/home` on a separate partition, `/var/lib/data`, etc.) are captured by the same job without needing extra inventory. The excludes list covers kernel virtual filesystems (`/proc`, `/sys`, `/dev`, `/run`), scratch space (`/tmp`, `/var/tmp`), and mountpoint shells (`/mnt`, `/media`). Filesystem-specific additions extend the list via role defaults, not inventory — notably btrfs needs `.snapshots` excluded so snapper-style snapshots do not balloon the backup, and a podman host typically excludes `/var/lib/containers/storage`.
 
-**Uniqueness assertion**: the role refuses to template if a `name` appears twice within the same list. Names across lists do not collide because the systemd instance and on-disk path are prefixed with the class (`fs-<name>` or `stream-<name>`) — see the unit model and filesystem layout below. Caught early, not at systemd-enable time.
+The catch-all default is convenient but not worry-free. Restic has no depth cap and no recursion-loop detection — a bind-mount loop (e.g. `/mnt/backup` bind-mounted to `/`) would cause restic to descend forever, and the only mitigation is an explicit exclude for the offending path. Admins with pathological mount setups have to add their own excludes. An alternative — auto-detecting filesystems and excluding everything that is not the rootfs (essentially a managed `-x` equivalent with discoverability on top) — comes with its own challenges (what counts as "the" rootfs on a system with multiple data partitions you *do* want backed up?) and is deliberately not attempted here.
+
+**Uniqueness assertion**: the role refuses to template if a `name` appears twice within the same list. Names across lists do not collide because the systemd instance and on-disk path are prefixed with the class (`fs-<name>`, `srv-<name>`, `vm-<name>`) — see the unit model and filesystem layout below. Caught early, not at systemd-enable time.
 
 ### Client filesystem layout
 
@@ -133,27 +143,31 @@ Everything the role owns lives under `/etc/restic/`. Secrets live under `/etc/se
       restic-repo.env          # RESTIC_REPOSITORY, RESTIC_CACERT, base flags
       restic-repo.auth.env     # symlink → /etc/secrets/restic/<repo>-auth.env (RESTIC_PASSWORD=…)
   jobs/
-    fs-<name>/               # fs-mode job, systemd instance: restic-backup@fs-<name>
+    fs-<name>/               # Host-level job, systemd instance: restic-backup@fs-<name>
       restic-backup-job.env    # RESTIC_FLAGS with flags + paths
       repo                     # symlink → ../../repos/<selected-repo>/
-    stream-<name>/             # stream-mode job, systemd instance: restic-backup@stream-<name>
+    srv-<name>/              # Service-level job, systemd instance: restic-backup@srv-<name>
       restic-backup-job.env    # RESTIC_FLAGS with --stdin --stdin-filename …
       repo                     # symlink → ../../repos/<selected-repo>/
+    # vm-<name>/             # Virtual-Machine-level job, systemd instance: restic-backup@vm-<name>
+    #   (reserved; not materialized by this ticket — future hypervisor-backup ticket populates)
 ```
 
 A repo's identity is the two files in its directory: `restic-repo.env` carries the public config (URL, cert path), `restic-repo.auth.env` carries the passphrase via symlink. Both are repo-level by design — the passphrase belongs to the repo, not the job, which is why it lives inside `repos/<repo>/` next to the URL.
 
 Jobs reach their repo through one symlink — `jobs/<class>-<name>/repo` → `../../repos/<selected-repo>` — so the unit file loads both repo fragments via a stable nested path. Changing a job's repo is a single symlink flip.
 
-The class prefix (`fs-` / `stream-`) on job directories matches the systemd instance name, so `%i` expansion in the unit finds the job directory at `/etc/restic/jobs/%i/`. The prefix is what lets class-wide systemd drop-ins work (see unit model below) and it rules out name collisions between the two lists.
+The class prefix (`fs-` / `srv-` / `vm-`) on job directories matches the systemd instance name, so `%i` expansion in the unit finds the job directory at `/etc/restic/jobs/%i/`. The prefix is what lets class-wide systemd drop-ins work (see unit model below) and it rules out name collisions across the three lists.
 
 ### Backup user isolation
 
 Backup jobs do not run as root by default. One system user — `restic-backup-client` — owns every backup unit on the host. The server-side REST daemon runs as its own separate user (`restic-backup-server`, see the Server section); a host that acts as both client and server keeps the two envelopes distinct.
 
-**Fs-mode jobs** get `AmbientCapabilities=CAP_DAC_READ_SEARCH` and a matching bounding set, added via a class-wide drop-in on `restic-backup@fs-.service.d/`. That capability bypasses DAC read-and-traverse checks without granting write or any other privilege — restic gets the "read anything" power it needs for whole-filesystem backups, and nothing else. restic itself is not setuid and gets no extra capabilities.
+**Host-level jobs** (`fs-` class) get `AmbientCapabilities=CAP_DAC_READ_SEARCH` and a matching bounding set, added via a class-wide drop-in on `restic-backup@fs-.service.d/`. That capability bypasses DAC read-and-traverse checks without granting write or any other privilege — restic gets the "read anything" power it needs for whole-filesystem backups, and nothing else. restic itself is not setuid and gets no extra capabilities.
 
-**Stream-mode jobs** also run as `restic-backup-client` but drop `CAP_DAC_READ_SEARCH` — they do not read paths directly; they consume a stream produced by a service-owned export endpoint. The capability drop is delivered via a class-wide systemd drop-in under `restic-backup@stream-.service.d/` (see unit model). How the stream actually reaches restic (socket activation, FIFO, systemd `StandardInput=` plumbing) and how the producing service publishes it are out of scope here; that contract is defined in `service-export-import.feature.md` when it lands.
+**Service-level jobs** (`srv-` class) also run as `restic-backup-client`, without `CAP_DAC_READ_SEARCH` — they do not read paths directly; they consume a stream produced by a service-owned export endpoint. How the stream actually reaches restic (socket activation, FIFO, systemd `StandardInput=` plumbing) and how the producing service publishes it are out of scope here; that contract is defined in `service-export-import.feature.md` when it lands. The `restic-backup@srv-.service.d/` drop-in carries the stdin wiring and nothing more.
+
+**Virtual-Machine-level jobs** (`vm-` class) are **not implemented in this ticket** — only the namespace and a stub `restic-backup@vm-.service.d/class.conf` drop-in are shipped so the class prefix is reserved. When the future hypervisor-backup ticket lands, it fills the stub with whatever hypervisor-side access the export mechanism needs (typically `SupplementaryGroups=libvirt` or equivalent) and wires the actual VM export. Until then, no `vm-<name>.service` instances exist.
 
 ### Run-as-root escape hatch
 
@@ -165,7 +179,7 @@ This is an escape hatch, not a default. Each `run_as_root: true` job should carr
 
 ### Unit model
 
-One template, `restic-backup@.service`, covers every job. Instance names are `<class>-<name>` (`fs-root`, `stream-pg`) so that systemd's dash-prefix drop-in rule reaches class-wide drop-ins automatically. ExecStart is env-driven; the per-job `.env` fills `RESTIC_FLAGS` with whatever the job needs.
+One template, `restic-backup@.service`, covers every job. Instance names are `<class>-<name>` (`fs-root`, `srv-pg`, `vm-mail01`) so that systemd's dash-prefix drop-in rule reaches class-wide drop-ins automatically. ExecStart is env-driven; the per-job `.env` fills `RESTIC_FLAGS` with whatever the job needs; the class drop-in supplies `$RESTIC_CLASS_TAG`.
 
 ```ini
 # /etc/systemd/system/restic-backup@.service
@@ -179,40 +193,93 @@ NoNewPrivileges=yes
 EnvironmentFile=-/etc/restic/jobs/%i/repo/restic-repo.env
 EnvironmentFile=-/etc/restic/jobs/%i/repo/restic-repo.auth.env
 EnvironmentFile=-/etc/restic/jobs/%i/restic-backup-job.env
-ExecStart=/usr/bin/restic backup $RESTIC_FLAGS
+ExecStart=/usr/bin/restic backup --tag ${RESTIC_CLASS_TAG} $RESTIC_FLAGS
 ```
 
-The base template grants *no* capabilities. Each class adds back only what it needs via a class-wide drop-in — additive security, never subtractive.
+The base template grants *no* capabilities. Each class adds back only what it needs via a class-wide drop-in — additive security, never subtractive. Every class drop-in sets `Environment=RESTIC_CLASS_TAG=<class>`; a job without a class is a misconfiguration caught at template time.
 
 Per-job `.env` examples:
 
 - `fs-root` job: `RESTIC_FLAGS="-x /etc /var/lib"` (flags and paths).
-- `stream-pg` job: `RESTIC_FLAGS="--stdin --stdin-filename pg-dumpall.sql"`.
+- `srv-pg` job: `RESTIC_FLAGS="--stdin --stdin-filename pg-dumpall.sql"`.
 
 **Class-wide drop-ins via dash-prefix** (systemd.unit(5), "Unit File Load Path"). For instance `restic-backup@fs-root.service`, systemd reads drop-ins from `restic-backup@fs-root.service.d/`, then `restic-backup@fs-.service.d/`, then `restic-backup@-.service.d/`. A single class-wide drop-in applies to every instance of that class without per-job templating.
 
-Fs-mode needs read-anything access to back up a filesystem; the role ships a class-wide drop-in that grants it:
+Host-level jobs need read-anything access to back up a filesystem; the role ships a class-wide drop-in that grants it plus the class tag:
 
 ```ini
-# /etc/systemd/system/restic-backup@fs-.service.d/capabilities.conf
+# /etc/systemd/system/restic-backup@fs-.service.d/class.conf
 [Service]
 AmbientCapabilities=CAP_DAC_READ_SEARCH
 CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+Environment=RESTIC_CLASS_TAG=fs
 ```
 
-Stream-mode gets no drop-in for capabilities, so stream instances inherit the base template's empty envelope. They do not read arbitrary paths; they consume a service-published stream. A separate `restic-backup@stream-.service.d/stream.conf` drop-in carries the stdin wiring (socket activation / `StandardInput=` / FIFO, per `service-export-import.feature.md`) when that ticket lands — additive, alongside no capabilities.
+Service-level jobs get no capabilities, just the tag and (when `service-export-import.feature.md` lands) the stdin wiring:
+
+```ini
+# /etc/systemd/system/restic-backup@srv-.service.d/class.conf
+[Service]
+Environment=RESTIC_CLASS_TAG=srv
+# stdin source wired here per service-export-import.feature.md
+# (socket activation / StandardInput= / FIFO)
+```
+
+Virtual-Machine-level jobs ship a **stub drop-in only** in this ticket — the namespace is reserved, no VM export mechanism is implemented. The future hypervisor-backup ticket fills in `SupplementaryGroups=libvirt` (or equivalent) plus the actual export wiring:
+
+```ini
+# /etc/systemd/system/restic-backup@vm-.service.d/class.conf
+# STUB — reserved by this ticket. Filled in by the future hypervisor-backup ticket.
+[Service]
+Environment=RESTIC_CLASS_TAG=vm
+# Future additions (not in this ticket):
+#   SupplementaryGroups=libvirt
+#   <VM export mechanism: snapshot + stream-to-restic>
+```
+
+**Classes as an extension axis.** The three classes shipped with this ticket (`fs-`, `srv-`, `vm-`) line up one-to-one with the three backup levels. The dash-prefix seam is not fixed, though — the same pattern absorbs any new job class that wants its own activation mechanism, timing, or privilege envelope. Examples that could land as future tickets:
+
+- `git-<name>`: backup triggered from a bare-repo `post-receive` hook; class drop-in installs the hook and wires `ConditionPathExists=` on a flag file.
+- `pg-wal-<name>`: backup triggered by a path watcher on the postgres WAL directory as new segments close; class drop-in declares a matching `.path` unit.
+- `minutely-<name>`: backup with a tight retention window and a cadence timer wired directly by the class drop-in, overriding the timer battery. This would only work performantely with a small set of files.
+
+None of the future examples land here — they are future features — but the framework is what it is: one template, one per-class drop-in, one pattern.
 
 `EnvironmentFile=-` tolerates missing files (belt-and-braces for the auth chain on first run). Per-job customization — the `run_as_root: true` escape hatch — still lives in per-instance drop-ins under `/etc/systemd/system/restic-backup@<class>-<name>.service.d/*.conf`. The template stays canonical; overrides are additive files the role manages.
 
-### Scheduling — timer battery
+### Scheduling
 
-The role ships a fixed set of named cadence timers the site can opt into — the "timer battery" pattern already used by the checker and deploy roles. Cadences cover the range most backups ever want: `hourly`, `quarter-daily`, `daily`, `weekly`, `monthly`. Each timer fires a per-cadence target that pulls in the jobs opted into that cadence via `Wants=`.
+Each job gets its own `restic-backup@<class>-<name>.timer` (a template timer alongside the service template) that directly activates its matching `restic-backup@<class>-<name>.service`. Timers are independent — systemd activates each on its own `OnCalendar=` schedule; there are no cadence groupings or target units in the activation path.
 
-Per job the admin sets `schedule:` to one of those names. The role wires `restic-backup-<cadence>.target` ⊂ `Wants=` into `restic-backup@<class>-<name>.service`. Jobs within a cadence run sequentially (explicit `After=` between them) so failure is attributable per job and total bandwidth stays bounded.
+The role still offers a named-cadence vocabulary as a convenience — the "timer battery" is just the set of preset `OnCalendar=` values the admin can pick from:
 
-Retention (`restic forget --prune`) runs per repo, not per job — snapshots share the repo, and `forget` applies policy across the whole repo's tags. Default is `keep_daily: 365`, and the same policy applies to the near repo and the aggregated offsite repo. Generous cutoffs plus this symmetry mean replication timing drift cannot strand a snapshot: anything `forget` would remove has long since been copied by the monitor. Scheduled via the same timer battery.
+| `schedule:` value | `OnCalendar=` expansion |
+|---|---|
+| `hourly` | `hourly` |
+| `quarter-daily` | `*-*-* 00/6:00:00` |
+| `daily` | `daily` |
+| `weekly` | `weekly` |
+| `monthly` | `monthly` |
 
-Integrity checks do **not** run on the client. They run on the monitor — see `backup-monitor-host.feature.md`.
+Per job, `schedule: daily` becomes a drop-in on `restic-backup@<class>-<name>.timer.d/schedule.conf` with `OnCalendar=daily`. Admins who need a non-preset cadence set `schedule: "*-*-* 03:17:00"` (any valid `OnCalendar=` expression) and the role drops it in verbatim.
+
+A convenience `restic-backup.target` exists for "run every backup now" and for `systemctl list-dependencies restic-backup.target` visibility: it `Wants=` every enabled `restic-backup@<class>-<name>.service`. It is not on any timer — admins start it by hand when they want a full pass outside the schedule.
+
+Jobs scheduled at the same `OnCalendar=` fire concurrently by default. If a site needs sequential execution (bounded bandwidth, avoid contention), that is expressed per-job with `After=` drop-ins between specific instances — not by the scheduling layer. Certain conventions like an After=restic-backup@fs-root.service might be put into the `srv-`-class backups to streamline the overall backup process.
+
+### Retention
+
+Retention is **off by default**. The role does not run `restic forget --prune` anywhere unless an admin explicitly opts in per repo; a backup that silently expires under an operator who did not realize a policy was active is the exact failure mode this default avoids.
+
+When enabled, retention lives on the monitor, not on the client. The monitor is the one host that holds the repo password and already reaches every repo in the project, so `forget --prune` naturally belongs there. Per-repo opt-in means a site can, for instance, keep the near server vacating aggressively while the Hetzner offsite retains everything forever, or the other way round — each repo's retention is its own decision, set on the monitor. The on/off knob and policy shape live in the Monitor section below.
+
+### Integrity
+
+Integrity checks (`restic check`) for the **near repo** run on the client. The client already holds the near-repo password — moving the check elsewhere would duplicate credential-shuffling for no gain.
+
+The role ships a per-repo timer `restic-check@<repo>.timer` that activates `restic-check@<repo>.service`, running `restic check` against the repo referenced by its instance name. Default cadence: weekly `--read-data-subset=10%` (rotating sample), monthly full `--read-data`. Failure is a check-instance alert, same pipeline as run checks.
+
+Integrity for the **aggregated per-project offsite repo** lives on the monitor — that is the only place the offsite credential exists. The monitor-side integrity schedule is described in the Monitor section below.
 
 ### Server — `restic_server`
 
@@ -220,9 +287,27 @@ Serves repos over REST with `--private-repos`, running as a dedicated `restic-ba
 
 TLS via the certificates role (see `secrets.feature.md`), replacing the self-signed cert + `GODEBUG=x509ignoreCN=0` workaround. The same certificates role also provides the SSH host-key material used to pin the Hetzner Storage Box endpoint on the monitor side.
 
-**The server does not hold client repo passwords.** It is a dumb REST endpoint that authenticates and serves pack files. All password-bearing work (replication, integrity check, freshness check, repo init with chunker-param coordination) happens on the monitor. This is a deliberate split — the largest and longest-lived host in the cascade is the one that never gets to decrypt anything.
+**The server does not hold client repo passwords.** It is a dumb REST endpoint that authenticates and serves pack files. Password-bearing work is split: the client does its own near-repo integrity checks (it already has the near password); the monitor does offsite replication, offsite integrity, freshness, and base-repo init (it already holds the monitor-scoped credentials). Either way, the server never gets to decrypt anything — a deliberate split, since the server is the largest and longest-lived host in the cascade.
 
-Offsite replication is not the server's job — it is the monitor's. See `backup-monitor-host.feature.md`.
+Offsite replication is not the server's job — it is the monitor's. See the Monitor section below.
+
+### Monitor — `restic_monitor`
+
+Per-project host, net-new in this ticket, owning everything that needs off-client observation plus everything that needs a multi-repo credential scope. Deploys as its own role, typically one instance per project. The monitor is observation + verification, not a failover or a backup for the backup — losing the monitor loses visibility, not data.
+
+**Scope: restic only.** The monitor pattern is specific to restic's self-hosted-near-with-server-side-offsite topology. Borg takes the opposite stance (direct-to-Borgbase, no central monitor to be a weak link) and is tracked in `backup-borg.feature.md`; the two paths are deliberately asymmetric.
+
+**Responsibilities:**
+
+- **Freshness check.** Calls `restic snapshots --latest 1 --json` per repo, alerts when the newest snapshot exceeds threshold (default `warn 25h / crit 49h`). Runs from a host that is not the client, so a dead client cannot mask a missing backup. Client-side run checks are the first line; the freshness check is the second line that catches the client being gone entirely.
+- **Offsite replication.** `restic copy` from each near repo into the aggregated per-project offsite repo on Hetzner, on a schedule. The monitor is the only host that holds both near read credentials and offsite write credentials.
+- **Offsite integrity.** `restic check` against the offsite repo. Default cadence matches the client side: weekly `--read-data-subset=10%`, monthly full `--read-data`. Alerts on failure or overdue. Near-repo integrity runs on the client (see Integrity section).
+- **On-demand integrity trigger.** When a freshness check sees a suspicious gap or anomaly, the monitor fires an out-of-schedule `restic check` against the affected repo without waiting for the next scheduled run.
+- **Repo init orchestration.** The monitor holds the `/<project>/.restic-base-repo` credential; the controller pulls it transiently to run `restic init --copy-chunker-params` on a client during bootstrap. See Project base repo and Credential provisioning sections for the detailed flow.
+- **On-line half of DR key escrow.** Holds read-only copies of every project-member repo's password. The airgapped-escrow ritual (see `airgapped-escrow.feature.md`) is the off-line half.
+- **Retention** (when enabled; off by default). `restic forget --prune` per repo, opt-in per repo. The monitor is the natural home because it already has every credential it needs; the client does not run prune.
+
+**Credential scope.** The monitor holds, per project: one read-only password per near repo in the project, one write password for the offsite repo, one base-repo password. Provisioned via the secrets role on the monitor host; rotations flow through the same machinery as per-host repo credentials (see Credential provisioning section).
 
 ### Credential provisioning
 
@@ -246,8 +331,9 @@ The controller needs SSH access to client, server, and monitor during provisioni
 Client-side:
 
 - **Run check** — reads systemd unit state and exit code of the last `restic-backup@<class>-<name>.service` run. Alerts on failed exit or overdue timer.
+- **Near-repo integrity check** — reads systemd unit state and exit code of the last `restic-check@<repo>.service` run. See the Integrity section above.
 
-Everything else (freshness check, integrity check, on-demand integrity trigger, offsite replication, on-line key escrow) lives on the monitor host — see `backup-monitor-host.feature.md`.
+Freshness check, offsite replication, offsite integrity check, and on-line key escrow live on the monitor host — see the Monitor section below.
 
 ### Restore
 
@@ -273,28 +359,33 @@ restic-with-repo near restore <snapshot-id> --target /tmp/recover
 
 No surprise behaviour, no "restore to state X" declaration — just the env composition so admins do not hand-assemble `RESTIC_REPOSITORY` and `RESTIC_PASSWORD` at 3am.
 
-**2. Service-level restore via the bidirectional stream contract.** For services that were backed up in stream mode, restore is the inversion of export: the service role publishes an *import* socket alongside its export one, a backup-side helper streams the chosen snapshot from the repo into that socket, the service ingests. Both directions are defined by `service-export-import.feature.md`. This is also the mechanism the blue-green DR drill uses — stream the latest snapshot from the offsite (or near) repo into a fresh green environment's import socket, smoke-test, promote or discard.
+**2. Service-level restore via the bidirectional stream contract.** For Service-level jobs (`srv-` class), restore is the inversion of export: the service role publishes an *import* socket alongside its export one, a backup-side helper streams the chosen snapshot from the repo into that socket, the service ingests. Both directions are defined by `service-export-import.feature.md`. This is also the mechanism the blue-green DR drill uses — stream the latest snapshot from the offsite (or near) repo into a fresh green environment's import socket, smoke-test, promote or discard.
 
-Continuous restore exercise via blue-green is **service-level only** (path 2). A streamed service export restores cleanly into a fresh blue-green slot and can be smoke-tested there. Host-level (filesystem) restore targets a live system and does not map cleanly to blue-green; machine-level (VM) restore needs hypervisor cooperation. The nightly drill described in `blue-green-deployments.feature.md` operates on stream-mode jobs via path 2.
+Continuous restore exercise via blue-green is **Service-level only** (path 2). A streamed service export restores cleanly into a fresh blue-green slot and can be smoke-tested there. Host-level (filesystem) restore targets a live system and does not map cleanly to blue-green; Virtual-Machine-level restore needs hypervisor cooperation. The nightly drill described in `blue-green-deployments.feature.md` operates on Service-level jobs via path 2.
 
 
 ## Design notes
 
 - The three-role triad — client, server, monitor — splits duties along a password-access boundary. Server never decrypts, client only reads its own repo, monitor holds read-only project-wide keys plus offsite write credentials. This makes the server the simplest component despite being the longest-lived.
-- The three-list client config shape (`restic_repos`, `restic_file_backup_jobs`, `restic_stream_backup_jobs`) replaces the single `restic_client_backup_directives` list with its `database_dump_command`-vs-`directories` discriminator. Two job lists at the inventory layer (clearer schemas, no union typing) collapse to one systemd template at runtime (one timer battery, one monitoring key, one place to edit).
+- Four-list client config shape (`restic_repos`, `restic_host_backup_jobs`, `restic_service_backup_jobs`, `restic_vm_backup_jobs`) replaces the single `restic_client_backup_directives` list with its `database_dump_command`-vs-`directories` discriminator. Three job lists at the inventory layer (clearer schemas, no union typing) collapse to one systemd template at runtime (one timer battery, one monitoring key, one place to edit), with per-class drop-ins carrying the class-specific behaviour.
 - A job has exactly one repo. "Two repos means two snapshots" is a restic property: `restic backup` produces a new snapshot in each target repo, and those are semantically different snapshots, so they belong in different jobs. Multi-place-same-snapshot exists only via `restic copy`, which is the monitor's job.
 - Project-level chunker-parameter alignment (a dedicated `/<project>/.restic-base-repo` repo; every other repo init'd with `--copy-chunker-params --from-repo /<project>/.restic-base-repo`) is what makes the aggregated per-project offsite repo actually dedup. Skipping this step silently turns the offsite repo into a fan-in of unrelated chunk pools — correct but wasteful.
 - Composition via layered `EnvironmentFile=` + a single per-job `repo/` symlink directory lets each fragment have a single owner. The job's repo choice is one symlink; changing the repo is one `ansible.builtin.file` task.
-- Backup does not run as root. The base template grants zero capabilities; fs-mode adds `CAP_DAC_READ_SEARCH` via a class drop-in, stream-mode adds nothing. Additive, not subtractive — a future reader or security audit sees each class's privilege as an explicit grant, not an assumed default with carveouts.
+- Backup does not run as root. The base template grants zero capabilities; each class drop-in adds exactly what its class needs — `CAP_DAC_READ_SEARCH` for fs-, nothing extra for srv-, and a stub for vm- (namespace reserved; actual grants added by the future hypervisor-backup ticket). Additive, not subtractive — a future reader or security audit sees each class's privilege as an explicit grant, not an assumed default with carveouts.
+- Every snapshot carries a class tag (`fs`, `srv`, `vm`) set by the class drop-in's `RESTIC_CLASS_TAG` environment variable. Snapshots in a shared repo remain filterable by level; the tag is unit-enforced, not admin-enforced.
 - Stream producers and consumers (import for restore) are not the backup role's concern. Service roles publish bidirectional stream endpoints; this role consumes the export direction and drives the import direction during restore. The interface — how publication and consumption wire together — lives in `service-export-import.feature.md`.
 - The per-project aggregated offsite repo enables cross-host dedup at the offsite layer without violating the per-host isolation at the near layer. `restic copy` respects chunking, so the wire cost is proportional to *new* content, not to the near repos' sizes.
 - Cross-host dedup at the offsite step works because `restic copy` identifies chunks by a hash of the content itself, so identical content from different hosts collapses into a single stored copy on the destination. Every repo in the cascade also does its own within-repo dedup automatically.
 - Cross-host dedup at the server's filesystem layer — a hardlink pass over `/srv/restic` that collapses identical files across different hosts' near repos — depends on whether restic writes byte-identical files to disk for identical inputs. We have not empirically confirmed which way this goes. If it works, it is a pure storage win on top of what the offsite cascade already provides; if it does not, the pass finds no matches and wastes cycles. An opt-in server flag that schedules the pass only makes sense once this is measured.
 - Sharing disk blocks across near repos (if hardlink dedup turns out to work) supposedly does not let one host's operator read another host's backups. The per-repo index that maps stored blobs back to snapshots stays gated by each repo's password; the files on disk without that index are opaque content-addressed storage. Still worth confirming during the same empirical check before relying on the expected disk space saving properties.
 - The bcrypt htpasswd entry is a public-key-shaped derivative of the stored password — computed, not stored. Matches the SSH authorized-keys pattern.
-- Retention symmetry (same policy on near and offsite) plus a generous `keep_daily: 365` default sidesteps the cascade-timing-drift problem without explicit `After=`/`Before=` ordering between replication and prune.
+- Retention is off by default and lives on the monitor, not the client. Opt-in per repo. This sidesteps the "oops, a silent prune ate my long-term history" failure mode; sites pick asymmetric retention (vacate near aggressively, keep offsite forever, or the inverse) as their posture dictates. Details in `backup-monitor-host.feature.md`.
 
 ## Open questions
 
 - **restic-rest user scoping for path-like usernames**. The whole per-host / per-project isolation scheme assumes restic-rest under `--private-repos` accepts usernames that contain `/` and matches them against multi-segment paths — e.g. user `<project>/<host>` mapping to `/<project>/<host>/*`, user `<project>/.restic-base-repo` mapping to that exact path. If restic-rest only treats usernames as a single top-level directory component, the scheme has to flatten (usernames like `<project>-<host>`, paths like `/<project>-<host>`), or drop to project-level isolation with a shared credential per project. Verify against the current restic-rest version before building anything else around the current layout.
 - **Server-side hardlink dedup across near repos**. Does restic write byte-identical files to disk when two repos in the same project back up identical inputs? Empirical test: init two repos with `--copy-chunker-params`, back up the same directory into each, diff the resulting files under `/srv/restic`. If identical files are frequent, ship an opt-in `server_hardlink_dedup: true` flag on the server role that schedules a `hardlink(1)` pass. If not, drop the idea. Same investigation should confirm the "sharing disk blocks does not share access" expectation before any flag flips on.
+- **Monitor per-project or per-site?** One monitor per project keeps credential blast radius small. One per site (holding all projects' read-only credentials) is cheaper but concentrates trust. Default: per-project; site-level is an override.
+- **Self-monitoring.** Who watches the monitor? A mutual check between two monitors in neighboring projects, or is a single line of defense acceptable?
+- **Monitor credential rotation.** When a client rotates its near-repo password, the monitor's read-only copy has to rotate too. Does the monitor pull the new value on its next run, or does the backup role's post-rotate hook push to it?
+- **Monitor placement.** Typically a dedicated small VM, or can it co-locate with other observability services (alertmanager, grafana) on an existing infra host?
