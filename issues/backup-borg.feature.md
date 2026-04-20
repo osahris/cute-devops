@@ -1,5 +1,5 @@
 ---
-status: draft
+status: reviewed
 ---
 
 # Backup — borg path
@@ -22,17 +22,17 @@ We do not implement a borg role from scratch. A small `borg_client` role in this
 
 No custom server role. Clients push directly to:
 
-- **Borgbase** (hosted) as the common case — credit-card-and-go, they run the server.
-- **Hetzner Storage Box** via their native borg endpoint as an alternative.
+- [Borgbase](https://www.borgbase.com/) — purpose-built borg hosting.
+- [Hetzner Storage Box with borg](https://docs.hetzner.com/storage/storage-box/access/access-ssh-rsync-borg/) — already used by the restic path, cheap per TB.
 
-Either way the remote is someone else's problem to operate. This is the whole point: restic is the "we run it" path, borg is the "someone else runs it" path. No central custodian, no offsite cascade we operate — borg's remote *is* the offsite.
+No default — operators pick. The docs page for this role lists both with the links above; the trade-off (UI/feature polish at Borgbase vs. cost and one-provider simplicity at Hetzner) is for the site to decide. Either way the remote is someone else's problem to operate — restic is the "we run it" path, borg is the "someone else runs it" path. No central custodian, no offsite cascade we operate — borg's remote *is* the offsite.
 
 ### What's in scope
 
-- Thin `borg_client` role that wraps the upstream role with our defaults.
+- Thin `borg_client` role that wraps the upstream role with our defaults. The upstream role drives borg via **borgmatic**, which means we get scheduled backups, retention (`borg prune`), and integrity checks (`borg check`) wired in for free — no separate timer battery on our side for borg.
 - Host-level filesystem backup (equivalent of restic's `fs-` class). Service-level and VM-level backups stay on the restic path; borg is the dumb filesystem second line.
-- Encryption passphrase provisioned via the secrets role, same machinery as restic.
-- A monitoring check that watches the last borg run and alerts on failure or overdue (hooks into the checker framework, same pipeline as the restic client-side run check).
+- Encryption passphrase sourced from `pass` and delivered via the secrets role (same machinery as restic). Keeping the canonical copy in `pass` means the admin can decrypt a borg archive straight from the remote even when every host that ever used the passphrase is gone — a realistic DR scenario, and the whole reason borg is the second path.
+- **Alerta integration via borgmatic hooks.** Ship a default playbook / role-bundled snippet that configures borgmatic's `before_backup`, `after_backup`, and `on_error` hooks to `curl` the site's alerta endpoint — heartbeats on success, alerts on failure. This replaces the "write our own run check" work: borgmatic already knows when a run started, finished, or failed, and alerta already knows how to route heartbeats with expiry. Two curl calls wire the two together.
 - Basic restore documentation — the upstream role's restore story plus a short how-to for our defaults.
 
 ### What's out of scope
@@ -48,9 +48,4 @@ Either way the remote is someone else's problem to operate. This is the whole po
 - **Why Borgbase / Hetzner native borg.** Both are cheap, well-operated, and built specifically for borg. Running our own borg server reintroduces exactly the ops burden we are trying to avoid by having a second path. If we wanted "our own server", that is already what restic is for.
 - **Why no custodian for borg.** The custodian pattern exists in the restic path because restic's topology splits password access across client/server/offsite in a way that benefits from a dedicated observer. Borg's topology is one-shot (client → remote), no split, so there is nothing for a custodian to observe that the client's own run check does not already cover.
 - **Scope of the collection's contribution.** The upstream role does the heavy lifting. Our `borg_client` role contributes: opinionated defaults, integration with the secrets role, integration with the checker/alerting framework. Three thin layers, nothing load-bearing that upstream does not already provide.
-
-## Open questions
-
-- **Remote choice by default: Borgbase or Hetzner?** Both work; Borgbase is purpose-built for borg and has a sane UI, Hetzner is cheaper and already used by the restic path. A site can pick either — which one do we document as the default happy path?
-- **Run monitoring mechanism.** Does the upstream role already emit something we can consume (exit code file, status dir, stdout we capture), or do we wrap the invocation in a systemd unit of our own that writes a status file? The latter is more work but gives us a uniform pipeline with the restic client-side run check.
-- **Where does the passphrase live on disk?** The secrets role's env-typed secret is the natural fit (same pattern as restic's `restic-repo.auth.env`), but the upstream role may expect a different shape. Adaptation layer may be needed.
+- **Running as root — and an upstream patch to change that.** The upstream role runs borg (and borgmatic) as root today. The role's systemd unit already has a commented-out line that would grant `CAP_DAC_READ_SEARCH` instead — the exact capability model the restic `fs-` class uses. As part of this ticket we send a pull request upstream making that line active and configurable (opt-in via a role variable, default off to preserve current behaviour). If it merges, we flip our default to the capability path and drop root; if it stalls, we accept root as the cost of the quick-solution stance and move on. Contributing the patch upstream rather than forking keeps the thin-wrapper premise intact.
