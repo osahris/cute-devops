@@ -42,7 +42,7 @@ High-level orchestrator role that composes checks, deploys, notifications, and u
 - hosts: servers
   become: true
   roles:
-    - role: mkbrechtel.sysops.managed
+    - role: mkbrechtel.devops.managed
       vars:
         managed_with_disk_checks: true
         managed_with_network_checks: true
@@ -55,4 +55,4 @@ High-level orchestrator role that composes checks, deploys, notifications, and u
 
 AGPL-3.0-or-later
 
-This role was created for the mkbrechtel.sysops collection.
+This role was created for the mkbrechtel.devops collection.

@@ -26,5 +26,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.sysops.keyboard
+    - mkbrechtel.devops.keyboard
 ```

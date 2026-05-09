@@ -24,4 +24,4 @@ None.
 
 AGPL-3.0-or-later
 
-This role was created for the mkbrechtel.sysops collection.
+This role was created for the mkbrechtel.devops collection.

@@ -33,7 +33,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.check
+    - role: mkbrechtel.devops.check
       vars:
         check_id: my_check
 ```

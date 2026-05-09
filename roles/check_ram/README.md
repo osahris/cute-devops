@@ -18,7 +18,7 @@ See `defaults/main.yaml` for all available variables and their default values.
 
 ## Dependencies
 
-- `mkbrechtel.sysops.check`
+- `mkbrechtel.devops.check`
 
 ## Example Playbook
 
@@ -26,5 +26,5 @@ See `defaults/main.yaml` for all available variables and their default values.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.sysops.check_ram
+    - mkbrechtel.devops.check_ram
 ```

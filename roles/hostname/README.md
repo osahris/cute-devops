@@ -29,7 +29,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.hostname
+    - role: mkbrechtel.devops.hostname
       vars:
         hostname_name: myhost
 ```

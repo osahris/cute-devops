@@ -26,7 +26,7 @@ All templates that generate configuration files on target systems must include a
 The header format is:
 
 ```
-# This file is managed by the mkbrechtel.sysops.<role_name> Ansible role!
+# This file is managed by the mkbrechtel.devops.<role_name> Ansible role!
 # MANUAL CHANGES WILL BE OVERWRITTEN WITHOUT WARNING!
 ```
 

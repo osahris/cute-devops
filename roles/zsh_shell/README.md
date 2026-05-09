@@ -22,5 +22,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.sysops.zsh_shell
+    - mkbrechtel.devops.zsh_shell
 ```

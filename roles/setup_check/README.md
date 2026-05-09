@@ -26,5 +26,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.sysops.setup_check
+    - mkbrechtel.devops.setup_check
 ```

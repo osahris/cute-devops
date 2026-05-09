@@ -24,7 +24,7 @@ Key variables:
 
 ## Dependencies
 
-- `mkbrechtel.sysops.setup_check`
+- `mkbrechtel.devops.setup_check`
 
 ## Example Playbook
 
@@ -32,7 +32,7 @@ Key variables:
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.notify_email
+    - role: mkbrechtel.devops.notify_email
       vars:
         notify_email_to: admin@example.com
 ```

@@ -31,7 +31,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.restic_server
+    - role: mkbrechtel.devops.restic_server
       vars:
         restic_server_backupstorage: /srv/backups/
 ```

@@ -35,7 +35,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.ttyd
+    - role: mkbrechtel.devops.ttyd
       vars:
         ttyd_with_usr_local_bin_symlink: true
 ```

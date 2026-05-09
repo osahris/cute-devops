@@ -4,14 +4,14 @@ import starlight from "@astrojs/starlight";
 
 // https://astro.build/config
 export default defineConfig({
-  site: "https://patterns.how",
+  site: "https://devops.patterns.how",
   trailingSlash: "never",
   build: {
     format: "preserve",
   },
   integrations: [
     starlight({
-      title: "Cute Patterns!",
+      title: "Cute DevOps Patterns!",
       logo: {
         src: "./public/emoji_u1f537.svg",
       },
@@ -20,29 +20,17 @@ export default defineConfig({
         SiteTitle: "./src/components/SiteTitle.astro",
       },
       social: {
-        github: "https://github.com/mkbrechtel/patterns",
+        github: "https://github.com/mkbrechtel/devops",
       },
       sidebar: [
         { slug: 'index' },
         {
           label: 'Development',
           items: [
-            // {
-            //   label: 'Design',
-            //   autogenerate: { directory: 'docs/development/design' },
-            // },
             {
               label: 'Frontend',
-              autogenerate: { directory: 'docs/development/frontend' },
+              autogenerate: { directory: 'development/frontend' },
             },
-            // {
-            //   label: 'Backend',
-            //   autogenerate: { directory: 'docs/development/backend' },
-            // },
-            // {
-            //   label: 'Data',
-            //   autogenerate: { directory: 'docs/development/data' },
-            // },
           ]
         },
         {
@@ -50,18 +38,17 @@ export default defineConfig({
           items: [
             {
               label: 'Deployment',
-              autogenerate: { directory: 'docs/operation/deployment' },
+              autogenerate: { directory: 'operation/deployment' },
             },
-            
           ]
         },
         {
           label: 'Meta',
-          autogenerate: { directory: 'docs/meta' },
+          autogenerate: { directory: 'meta' },
         },
       ],
       editLink: {
-        baseUrl: "https://github.com/mkbrechtel/patterns/edit/main/",
+        baseUrl: "https://github.com/mkbrechtel/devops/edit/main/",
       },
     }),
   ],

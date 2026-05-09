@@ -22,5 +22,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.sysops.fish_shell
+    - mkbrechtel.devops.fish_shell
 ```

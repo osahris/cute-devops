@@ -26,5 +26,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.sysops.network_diagnostics
+    - mkbrechtel.devops.network_diagnostics
 ```

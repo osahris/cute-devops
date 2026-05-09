@@ -22,5 +22,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.sysops.bash_shell
+    - mkbrechtel.devops.bash_shell
 ```

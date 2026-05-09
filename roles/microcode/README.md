@@ -28,7 +28,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.microcode
+    - role: mkbrechtel.devops.microcode
       vars:
         microcode_update: true
 ```

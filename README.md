@@ -4,17 +4,40 @@ SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.br
 SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 
-# sysops Ansible Collection
+# Cute DevOps Patterns! — `mkbrechtel.devops`
 
-The **sysops** collection automates sysops tasks and provides a solution for deployment, monitoring, and backups of Debian-based machines.
+**Cute DevOps Patterns!** is the home for DevOps patterns and their
+implementation in form of Ansible roles. The repo ships as the Ansible
+collection `mkbrechtel.devops` and renders to the website at
+[devops.patterns.how](https://devops.patterns.how).
 
-**⚠️ Development Phase Notice** 
-*This collection is currently in development (version 0.x.x). Breaking changes may occur in any release until we reach version 1.0.0. APIs, role interfaces, and variable names are subject to change.*
+**⚠️ Development Phase Notice**
+*This collection is currently in development (version 0.x.x). Breaking changes
+may occur in any release until we reach version 1.0.0. APIs, role interfaces,
+and variable names are subject to change.*
+
+## Repository layout
+
+```
+mkbrechtel/devops/
+├── patterns/   ← markdown patterns (the *what / why*)
+├── roles/      ← Ansible roles (the *how* — pattern implementations)
+├── website/    ← Astro + Go site, deployed to devops.patterns.how
+├── playbooks/
+├── docs/       ← contributor / collection-level docs
+├── issues/     ← planning surface (.feature.md / .pattern.md / .bug.md)
+└── …
+```
+
+`patterns/` and `roles/` cross-reference each other with editorial,
+documentation-level links — a role README's "Patterns" section names the
+patterns it implements, and a pattern's "Possible implementations" section
+names roles that implement it. The relationship is many-to-many.
 
 ## Installation
 
 ```bash
-ansible-galaxy collection install mkbrechtel.sysops
+ansible-galaxy collection install mkbrechtel.devops
 ```
 
 ## Requirements
@@ -71,9 +94,9 @@ ansible-galaxy collection install mkbrechtel.sysops
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.sysops.common
-    - mkbrechtel.sysops.users
-    - mkbrechtel.sysops.podman
+    - mkbrechtel.devops.common
+    - mkbrechtel.devops.users
+    - mkbrechtel.devops.podman
 ```
 
 ### User Management
@@ -82,7 +105,7 @@ ansible-galaxy collection install mkbrechtel.sysops
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.users
+    - role: mkbrechtel.devops.users
       vars:
         users:
           - name: alice

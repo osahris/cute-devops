@@ -28,7 +28,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.sysops.ansible
+    - mkbrechtel.devops.ansible
 ```
 
 ## Features

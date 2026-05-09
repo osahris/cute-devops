@@ -39,7 +39,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.users
+    - role: mkbrechtel.devops.users
       vars:
         users:
           - name: alice

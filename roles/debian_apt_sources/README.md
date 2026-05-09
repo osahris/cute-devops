@@ -32,5 +32,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.sysops.debian_apt_sources
+    - mkbrechtel.devops.debian_apt_sources
 ```

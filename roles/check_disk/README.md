@@ -24,7 +24,7 @@ Key variables:
 
 ## Dependencies
 
-- `mkbrechtel.sysops.check`
+- `mkbrechtel.devops.check`
 
 ## Example Playbook
 
@@ -32,7 +32,7 @@ Key variables:
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.check_disk
+    - role: mkbrechtel.devops.check_disk
       vars:
         check_disk_paths:
           - /

@@ -26,5 +26,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.sysops.firmware
+    - mkbrechtel.devops.firmware
 ```

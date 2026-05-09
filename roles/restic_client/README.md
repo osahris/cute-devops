@@ -33,7 +33,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.restic_client
+    - role: mkbrechtel.devops.restic_client
       vars:
         restic_client_backup_directives:
           - name: home

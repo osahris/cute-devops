@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-- name: Test sysops collection roles
+- name: Test devops collection roles
   hosts: vms
   gather_facts: false
 
@@ -44,7 +44,7 @@
       ansible.builtin.command: cloud-init status --wait
       changed_when: false
 
-- name: Test sysops collection roles
+- name: Test devops collection roles
   hosts: vms
   roles:
     - common

@@ -1,4 +1,4 @@
 version = 1
-SPDX-PackageName = "mkbrechtel.sysops"
+SPDX-PackageName = "mkbrechtel.devops"
 SPDX-PackageSupplier = "Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>"
-SPDX-PackageDownloadLocation = "https://github.com/mkbrechtel/sysops"
+SPDX-PackageDownloadLocation = "https://github.com/mkbrechtel/devops"

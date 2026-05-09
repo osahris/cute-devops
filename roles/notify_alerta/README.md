@@ -24,7 +24,7 @@ Key variables:
 
 ## Dependencies
 
-- `mkbrechtel.sysops.setup_check`
+- `mkbrechtel.devops.setup_check`
 
 ## Example Playbook
 
@@ -32,7 +32,7 @@ Key variables:
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.notify_alerta
+    - role: mkbrechtel.devops.notify_alerta
       vars:
         notify_alerta_api_key: your-api-key
         notify_alerta_environment: Production

@@ -28,7 +28,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.sysops.sysctl_tweaks
+    - role: mkbrechtel.devops.sysctl_tweaks
       vars:
         sysctl_tweaks_increase_maximum_inotify_user_watches: true
 ```

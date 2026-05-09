@@ -43,7 +43,7 @@ these.
   both?
 - `podman compose` vs `podman-compose` — pick one or support both?
 - How does the deploy pipeline tell the container role "update to this
-  git SHA / this image tag"? A file in the repo (`.sysops/app.yaml`)
+  git SHA / this image tag"? A file in the repo (`.devops/app.yaml`)
   that the deploy role reads?
 - Network isolation between containers on the same host — default
   policy?
