@@ -4,6 +4,12 @@ sidebar:
   order: 1
 ---
 
+<!--
+SPDX-FileCopyrightText: 2023-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 ## Overview 📋
 
 This pattern describes the three-stage deployment model: Development (dev), QA (staging), and Production (prod). Each stage serves specific purposes in the software development lifecycle and has distinct characteristics and requirements.

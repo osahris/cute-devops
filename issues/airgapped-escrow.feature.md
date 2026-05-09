@@ -2,6 +2,12 @@
 status: draft
 ---
 
+<!--
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 # Airgapped escrow — the 3-2-1-1-0 upgrade
 
 ## Goal

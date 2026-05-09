@@ -4,6 +4,12 @@ sidebar:
   hidden: true
 ---
 
+<!--
+SPDX-FileCopyrightText: 2023-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 ## Categories
 - Collaboration & Communication & 🤝
 - Development Practices 💻

@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 # Issues
 
 We track issues as `.md` files in this directory. Three ticket kinds, distinguished by suffix:

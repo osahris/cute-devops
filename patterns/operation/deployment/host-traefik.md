@@ -1,6 +1,13 @@
 ---
 title: Host-wide Traefik Container Pattern 🌐
 ---
+
+<!--
+SPDX-FileCopyrightText: 2023-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 Host-based Traefik pattern provides centralized HTTPS termination and routing for services on a single host without requiring Docker socket access.
 
 ## Key Components

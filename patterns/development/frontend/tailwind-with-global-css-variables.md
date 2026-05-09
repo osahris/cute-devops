@@ -2,6 +2,12 @@
 title: Tailwind CSS with Global Variables Pattern 🎨
 ---
 
+<!--
+SPDX-FileCopyrightText: 2023-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 ## Overview 📋
 The Tailwind CSS with Global Variables Pattern offers a maintainable approach to theme management by combining Tailwind's utility-first methodology with CSS custom properties (variables). This allows for consistent theming across applications while maintaining the flexibility to change colors without recompiling Tailwind.
 

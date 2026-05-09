@@ -1,6 +1,13 @@
 ---
 title: Pattern Pattern 🔷²
 ---
+
+<!--
+SPDX-FileCopyrightText: 2023-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 ## Overview 📋
 The Pattern Pattern describes how to effectively document and structure patterns to make them useful, maintainable, and approachable. It provides a consistent format for capturing knowledge, best practices, and solutions to recurring problems.
 

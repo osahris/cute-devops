@@ -2,6 +2,12 @@
 title: Cuteness Pattern 🌸
 ---
 
+<!--
+SPDX-FileCopyrightText: 2023-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 Cute things are nice to have around and are not threatening. ✨ They provide people with joy and a feeling of safety, are relatable to humans and easy to work with. 🤗  This pattern is about making things we work with "cute". 🌈 This means providing working conditions that make it easy for us to achieve things without getting drained or adding unnecessary complexity. 🦄
 
 ## Goals 🎯

@@ -2,6 +2,12 @@
 status: draft
 ---
 
+<!--
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 # OIDC gating
 
 > **Pattern.** Cross-cutting convention. The deliverable is a consolidated definition that lives in `patterns/` once the ticket is closed; the [oauth2-proxy](oauth2-proxy.feature.md) role, the [reverse-proxy](reverse-proxy.pattern.md) backends, and any service-role that wants OIDC in front reference this document.

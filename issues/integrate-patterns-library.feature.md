@@ -2,6 +2,12 @@
 status: reviewed
 ---
 
+<!--
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 # Cute DevOps Patterns! — merge patterns repo into this collection
 
 ## Goal

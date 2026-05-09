@@ -1,6 +1,13 @@
 ---
 title: Compose Service Pattern 🐋
 ---
+
+<!--
+SPDX-FileCopyrightText: 2023-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 ## Overview 📋
 This pattern describes how to structure and manage services running with docker-compose on Debian stable systems.
 

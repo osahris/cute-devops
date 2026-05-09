@@ -2,6 +2,12 @@
 status: draft
 ---
 
+<!--
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 # Blue-green deployments
 
 > **Pattern.** Cross-cutting convention. The deliverable is a consolidated definition that lives in `docs/patterns/` once the ticket is closed; service roles, the deploy pipeline, and the backup-driven DR drill all reference this document.

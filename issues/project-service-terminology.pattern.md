@@ -2,6 +2,12 @@
 status: draft
 ---
 
+<!--
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 # Project / service / host terminology
 
 > **Pattern.** Cross-cutting convention. The deliverable is a consolidated definition that lives in `docs/patterns/` once the ticket is closed; every other ticket that uses *project*, *service*, or *host* references this document.

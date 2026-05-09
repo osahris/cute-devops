@@ -2,6 +2,12 @@
 status: draft
 ---
 
+<!--
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 # Service export / import streams
 
 > **Pattern.** Cross-cutting convention. The deliverable is a consolidated definition that lives in `docs/patterns/` once the ticket is closed; service roles implementing export/import endpoints and consumers (backup, restore, blue-green) reference this document.

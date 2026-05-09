@@ -124,3 +124,5 @@ headers are authoritative):
   (`roles/bash_shell/files/powerline-go.sh`,
   `roles/zsh_shell/files/powerline-go.zsh`,
   `roles/fish_shell/files/global/fish_prompt.fish`) — GPL-3.0-only.
+- Google Noto Emoji glyph used as logo / favicon
+  (`website/public/emoji_u1f537.svg`) — Apache-2.0.

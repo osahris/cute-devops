@@ -26,6 +26,11 @@ SPDX-License-Identifier: EUPL-1.2
   `GPL-3.0-only` (powerline-go's license) and are not part of the
   EUPL-1.2 relicense.
 
+- **Google LLC** — The 🔷 favicon / logo
+  (`website/public/emoji_u1f537.svg`) is the "small blue diamond" glyph
+  from the [Noto Emoji](https://github.com/googlefonts/noto-emoji)
+  project, used under `Apache-2.0`.
+
 ## License
 
 Most of the project is licensed under EUPL-1.2. The `restic_client` and
