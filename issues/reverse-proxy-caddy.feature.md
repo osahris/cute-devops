@@ -1,14 +1,14 @@
 ---
-status: draft
+status: reviewed
 ---
 
 # Reverse proxy — Caddy backend (default)
 
 ## Goal
 
-A Caddy-based reverse proxy role that serves application sockets following the [web-service socket pattern](reverse-proxy.pattern.md). Terminates HTTPS/TLS, handles ACME, connects to web-service sockets at `/run/https/<key>/http.sock`. Default reverse-proxy implementation in the collection.
+A Caddy-based reverse proxy role that serves application sockets following the [web-service socket pattern](reverse-proxy.pattern.md). Terminates HTTPS/TLS, handles ACME, connects to web-service sockets at `/run/https/<vhost>/http.sock`. Default reverse-proxy implementation in the collection.
 
-**Default mode: HTTP-01 with the Debian-packaged Caddy.** Per-host certs, no extra infrastructure, the stock `caddy` binary from `apt`. Each vhost is a static block in its own file under `/etc/caddy/conf.d/<service>` (see Configuration layout). This is what the role installs unless told otherwise.
+**Default mode: HTTP-01 with the Debian-packaged Caddy.** Per-host certs, no extra infrastructure, the stock `caddy` binary from `apt`. Each vhost is a static block in its own file under `/etc/caddy/conf.d/<vhost>` (filename = the FQDN, e.g. `matrix.example.com`; see Configuration layout). This is what the role installs unless told otherwise.
 
 **Opt-in upgrade: wildcard certs via DNS-01 ACME.** A deliberate decision the deployer makes for a site that wants wildcard coverage. Two costs come with it: the stock Debian Caddy is replaced with the official upstream binary download (the Caddy project's CI build, with the chosen DNS provider plugin selected at download time — the Debian package has none baked in), and the deployer needs reachable authoritative DNS for the zone that supports the chosen plugin's update mechanism. The collection includes a DNS zone-hosting role (see [dns.feature.md](dns.feature.md)) that the deployer can use to satisfy this on-host, but the Caddy role makes no assumptions about which DNS backend the wildcard mode runs against — any DNS provider Caddy has a plugin for is fine. What it buys: the `*.<zone>` cert, and with it the optional dynamic-routing pattern that adds services without touching Caddy.
 
@@ -65,15 +65,15 @@ Single-file global block + a drop-in directory for per-vhost configs:
 /etc/caddy/
 ├── Caddyfile                       # global block + `import /etc/caddy/conf.d/*`
 └── conf.d/
-    ├── element                     # per-host vhost: filename = service/hostname
-    ├── matrix
+    ├── element.example.com         # per-host vhost: filename = the vhost FQDN
+    ├── matrix.example.com
     ├── …
     └── _wildcard.example.com       # optional wildcard block (leading underscore sorts it last)
 ```
 
 **Naming convention for files in `conf.d/`:**
 
-- **Per-host vhost**: `/etc/caddy/conf.d/<service>` — one file per public hostname, no extension. Filename is the service name (matching the [pattern terminology](reverse-proxy.pattern.md)).
+- **Per-host vhost**: `/etc/caddy/conf.d/<vhost>` — one file per public hostname, no extension. Filename is the FQDN (e.g. `matrix.example.com`), matching the directory name on the socket side: `/run/https/<vhost>/http.sock`.
 - **Wildcard block**: `/etc/caddy/conf.d/_wildcard.<domain>` — leading underscore so it sorts after every per-host file (per-host blocks are evaluated first; the wildcard catches the rest). One file per zone.
 
 Caddyfile global block ships from this role. Per-host files are owned by whoever deploys each service (typically the service's own role); the wildcard file is owned by the role/inventory that owns the zone. The Caddy role does not aggregate them centrally. Adding or removing a vhost is a file write + `caddy reload`.
@@ -81,7 +81,7 @@ Caddyfile global block ships from this role. Per-host files are owned by whoever
 Trivial per-host vhosts are a one-liner:
 
 ```caddy
-# /etc/caddy/conf.d/element
+# /etc/caddy/conf.d/element.example.com
 element.example.com {
     reverse_proxy unix//run/https/element.example.com/http.sock
 }
@@ -93,7 +93,7 @@ The wildcard file (when DNS-01 + a wildcard cert are in play) is shaped around e
 
 ### conf.d/ is general — the socket pattern is one shape among many
 
-The drop-in directory accepts any valid Caddyfile fragment. The shapes documented above (per-host vhost reverse-proxying to a `/run/https/<service>/http.sock`, wildcard block with host-var validator) are the **conventional shapes** the rest of the collection expects, not the only legal ones. A deployer can also drop in:
+The drop-in directory accepts any valid Caddyfile fragment. The shapes documented above (per-host vhost reverse-proxying to a `/run/https/<vhost>/http.sock`, wildcard block with host-var validator) are the **conventional shapes** the rest of the collection expects, not the only legal ones. A deployer can also drop in:
 
 - A vhost that proxies to a TCP backend (`reverse_proxy localhost:8080`) — for legacy services that don't fit the socket pattern, or services on a different host.
 - A static-file vhost (`root *` + `file_server`) for serving documents directly from disk without an app socket.
@@ -150,12 +150,14 @@ A wildcard cert unlocks an optional zero-config-add pattern. **Optional, not req
 
 The `@valid_host` matcher whitelists the Host header against a regex of acceptable subdomain shapes for this zone. Subdomain label is capped at 64 characters (`{0,63}` quantifier after the mandatory leading char) — well within DNS limits and short enough to keep the resulting filesystem path bounded. Anything that does not match — path traversal attempts, malformed hostnames, hosts in a different zone, hostile-length labels — falls through to the explicit `respond 404`. The reverse_proxy directive only fires when the host is known-good.
 
-A new service is deployed by writing its socket at `/run/https/<fqdn>/http.sock` and having DNS resolve `<fqdn>` to the host. Zero Caddy config changes, zero reloads. The directory name in this mode is the fully-qualified vhost (because that is what the `{host}` placeholder resolves to), not the service name; per-vhost static blocks may use either name.
+A new service is deployed by writing its socket at `/run/https/<vhost>/http.sock` and having DNS resolve `<vhost>` to the host. Zero Caddy config changes, zero reloads. Same FQDN-named directory convention as the static blocks above — `{host}` resolves to the FQDN, the path matches.
 
 When to use which:
 
 - **Per-host static blocks** (default): explicit, every public name visible in `conf.d/`, no DNS-01 required. The right choice for prototypes, low service counts, and anyone who values "I can grep `conf.d/` to see what is published."
 - **Wildcard block with host validator** (opt-in): right choice when the host serves a high number of subdomains under one zone and the deployer wants to add services without touching Caddy. Requires the wildcard cert plumbing and the validator regex tuned to the zone.
+
+**One block per zone.** Each `_wildcard.<domain>` file covers exactly one zone — `*.foo.example.com` does not match `*.bar.example.com`, and the same wildcard cert won't sign both. A site with services scattered across multiple zones (e.g. `*.foo.com` *and* `*.bar.org`) writes one wildcard block per zone, each with its own zone-tuned validator regex. Caddy issues the matching wildcard cert per zone automatically; from the deployer's side this is just two `_wildcard.<domain>` files instead of one.
 
 ### Security analysis: is this safe?
 
@@ -210,8 +212,6 @@ Per-vhost files under `/etc/caddy/conf.d/` mean each role that deploys a service
 
 Sites that adopt the `*.<zone>` wildcard pattern can collapse "add a service" to "create a directory + socket at the conventional path" with no Caddy interaction. The security analysis above is what makes this acceptable as an option rather than a foot-gun. It is not the default mode; the default is per-host static blocks, which a prototyping developer can use without ever touching DNS-01.
 
-## Open questions
+### DNS-provider credential rotation is the secrets role's job
 
-- **DNS-provider credential rotation.** Whatever credential the chosen DNS plugin uses (TSIG key for `rfc2136`, API token for commercial providers) needs a rotation story: secrets-role rotation on the Caddy side plus the matching update on the DNS side. Single-host case is straightforward via the secrets role's existing rotation hooks; multi-Caddy-sharing-a-zone is harder and not in scope here.
-- **Path naming under dynamic routing.** The pattern ticket says `/run/https/<service>/http.sock` with `<service>` being the project-service-terminology name. Dynamic routing makes the directory name the vhost FQDN (because `{host}` resolves to that). For sites that mix static per-service vhosts and the dynamic catch-all, both naming conventions need to coexist — service-named dirs from static blocks, FQDN-named dirs from the dynamic catch-all. Worth a one-line note in the pattern ticket; not blocking.
-- **Per-host wildcard scope.** Wildcard certs are per-zone. A site with services scattered across multiple zones (`*.foo.com` + `*.bar.org`) needs separate wildcards. Trivial in Caddy, but worth documenting that the dynamic routing block is per-zone.
+Whatever credential the chosen DNS plugin uses (TSIG key for `rfc2136`, API token for commercial providers) is a normal secret managed by the secrets role: stored centrally, rotatable, supportable across multiple hosts when a site's setup needs it. The Caddy role just consumes the env-typed secret; rotation flows through the secrets role's existing hooks (single-host today, multi-host later if it ever becomes a concrete need). Not in scope for this ticket.
