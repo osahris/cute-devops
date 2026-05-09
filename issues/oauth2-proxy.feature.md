@@ -1,56 +1,53 @@
 ---
-status: draft
+status: reviewed
 ---
 
 # oauth2-proxy
 
 ## Goal
 
-A role that deploys oauth2-proxy in front of services that need OIDC-based access control, integrating with the collection's reverse-proxy pattern (web-service socket on the inside, Caddy/Traefik/nginx on the outside) and the secrets role for OIDC client credentials.
+A role that deploys oauth2-proxy in **forward_auth mode** with **cookie-only session storage**, providing OIDC gating in front of services managed by this collection. The role is deliberately scoped: forward_auth (the rpx asks oauth2-proxy whether each request is allowed, app socket stays in the data path), cookie-stored sessions (no Redis), and identity-only authz (allow / deny based on email / email domain — no group claims).
 
 ## Scope
 
-Two integration shapes that oauth2-proxy supports natively, both worth shipping:
+### Forward-auth mode
 
-### 1. In-line chaining (proxy mode)
-
-oauth2-proxy sits between the reverse proxy and the application: the reverse proxy proxies to oauth2-proxy's socket; oauth2-proxy enforces auth and proxies to the app socket. Reading outside → inside:
+The reverse proxy keeps proxying directly to the app socket; on every gated request, it issues a sub-request to oauth2-proxy via `forward_auth` (Caddy) / `auth_request` (nginx) / Traefik's forward-auth middleware. oauth2-proxy returns 200 + identity headers on success, 401/redirect on failure. The reverse proxy enforces the verdict and forwards augmented headers to the app.
 
 ```
-client → network → reverse proxy → oauth2-proxy → app socket
-```
-
-Each hop on the right of the network is a unix socket. Best for services that just need "log in or you don't get past this layer at all."
-
-### 2. forward_auth check (out-of-band auth)
-
-The reverse proxy keeps proxying directly to the app socket but issues a sub-request to oauth2-proxy on every (or selected) requests via `forward_auth` (Caddy) / `auth_request` (nginx) / Traefik's forward-auth middleware. oauth2-proxy returns 200 + identity headers (`X-Auth-Request-Email`, etc.) on success, 401/redirect on failure. The reverse proxy enforces the verdict and forwards augmented headers to the app.
-
-```
-client → network → reverse proxy ──auth-check──> oauth2-proxy
+                          ┌──auth-check──> oauth2-proxy
                           │
-                          └────────> app socket  (with X-Auth-* headers)
+client → network → reverse proxy ────────> app socket  (with X-Auth-* headers)
 ```
 
-Best for services that take signed-in identity into account but don't need oauth2-proxy strictly in the data path — and for services that want sub-request granularity (auth this path, skip auth on `/health`, etc.).
+The user-routing pattern in [ttyd](ttyd.feature.md) and [code-server](code-server.feature.md) is exactly this shape — forward_auth supplies `X-Auth-Request-User`, the rpx vhost block uses it to route to the per-user backend.
+
+In-line chaining (oauth2-proxy in the data path between rpx and app socket) is **not in scope here.** Forward_auth covers every case the collection currently has and avoids a hop in the data path for static-asset traffic.
+
+### Cookie-only session storage
+
+Sessions stored entirely in the user's cookie, signed with a cookie secret from the secrets role. **No Redis, no other session backend.** One less moving part; sessions are stateless on the server side.
+
+The cookie size budget is the constraint that drives the rest of this spec.
+
+### Identity claims only in the cookie — server-side role gates supported
+
+The cookie stores only what's needed to identify the authenticated user: `sub`, `email`, `preferred_username`. Group-membership lists are explicitly **not** put into the cookie — they inflate it past browser limits and require a session backend to handle gracefully, which we've ruled out.
+
+**Role / group requirements at login time are supported.** oauth2-proxy can validate role-, group-, or scope-claims on the OIDC token *during the auth flow* and accept or reject the login based on them. The result of that check (allow / deny + identity) is what lands in the cookie — the role list itself does not. So a deployer can require "must be in group `engineering`" or "must have role `admin`" at the gate, without the gate's success metadata bloating every subsequent request.
+
+What does **not** flow through to the app via headers: the user's full group / role list. The rpx-supplied headers are identity-only (`X-Auth-Request-Email`, `X-Auth-Request-User`). Per-path allow lists, RBAC-shaped logic, and any decision that depends on knowing all of a user's groups stay in the application — which is the right place for them anyway.
+
+### Single instance per zone, wildcard cookie
+
+One oauth2-proxy instance gates a whole zone via a **wildcard cookie domain**: `cookie_domains = .<zone>` (the leading dot is what makes it cover every subdomain). A single sign-in at any subdomain produces a session cookie that the browser sends to *every* `*.<zone>` request, so the user logs in once and the gate then says yes for `terminal.example.com`, `code.example.com`, `dashboards.example.com`, and so on without re-prompting.
+
+This is the typical project shape: one project owns one zone, one OIDC client, one oauth2-proxy. A site whose project genuinely spans multiple zones runs one instance per zone (cookies don't cross zones). A service that needs a narrower OIDC-client scope or a different session lifetime can declare its own instance — the role's systemd template (`oauth2-proxy@<name>.service`) supports multiple parallel instances. Each instance publishes on a unix socket following the [web-service socket pattern](reverse-proxy.pattern.md).
 
 ### Other concerns
 
-- One oauth2-proxy instance per project (typically), pinned to that project's OIDC client.
-- OIDC client ID + secret from the secrets role.
-- Cookie/session secret from the secrets role.
-- Provider configuration (Keycloak, Authentik, Google, etc.) parameterized.
-- Allowed-email / allowed-group rules per service.
+- **Provider:** parameterized — Keycloak, Authentik, Google, etc. The role consumes a provider URL + client credentials and otherwise does not care.
+- **OIDC client ID + secret:** from the secrets role.
+- **Cookie secret:** from the secrets role.
+- **Provider role:** out of scope. The IdP is its own concern; see the future `keycloak.feature.md` / `authentik.feature.md` if relevant.
 
-## Design notes
-
-- The two shapes are not exclusive — a host can run several oauth2-proxy instances, some in-line, some forward-auth, depending on what each service needs.
-- Forward-auth lets the reverse proxy stay closer to the app socket (one less hop in the data path for static assets, etc.) at the cost of an auth sub-request per gated request. In-line chaining is simpler to reason about but inserts oauth2-proxy into every byte.
-- oauth2-proxy publishes its own unix socket following the [web-service socket pattern](reverse-proxy.pattern.md), so the reverse proxy talks to it the same way it talks to any other service.
-
-## Open questions
-
-- **Scope per project, scope per service, or both?** A single project-wide oauth2-proxy gating multiple services is cheaper to operate; per-service instances allow narrower OIDC client scopes. Default likely "one per project" with per-service as an override.
-- **Session cookie domain.** Sharing a single oauth2-proxy across `*.<zone>` works smoothly when the cookie domain is `.<zone>`. Picking that requires the proxy and all gated services to live under the same parent zone.
-- **Group / role mapping.** Does the role expose just allowed-email / allowed-group, or also more elaborate rules (per-path allow lists, header-based RBAC)? Lean minimal — push elaborate rules into the application.
-- **Logout flow.** OIDC logout is famously inconsistent across providers. Worth specifying which providers we test against.
