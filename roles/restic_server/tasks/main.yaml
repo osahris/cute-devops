@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2013 - 2022 Philipp Kaluza <consult@ghostroute.eu>
 # SPDX-FileCopyrightText: 2016 - 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
 #
-# SPDX-License-Identifier: EUPL-1.2
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 # currently (2022-01), restic-rest is not being packaged for Debian; build one locally from the latest stable tag
 - name: Create a build user for restic-rest

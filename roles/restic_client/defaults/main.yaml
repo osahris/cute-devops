@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2013 - 2022 Philipp Kaluza <consult@ghostroute.eu>
 # SPDX-FileCopyrightText: 2016 - 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
 #
-# SPDX-License-Identifier: EUPL-1.2
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 restic_client_backup_url_prefix: "rest:http://"
 restic_client_backup_url_hostport: "127.0.0.1:8000"

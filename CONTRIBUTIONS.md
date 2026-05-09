@@ -13,7 +13,19 @@ SPDX-License-Identifier: EUPL-1.2
 
 - **Philipp Kaluza** (2013–2022) — Contributions to the restic backup
   server and client roles (rps-backup), including TLS support, htpasswd
-  generation, and systemd integration.
+  generation, and systemd integration. These contributions were licensed
+  under AGPL-3.0-or-later; the `restic_client` and `restic_server` roles
+  therefore remain AGPL-3.0-or-later while the rest of the project is
+  EUPL-1.2 (see [License](#license) below), pending coordination with
+  Philipp on relicensing.
+
+## License
+
+Most of the project is licensed under EUPL-1.2. The `restic_client` and
+`restic_server` roles are licensed under AGPL-3.0-or-later (see Authors
+above). Third-party files retain their upstream licenses (e.g.
+powerline-go integration snippets are GPL-3.0-only). Per-file SPDX
+headers are authoritative.
 
 ## Acknowledgements
 

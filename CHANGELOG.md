@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Relicensed from AGPL-3.0-or-later to EUPL-1.2
+- Relicensed from AGPL-3.0-or-later to EUPL-1.2; the
+  `restic_client` and `restic_server` roles stay under
+  AGPL-3.0-or-later pending consent from a co-author
 - Renamed collection from `mkbrechtel.sysops` to `mkbrechtel.devops`;
   merged the upstream Cute Patterns! library into `patterns/` and the
   Astro/Go site machinery into `website/`

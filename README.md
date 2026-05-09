@@ -115,4 +115,10 @@ ansible-galaxy collection install mkbrechtel.devops
 
 ## License
 
-EUPL-1.2
+EUPL-1.2, with the following exceptions (per-file `SPDX-License-Identifier`
+headers are authoritative):
+
+- `roles/restic_client/`, `roles/restic_server/` — AGPL-3.0-or-later
+  (carve-out for a co-author's contributions; see `CONTRIBUTIONS.md`).
+- Third-party powerline-go integration snippets under
+  `roles/{bash,fish,zsh}_shell/files/` — GPL-3.0-only.
