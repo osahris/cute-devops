@@ -103,17 +103,19 @@ runs `reuse lint` and `ansible-lint` against a temporary checkout of the
 staged tree (via `git checkout-index`), so the linters see exactly what
 would be committed regardless of unstaged changes in the working tree.
 
-`tests/post-commit` and `tests/post-receive` keep the active hooks in sync:
-whenever `main` is committed-to in any worktree, or received as a push,
-they install `tests/*` into `$GIT_COMMON_DIR/hooks/`. That directory is
-shared across every worktree of the same repository, so a single update on
-`main` rolls out the new hooks everywhere — no per-clone configuration.
+`tests/reference-transaction` does two jobs in one hook, dispatching on the
+transaction phase:
 
-`tests/reference-transaction` protects `main` from non-fast-forward
-changes. It rejects force pushes received by the bare repo and local
-rewrites from any worktree alike — including `git reset --hard` to an
-older commit, history-rewriting rebases, and deletion. Branch creation
-and ordinary fast-forward moves are allowed.
+- **`prepared`** — protects `main` from non-fast-forward changes. It rejects
+  force pushes received by the bare repo and local rewrites from any
+  worktree alike (`git reset --hard` to an older commit, history-rewriting
+  rebases, deletion). Branch creation and ordinary fast-forward moves are
+  allowed.
+- **`committed`** — after `main` successfully advances, syncs `tests/*` from
+  the new tree (via `git archive`, so it works in both bare and worktree
+  contexts) into `$GIT_COMMON_DIR/hooks/`. That directory is shared across
+  every worktree, so a single update on `main` rolls out the new hooks
+  everywhere — no per-clone configuration.
 
 Bootstrap a fresh clone once by copying the scripts in:
 
@@ -121,7 +123,8 @@ Bootstrap a fresh clone once by copying the scripts in:
 install -m 755 tests/* "$(git rev-parse --git-common-dir)/hooks/"
 ```
 
-After that the post-commit / post-receive hooks keep themselves up to date.
+After that the reference-transaction hook keeps itself and its siblings up
+to date.
 
 ## Testing
 

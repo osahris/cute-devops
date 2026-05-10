@@ -3,31 +3,51 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-# Reject non-fast-forward updates and deletions of refs/heads/main from any
-# local operation (commit, reset, rebase, update-ref). This complements the
-# update hook, which only sees pushes received by the bare repo.
+# reference-transaction fires on every ref update — local commits, pushes,
+# rebases, fetches. We hook into two phases:
+#   prepared  -> reject non-fast-forward updates and deletions of main
+#   committed -> sync tests/* from main's new tree into the shared hooks
+#                directory, so every worktree picks up hook changes
 
 set -euo pipefail
 
 state=$1
 zero="0000000000000000000000000000000000000000"
 
-if [ "$state" != "prepared" ]; then
-    exit 0
-fi
+case "$state" in
+prepared)
+    while read -r oldrev newrev ref; do
+        [ "$ref" = "refs/heads/main" ] || continue
+        [ "$oldrev" = "$zero" ] && continue
 
-while read -r oldrev newrev ref; do
-    [ "$ref" = "refs/heads/main" ] || continue
-    [ "$oldrev" = "$zero" ] && continue
+        if [ "$newrev" = "$zero" ]; then
+            echo "reference-transaction: refusing to delete main" >&2
+            exit 1
+        fi
 
-    if [ "$newrev" = "$zero" ]; then
-        echo "reference-transaction: refusing to delete main" >&2
-        exit 1
-    fi
+        if ! git merge-base --is-ancestor "$oldrev" "$newrev"; then
+            echo "reference-transaction: refusing non-fast-forward update to main" >&2
+            echo "  $oldrev is not an ancestor of $newrev" >&2
+            exit 1
+        fi
+    done
+    ;;
+committed)
+    hooksdir=$(git rev-parse --git-common-dir)/hooks
+    while read -r _oldrev newrev ref; do
+        [ "$ref" = "refs/heads/main" ] || continue
+        [ "$newrev" = "$zero" ] && continue
 
-    if ! git merge-base --is-ancestor "$oldrev" "$newrev"; then
-        echo "reference-transaction: refusing non-fast-forward update to main" >&2
-        echo "  $oldrev is not an ancestor of $newrev" >&2
-        exit 1
-    fi
-done
+        tmp=$(mktemp -d)
+        if git archive "$newrev" tests 2>/dev/null | tar -x -C "$tmp"; then
+            shopt -s nullglob
+            for src in "$tmp"/tests/*; do
+                [ -f "$src" ] || continue
+                install -m 755 "$src" "$hooksdir/$(basename "$src")"
+            done
+            echo "reference-transaction: synced tests/* from $newrev -> $hooksdir/" >&2
+        fi
+        rm -rf "$tmp"
+    done
+    ;;
+esac
