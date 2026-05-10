@@ -11,6 +11,10 @@
 
 set -euo pipefail
 
+# Remotes that should mirror main automatically. Edit this list to add or
+# remove targets; missing remotes are skipped silently.
+PUSH_TARGETS=(github gitlab codeberg)
+
 state=$1
 zero="0000000000000000000000000000000000000000"
 
@@ -58,17 +62,19 @@ committed)
         fi
         rm -rf "$tmp"
 
-        # Auto-push main to github so the public mirror tracks the bare
-        # repo without manual intervention. Failures (no network, auth,
-        # non-FF on the remote) warn but don't block the local update.
-        if git remote get-url github >/dev/null 2>&1; then
-            if push_output=$(git push github main 2>&1); then
-                echo "reference-transaction: pushed main to github" >&2
+        # Auto-push main to every configured mirror so the public copies
+        # track the bare repo without manual intervention. Failures (no
+        # network, auth, non-FF on the remote) warn but don't block the
+        # local update, and a failure on one remote doesn't skip the rest.
+        for remote in "${PUSH_TARGETS[@]}"; do
+            git remote get-url "$remote" >/dev/null 2>&1 || continue
+            if push_output=$(git push "$remote" main 2>&1); then
+                echo "reference-transaction: pushed main to $remote" >&2
             else
-                echo "reference-transaction: WARNING — auto-push to github failed:" >&2
+                echo "reference-transaction: WARNING — auto-push to $remote failed:" >&2
                 printf '  %s\n' "$push_output" >&2
             fi
-        fi
+        done
     done
     ;;
 esac
