@@ -361,6 +361,33 @@ body.home .hamburger { display: none; }
 }
 .sitemap-heading img { width: 22px; height: 22px; }
 
+/* Per-article toolbar (top-right of the page body). */
+.article-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 1rem;
+}
+.copy-md {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .3rem .65rem;
+  font: inherit;
+  font-size: .85rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease;
+}
+.copy-md:hover {
+  background: var(--hover-bg);
+  border-color: var(--accent);
+}
+.copy-md:active { transform: translateY(1px); }
+.copy-md-icon  { font-size: 1em; line-height: 1; }
+
 .content {
   padding: 2rem var(--pad) 4rem;
   max-width: var(--content-max);

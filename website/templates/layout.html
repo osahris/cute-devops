@@ -114,6 +114,13 @@ placeholders before invoking this template:
     [[- end ]]
 
     <article>
+      <div class="article-toolbar">
+        <button type="button" class="copy-md" data-url="[[ $edit ]]"
+                aria-label="Copy this page as markdown">
+          <span class="copy-md-icon" aria-hidden="true">📋</span>
+          <span class="copy-md-label">Copy as Markdown</span>
+        </button>
+      </div>
       [[- /* Only emit our auto-h1 when the page has a front-matter
             title; otherwise the markdown body's own `# heading`
             carries the page heading and we'd be doubling up. */ -]]
@@ -130,5 +137,26 @@ placeholders before invoking this template:
     </footer>
   </main>
 </div>
+
+<script>
+  // "Copy as Markdown" — fetch the page's .md source and copy it.
+  for (const btn of document.querySelectorAll(".copy-md")) {
+    btn.addEventListener("click", async () => {
+      const label = btn.querySelector(".copy-md-label");
+      const original = label.textContent;
+      try {
+        const r = await fetch(btn.dataset.url, {
+          headers: { "Accept": "text/markdown" },
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        await navigator.clipboard.writeText(await r.text());
+        label.textContent = "Copied!";
+      } catch (e) {
+        label.textContent = "Copy failed";
+      }
+      setTimeout(() => { label.textContent = original; }, 1500);
+    });
+  }
+</script>
 </body>
 </html>
