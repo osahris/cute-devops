@@ -26,7 +26,20 @@ so the sidebar only renders the listing for the current section.
 [[- else if eq $section "anti-patterns" ]]
   [[ include "/templates/partials/sidebar-section.html" "" "/content/anti-patterns" "/anti-patterns" ]]
 [[- else if eq $section "roles" ]]
-  [[ include "/templates/partials/sidebar-section.html" "" "/content/roles" "/roles" ]]
+  [[- /* Roles are grouped by /content/role-groups.md (YAML front matter).
+       Each group becomes a sub-section; entries link to /roles/<name>. */ -]]
+  [[- $config := splitFrontMatter (include "/content/role-groups.md") -]]
+  [[- range $group := $config.Meta.groups ]]
+  <div class="sidebar-group">
+    <h3 class="sidebar-section">[[ $group.name ]]</h3>
+    <ul class="sidebar-list">
+    [[- range $role := $group.roles ]]
+      [[- $href := printf "/roles/%s" $role ]]
+      <li><a href="[[ $href ]]"[[ if eq $current $href ]] class="active" aria-current="page"[[ end ]]>[[ $role ]]</a></li>
+    [[- end ]]
+    </ul>
+  </div>
+  [[- end ]]
 [[- else if eq $section "dev" ]]
   [[- /* dev/ is a stub today — no sub-pages yet. */ -]]
 [[- end ]]
