@@ -42,10 +42,11 @@
   --accent:       #2563eb;
   --accent-hover: #1d4ed8;
   --border:       #d0d7de;
-  --sidebar-bg:   #f6f8fa;
-  --group-bg:     #ffffff;
+  --sidebar-bg:   #ffffff;
+  --switcher-bg:  #eef0f3;
   --code-bg:      #f6f8fa;
   --hover-bg:     rgba(127, 127, 127, .12);
+  --switch-shadow: 0 1px 2px rgba(0, 0, 0, .06);
 
   /* sizes */
   --nav-h:        56px;
@@ -62,9 +63,10 @@
     --accent:       #58a6ff;
     --accent-hover: #79c0ff;
     --border:       #30363d;
-    --sidebar-bg:   #161b22;
-    --group-bg:     #0d1117;
-    --code-bg:      #161b22;
+    --sidebar-bg:    #0d1117;
+    --switcher-bg:   #161b22;
+    --code-bg:       #161b22;
+    --switch-shadow: 0 1px 2px rgba(0, 0, 0, .35);
   }
 }
 
@@ -167,34 +169,58 @@ a:hover {
   z-index: 5;
 }
 
-/* Big header naming the current top-level section. */
+/* Top-level section switcher: grey pill bar with the active section
+   shown in a white pill (Astro-docs style). */
+.sidebar-top {
+  display: flex;
+  gap: 4px;
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 4px;
+  background: var(--switcher-bg);
+  border-radius: 8px;
+}
+.sidebar-top li { flex: 1; margin: 0; }
+.sidebar-top a {
+  display: block;
+  padding: .35rem .5rem;
+  border-radius: 5px;
+  text-align: center;
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+.sidebar-top a:hover {
+  color: var(--fg);
+  text-decoration: none;
+}
+.sidebar-top a.active {
+  background: var(--bg);
+  color: var(--fg);
+  font-weight: 600;
+  box-shadow: var(--switch-shadow);
+}
+
+/* Header naming the current top-level section. */
 .sidebar-current-section {
-  margin: 1.25rem 0 .75rem;
+  margin: 0 0 .75rem;
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: .02em;
   color: var(--fg);
 }
 
-/* Each section listing sits inside a grey card (Astro-docs style):
-   the sub-section heading is the title, items beneath. */
+/* Sub-section group within the current section. */
 .sidebar-group {
-  background: var(--group-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: .6rem .75rem;
-  margin: 0 0 .75rem;
+  margin: 0 0 1rem;
 }
-.sidebar-group > h3:first-child { margin-top: 0; }
-.sidebar-group > ul:last-child { margin-bottom: 0; }
 
-/* Sub-section headings inside a section listing. */
+/* Sub-section heading. */
 .sidebar h3 {
   margin: 0 0 .35rem;
-  font-size: .8rem;
+  font-size: .75rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: .05em;
   color: var(--fg-muted);
 }
 
@@ -203,7 +229,13 @@ a:hover {
   margin: 0;
   padding: 0;
 }
-.sidebar li { margin: .15rem 0; }
+.sidebar li { margin: .1rem 0; }
+
+/* Item lists carry a grey vertical guide line on the left. */
+.sidebar-list {
+  border-left: 1.5px solid var(--border);
+  padding-left: .5rem;
+}
 
 .sidebar a {
   display: block;
