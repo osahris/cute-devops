@@ -27,6 +27,8 @@ org you don't have.
   small daemons) and make them cute through managed config.
 - Trade vendor convenience for legibility: every layer should be
   inspectable with `grep`, `journalctl`, and `systemctl status`.
+- Stay close to the humans behind the tools — small, approachable
+  communities of real people, not sales-and-PR machines.
 
 ## Principles 🔧
 
@@ -55,6 +57,22 @@ your attention. Build on top of them.
 Small teams can't afford a snowflake-per-service. Configuration
 lives in version control, gets applied by Ansible, and is identical
 everywhere it needs to be.
+
+### Approachable communities
+
+A small town isn't one where everyone knows everyone — it's one
+where, even when you don't, you *know someone who knows someone*,
+and they can put you in touch. The building blocks of this library —
+Caddy, Forgejo, Restic, Postfix, systemd, Debian itself — are made
+and maintained by small, approachable communities of real people,
+not by sales-and-PR machines. The bug tracker is a place where the
+maintainer probably reads your issue. The chat room has the
+developer dropping in. Patches sent upstream get looked at by
+humans who actually wrote the code.
+
+You give up the comfort of an enterprise support contract. You
+gain the ability to reach the people whose decisions shape the
+software you run.
 
 ## When *not* to use this
 
