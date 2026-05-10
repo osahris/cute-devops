@@ -202,12 +202,12 @@ a:hover {
 
 /* Sub-section group within the current section. */
 .sidebar-group {
-  margin: 0 0 1rem;
+  margin: 0 0 1.5rem;
 }
 
 /* Sub-section heading. */
 .sidebar h3 {
-  margin: 0 0 .35rem;
+  margin: 0 0 .6rem;
   font-size: .75rem;
   font-weight: 700;
   text-transform: uppercase;
