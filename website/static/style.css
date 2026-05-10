@@ -72,14 +72,13 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .site-title:hover { text-decoration: none; }
 .site-nav a { color: var(--fg-muted); margin-left: 1rem; }
 
-/* Layout */
+/* Layout: sidebar pinned to the viewport's left edge, content gets the
+   remaining space and is centered within its column for readability. */
 .layout {
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   gap: 0;
   align-items: start;
-  max-width: calc(var(--sidebar-w) + var(--content-max) + 6rem);
-  margin: 0 auto;
 }
 
 /* Sidebar */
@@ -93,6 +92,11 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   background: var(--sidebar-bg);
   border-right: 1px solid var(--border);
   font-size: .95rem;
+}
+.sidebar-close,
+.hamburger,
+.sidebar-backdrop {
+  display: none;
 }
 .sidebar h3 {
   margin: 1.25rem 0 .35rem;
@@ -128,6 +132,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .content {
   padding: 2rem var(--pad) 4rem;
   max-width: var(--content-max);
+  margin: 0 auto;
 }
 .content h1 {
   margin-top: 0;
@@ -178,13 +183,89 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   color: var(--fg-muted);
 }
 
-/* Mobile */
+/* Mobile: sidebar collapses into a CSS-only drawer triggered by the
+   hidden #sidebar-toggle checkbox in the layout. */
 @media (max-width: 768px) {
-  .layout { grid-template-columns: 1fr; }
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* Hamburger button in the header */
+  .hamburger {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 32px;
+    height: 32px;
+    margin-right: .5rem;
+    padding: 6px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .hamburger:hover { background: rgba(127, 127, 127, .12); }
+  .hamburger span {
+    display: block;
+    height: 2px;
+    background: var(--fg);
+    border-radius: 2px;
+  }
+
+  /* Off-canvas drawer */
   .sidebar {
-    position: static;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(85vw, 20rem);
+    height: 100vh;
+    border-right: 1px solid var(--border);
+    border-bottom: none;
+    transform: translateX(-100%);
+    transition: transform .2s ease;
+    z-index: 100;
+    padding-top: 3rem; /* leave room for the close button */
+  }
+  .sidebar-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: .5rem;
+    right: .5rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    user-select: none;
+    color: var(--fg-muted);
+  }
+  .sidebar-close:hover { background: rgba(127, 127, 127, .12); color: var(--fg); }
+
+  /* Backdrop */
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+    z-index: 99;
+  }
+
+  /* Open state, driven by the hidden toggle checkbox. */
+  .sidebar-toggle:checked ~ .layout .sidebar {
+    transform: translateX(0);
+  }
+  .sidebar-toggle:checked ~ .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* Lock body scroll while the drawer is open. */
+  .sidebar-toggle:checked ~ .layout {
+    overflow: hidden;
   }
 }

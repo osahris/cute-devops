@@ -25,7 +25,12 @@ placeholders before invoking this template:
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+{{- /* CSS-only sidebar drawer: hidden checkbox + sibling selectors. */ -}}
+<input type="checkbox" id="sidebar-toggle" class="sidebar-toggle" hidden>
 <header class="site-header">
+  <label for="sidebar-toggle" class="hamburger" role="button" aria-label="Open navigation" tabindex="0">
+    <span></span><span></span><span></span>
+  </label>
   <a class="site-title" href="/">
     <img src="/static/emoji_u1f537.svg" alt="">
     <span>Cute DevOps Patterns!</span>
@@ -35,8 +40,11 @@ placeholders before invoking this template:
   </nav>
 </header>
 
+<label for="sidebar-toggle" class="sidebar-backdrop" aria-hidden="true"></label>
+
 <div class="layout">
   <aside class="sidebar" aria-label="Site navigation">
+    <label for="sidebar-toggle" class="sidebar-close" role="button" aria-label="Close navigation" tabindex="0">✕</label>
     {{ include "/templates/partials/sidebar.html" }}
   </aside>
 
