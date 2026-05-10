@@ -16,27 +16,43 @@ placeholders before invoking this template:
 [[- /* `not` catches both nil (missing key) and the empty string. */ -]]
 [[- $hasTitle := not (not $page.Meta.title) -]]
 [[- $title := $page.Meta.title -]]
-[[- if not $hasTitle -]][[- $title = "Cute DevOps Patterns!" -]][[- end -]]
+[[- if not $hasTitle -]][[- $title = "Cute DevOps!" -]][[- end -]]
+
+[[- /* Detect the current top-level section from the URL so the
+       header (and the sidebar) can highlight it. Caddy 2.6 templates
+       have no hasPrefix; we use printf with a precision specifier. */ -]]
+[[- $current := .OriginalReq.URL.Path -]]
+[[- $sectionLabel := "" -]]
+[[- if or (eq $current "/patterns") (eq (printf "%.10s" $current) "/patterns/") -]]
+  [[- $sectionLabel = "Patterns!" -]]
+[[- else if or (eq $current "/roles") (eq (printf "%.7s" $current) "/roles/") -]]
+  [[- $sectionLabel = "Deploy!" -]]
+[[- else if or (eq $current "/dev") (eq (printf "%.5s" $current) "/dev/") -]]
+  [[- $sectionLabel = "Coding!" -]]
+[[- end -]]
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>[[ if $hasTitle ]][[ $title ]] | [[ end ]]Cute DevOps Patterns!</title>
-<link rel="icon" type="image/svg+xml" href="/static/emoji_u1f537.svg">
+<title>[[ if $hasTitle ]][[ $title ]] | [[ end ]]Cute DevOps!</title>
+<link rel="icon" type="image/svg+xml" href="/static/unicorn.svg">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 [[- /* CSS-only sidebar drawer: hidden checkbox + sibling selectors. */ -]]
 <input type="checkbox" id="sidebar-toggle" class="sidebar-toggle" hidden>
 <header class="site-header">
+  <a class="site-title" href="/">
+    <img src="/static/unicorn.svg" alt="">
+    <span>Cute DevOps!</span>
+  </a>
+  [[- if ne $sectionLabel "" ]]
+  <span class="header-section">[[ $sectionLabel ]]</span>
+  [[- end ]]
   <label for="sidebar-toggle" class="hamburger" role="button" aria-label="Open navigation" tabindex="0">
     <span></span><span></span><span></span>
   </label>
-  <a class="site-title" href="/">
-    <img src="/static/emoji_u1f537.svg" alt="">
-    <span>Cute DevOps Patterns!</span>
-  </a>
 </header>
 
 <div class="layout">

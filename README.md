@@ -4,9 +4,9 @@ SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.br
 SPDX-License-Identifier: EUPL-1.2
 -->
 
-# Cute DevOps Patterns! — `mkbrechtel.devops`
+# Cute DevOps! — `mkbrechtel.devops`
 
-The ***Cute DevOps Patterns!*** project provides a collection of patterns
+The ***Cute DevOps!*** project provides a collection of patterns
 and their implementations in form of Ansible roles. The repo ships as the
 Ansible collection `mkbrechtel.devops` and renders to the website at
 [devops.patterns.how](https://devops.patterns.how).
@@ -125,4 +125,4 @@ headers are authoritative):
   `roles/zsh_shell/files/powerline-go.zsh`,
   `roles/fish_shell/files/global/fish_prompt.fish`) — GPL-3.0-only.
 - Google Noto Emoji glyph used as logo / favicon
-  (`website/public/emoji_u1f537.svg`) — Apache-2.0.
+  (`website/static/unicorn.svg`) — Apache-2.0.

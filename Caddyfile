@@ -47,7 +47,7 @@
 		file_server
 	}
 	handle /favicon.ico {
-		rewrite * /static/emoji_u1f537.svg
+		rewrite * /static/unicorn.svg
 		file_server
 	}
 
