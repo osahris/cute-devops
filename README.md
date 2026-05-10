@@ -8,7 +8,8 @@ SPDX-License-Identifier: EUPL-1.2
 
 The ***Cute DevOps!*** library is a small, opinionated knowledge base
 about running computers — patterns we like, the patterns we *don't
-recommend*, and the Ansible roles we use to ship the ones we do. <br>
+recommend*, and the Ansible roles we use to ship the ones we do.
+
 Heads up: this library is pretty opinionated; we're working on a
 comments section so you can drop in and tell us where we're wrong.
 
