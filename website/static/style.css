@@ -215,17 +215,14 @@ a:hover {
   color: var(--fg-muted);
 }
 
-.sidebar ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
 .sidebar li { margin: .1rem 0; }
 
 /* Item lists carry a grey vertical guide line on the left. */
 .sidebar-list {
+  list-style: none;
+  margin: 0;
   border-left: 1.5px solid var(--border);
-  padding-left: .5rem;
+  padding: 0 0 0 .85rem;
 }
 
 .sidebar a {
