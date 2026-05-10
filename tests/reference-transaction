@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Reject non-fast-forward updates and deletions of refs/heads/main from any
+# local operation (commit, reset, rebase, update-ref). This complements the
+# update hook, which only sees pushes received by the bare repo.
+
+set -euo pipefail
+
+state=$1
+zero="0000000000000000000000000000000000000000"
+
+if [ "$state" != "prepared" ]; then
+    exit 0
+fi
+
+while read -r oldrev newrev ref; do
+    [ "$ref" = "refs/heads/main" ] || continue
+    [ "$oldrev" = "$zero" ] && continue
+
+    if [ "$newrev" = "$zero" ]; then
+        echo "reference-transaction: refusing to delete main" >&2
+        exit 1
+    fi
+
+    if ! git merge-base --is-ancestor "$oldrev" "$newrev"; then
+        echo "reference-transaction: refusing non-fast-forward update to main" >&2
+        echo "  $oldrev is not an ancestor of $newrev" >&2
+        exit 1
+    fi
+done
