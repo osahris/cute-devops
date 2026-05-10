@@ -109,12 +109,11 @@ they install `tests/*` into `$GIT_COMMON_DIR/hooks/`. That directory is
 shared across every worktree of the same repository, so a single update on
 `main` rolls out the new hooks everywhere — no per-clone configuration.
 
-`tests/update` and `tests/reference-transaction` together protect `main`
-from non-fast-forward changes. `update` rejects force pushes received by
-the bare repo; `reference-transaction` rejects local rewrites — including
-`git reset --hard` to an older commit, history-rewriting rebases, or
-deletion — from any worktree. Branch creation and ordinary fast-forward
-moves are allowed.
+`tests/reference-transaction` protects `main` from non-fast-forward
+changes. It rejects force pushes received by the bare repo and local
+rewrites from any worktree alike — including `git reset --hard` to an
+older commit, history-rewriting rebases, and deletion. Branch creation
+and ordinary fast-forward moves are allowed.
 
 Bootstrap a fresh clone once by copying the scripts in:
 
