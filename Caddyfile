@@ -68,9 +68,20 @@
 
 	# Pattern pages live under /patterns/. Files are mounted at
 	# /srv/content/patterns/ so the URL path maps 1:1 onto the file
-	# layout. Two candidates per request:
-	#   /patterns/foo       → /content/patterns/foo.md          (direct)
-	#   /patterns/foo  also → /content/patterns/foo/index.md    (index, fallback)
+	# layout. Three candidates per request:
+	#   /patterns/foo.md       → /content/patterns/foo.md       (explicit, used by sidebar links)
+	#   /patterns/foo          → /content/patterns/foo.md       (clean URL)
+	#   /patterns/foo          → /content/patterns/foo/index.md (clean URL, folder fallback)
+	@pattern_explicit {
+		path *.md
+		file /content{path}
+	}
+	handle @pattern_explicit {
+		vars page_file {http.matchers.file.relative}
+		vars page_edit "{path}"
+		import render_page
+	}
+
 	@pattern_direct file {
 		try_files /content{path}.md
 	}

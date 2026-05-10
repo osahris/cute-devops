@@ -1,0 +1,20 @@
+{{- /*
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-License-Identifier: EUPL-1.2
+
+Site navigation. Section list is hardcoded (Caddy 2.6 templates can't
+distinguish files from directories from `listFiles` output, so section
+discovery lives in source). Items inside each section are enumerated at
+request time from /srv/content/patterns/<dir>/ — adding a markdown file
+there is enough to make it appear in the menu.
+*/ -}}
+{{- $current := .OriginalReq.URL.Path -}}
+
+<ul class="sidebar-top">
+  <li><a href="/about"{{ if eq $current "/about" }} class="active" aria-current="page"{{ end }}>About</a></li>
+  <li><a href="/patterns"{{ if eq $current "/patterns" }} class="active" aria-current="page"{{ end }}>Patterns</a></li>
+</ul>
+
+{{ include "/templates/partials/sidebar-section.html" "Development / Frontend" "/content/patterns/development/frontend" "/patterns/development/frontend" }}
+{{ include "/templates/partials/sidebar-section.html" "Operation / Deployment" "/content/patterns/operation/deployment" "/patterns/operation/deployment" }}
+{{ include "/templates/partials/sidebar-section.html" "Meta" "/content/patterns/meta" "/patterns/meta" }}

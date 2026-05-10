@@ -1,0 +1,29 @@
+{{- /*
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-License-Identifier: EUPL-1.2
+
+A single sidebar section, enumerated at request time.
+
+Args (passed via Caddy's `include` extras):
+  0 — section label  (e.g. "Meta")
+  1 — content dir    (relative to site root, e.g. "/content/patterns/meta")
+  2 — URL base       (e.g. "/patterns/meta")
+*/ -}}
+{{- $label   := index .Args 0 -}}
+{{- $dir     := index .Args 1 -}}
+{{- $baseurl := index .Args 2 -}}
+{{- $current := .OriginalReq.URL.Path -}}
+
+<h3 class="sidebar-section">{{ $label }}</h3>
+<ul class="sidebar-list">
+{{- range $name := listFiles $dir }}
+  {{- if ne $name "index.md" }}
+    {{- $path  := printf "%s/%s" $dir $name -}}
+    {{- $href  := printf "%s/%s" $baseurl $name -}}
+    {{- $page  := splitFrontMatter (include $path) -}}
+    {{- $title := $page.Meta.title -}}
+    {{- if not $title }}{{- $title = $name -}}{{- end }}
+  <li><a href="{{ $href }}"{{ if eq $current $href }} class="active" aria-current="page"{{ end }}>{{ $title }}</a></li>
+  {{- end }}
+{{- end }}
+</ul>

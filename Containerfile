@@ -11,14 +11,9 @@ RUN apt-get update \
 COPY Caddyfile          /etc/caddy/Caddyfile
 COPY website/templates/ /srv/templates/
 COPY website/static/    /srv/static/
-COPY website/scripts/   /usr/local/share/devops-website/scripts/
 COPY patterns/          /srv/content/patterns/
 COPY README.md          /srv/about.md
 
-RUN chmod +x /usr/local/share/devops-website/scripts/*.sh \
- && /usr/local/share/devops-website/scripts/build-sidebar.sh
-
 EXPOSE 8080
 
-ENTRYPOINT ["/usr/local/share/devops-website/scripts/entrypoint.sh"]
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
