@@ -11,7 +11,8 @@ about running computers — patterns we like, the patterns we *don't
 recommend*, and the Ansible roles we use to ship the ones we do.
 
 Heads up: this library is pretty opinionated; we're working on a
-comments section so you can drop in and tell us where we're wrong *IYO*.
+comments section so you can drop in and tell us where we're wrong IYO
+(please only leave constructive critiques).
 
 The repository ships as the Ansible collection `mkbrechtel.devops`
 and renders to the website at
