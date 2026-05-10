@@ -39,6 +39,18 @@ GitLab is a hyperscaler-shaped product sold to small teams.
 - **Dev/prod divergence.** Nobody runs GitLab on their laptop. The
   reality of the system you're operating — dependencies, version
   matrix, upgrade pain — is invisible until something breaks.
+- **Centralizes a security boundary you don't fully control.** Once
+  the entire organization's code, CI, secrets, registry, and
+  deployment triggers live behind one login on one box, that box is
+  the security boundary. A compromise — or a misconfigured token,
+  group permission, or runner — leaks reach across every project
+  you have. When code management, CI, and deployment happen
+  directly on the target hosts (git via SSH, deploys via systemd
+  units, secrets via the host's own credential store) the trust
+  surface stays per-host: each machine only ever sees the code and
+  credentials it actually runs, and there's no central trove to
+  break into. You also avoid the network gymnastics of "GitLab
+  Runner has to reach prod through six firewall rules".
 
 ## The Cute Alternative 💙
 
