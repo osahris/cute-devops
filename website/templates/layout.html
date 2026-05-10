@@ -1,0 +1,56 @@
+{{- /*
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-License-Identifier: EUPL-1.2
+
+Renders a markdown page from /srv/content/. The Caddyfile sets two
+placeholders before invoking this template:
+  http.vars.page_file — file to include (e.g. "/content/meta/cuteness.md")
+  http.vars.page_edit — path tail for the "Edit on GitHub" link
+                        (e.g. "patterns/meta/cuteness.md")
+*/ -}}
+{{- $file := placeholder "http.vars.page_file" -}}
+{{- $edit := placeholder "http.vars.page_edit" -}}
+{{- if eq $file "" -}}{{- httpError 404 -}}{{- end -}}
+
+{{- $page := splitFrontMatter (include $file) -}}
+{{- $title := $page.Meta.title -}}
+{{- if eq $title "" -}}{{- $title = "Cute DevOps Patterns!" -}}{{- end -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ $title }} | Cute DevOps Patterns!</title>
+<link rel="icon" type="image/svg+xml" href="/static/emoji_u1f537.svg">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="site-title" href="/">
+    <img src="/static/emoji_u1f537.svg" alt="">
+    <span>Cute DevOps Patterns!</span>
+  </a>
+  <nav class="site-nav">
+    <a href="https://github.com/mkbrechtel/devops" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="sidebar" aria-label="Site navigation">
+    {{ include "/templates/partials/sidebar.html" }}
+  </aside>
+
+  <main class="content">
+    <article>
+      <h1>{{ $title }}</h1>
+      {{ markdown $page.Body }}
+    </article>
+    <footer class="page-footer">
+      <a href="https://github.com/mkbrechtel/devops/edit/main{{ $edit }}" rel="noopener">
+        Edit this page on GitHub
+      </a>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

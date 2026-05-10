@@ -76,8 +76,8 @@ build_ignore:
   - backup_servers.yaml
   - website
   - issues
-  - go.mod
-  - go.sum
+  - Caddyfile
+  - Containerfile
 # A dict controlling use of manifest directives used in building the collection artifact. The key 'directives' is a
 # list of MANIFEST.in style
 # L(directives,https://packaging.python.org/en/latest/guides/using-manifest-in/#manifest-in-commands). The key

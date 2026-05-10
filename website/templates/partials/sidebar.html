@@ -1,0 +1,41 @@
+{{- /*
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-License-Identifier: EUPL-1.2
+
+Site navigation. Reads the original request path so the active page can
+be highlighted. Sections mirror the previous Astro Starlight sidebar
+configuration; new pages need an entry here.
+*/ -}}
+{{- $current := .OriginalReq.URL.Path -}}
+
+<ul class="sidebar-top">
+  <li>
+    <a href="/about"{{ if eq $current "/about" }} class="active" aria-current="page"{{ end }}>
+      About
+    </a>
+  </li>
+  <li>
+    <a href="/patterns"{{ if eq $current "/patterns" }} class="active" aria-current="page"{{ end }}>
+      Patterns
+    </a>
+  </li>
+</ul>
+
+<h3 class="sidebar-section">Development / Frontend</h3>
+<ul class="sidebar-list">
+  <li><a href="/patterns/development/frontend/tailwind"{{ if eq $current "/patterns/development/frontend/tailwind" }} class="active" aria-current="page"{{ end }}>Tailwind Pattern</a></li>
+  <li><a href="/patterns/development/frontend/tailwind-with-global-css-variables"{{ if eq $current "/patterns/development/frontend/tailwind-with-global-css-variables" }} class="active" aria-current="page"{{ end }}>Tailwind CSS with Global Variables Pattern 🎨</a></li>
+</ul>
+
+<h3 class="sidebar-section">Operation / Deployment</h3>
+<ul class="sidebar-list">
+  <li><a href="/patterns/operation/deployment/compose-service"{{ if eq $current "/patterns/operation/deployment/compose-service" }} class="active" aria-current="page"{{ end }}>Compose Service Pattern 🐋</a></li>
+  <li><a href="/patterns/operation/deployment/host-traefik"{{ if eq $current "/patterns/operation/deployment/host-traefik" }} class="active" aria-current="page"{{ end }}>Host-wide Traefik Container Pattern 🌐</a></li>
+  <li><a href="/patterns/operation/deployment/stages"{{ if eq $current "/patterns/operation/deployment/stages" }} class="active" aria-current="page"{{ end }}>Stages Pattern 🎭</a></li>
+</ul>
+
+<h3 class="sidebar-section">Meta</h3>
+<ul class="sidebar-list">
+  <li><a href="/patterns/meta/cuteness"{{ if eq $current "/patterns/meta/cuteness" }} class="active" aria-current="page"{{ end }}>Cuteness Pattern 🌸</a></li>
+  <li><a href="/patterns/meta/pattern"{{ if eq $current "/patterns/meta/pattern" }} class="active" aria-current="page"{{ end }}>Pattern Pattern 🔷²</a></li>
+</ul>

@@ -1,0 +1,105 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Central Caddyfile for mkbrechtel.devops.
+#
+# Today this serves the documentation website. Additional services
+# (e.g. an MCP server) will be mounted as further handle blocks below.
+{
+	auto_https off
+	admin off
+	log default {
+		level INFO
+		format console
+	}
+}
+
+# Snippet: render a page through the layout template. Callers must set
+# the `page_file` and `page_edit` vars first.
+(render_page) {
+	rewrite * /templates/layout.html
+	templates {
+		mime text/html
+	}
+	header Content-Type "text/html; charset=utf-8"
+	file_server
+}
+
+:8080 {
+	root * /srv
+	encode gzip zstd
+
+	# --- Future services go here ---------------------------------
+	# Example, once an MCP backend exists:
+	#
+	#   handle_path /mcp/* {
+	#       reverse_proxy 127.0.0.1:9000
+	#   }
+	# -------------------------------------------------------------
+
+	# Static assets, served verbatim from /srv/static/.
+	handle /static/* {
+		file_server
+	}
+	handle /favicon.ico {
+		rewrite * /static/emoji_u1f537.svg
+		file_server
+	}
+
+	# Liveness probe.
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	# Soft-redirect the bare root to the about page.
+	@root path /
+	handle @root {
+		redir * /about 302
+	}
+
+	# /about renders the repository's README.md (copied to /srv/about.md
+	# in the container build).
+	handle /about {
+		vars page_file "/about.md"
+		vars page_edit "/README.md"
+		import render_page
+	}
+
+	# Pattern pages live under /patterns/. Files are mounted at
+	# /srv/content/patterns/ so the URL path maps 1:1 onto the file
+	# layout. Two candidates per request:
+	#   /patterns/foo       → /content/patterns/foo.md          (direct)
+	#   /patterns/foo  also → /content/patterns/foo/index.md    (index, fallback)
+	@pattern_direct file {
+		try_files /content{path}.md
+	}
+	handle @pattern_direct {
+		vars page_file {http.matchers.file.relative}
+		vars page_edit "{path}.md"
+		import render_page
+	}
+
+	@pattern_index file {
+		try_files /content{path}/index.md
+	}
+	handle @pattern_index {
+		vars page_file {http.matchers.file.relative}
+		vars page_edit "{path}/index.md"
+		import render_page
+	}
+
+	# Anything else: fall through to the error template.
+	handle {
+		error 404
+	}
+
+	handle_errors {
+		rewrite * /templates/error.html
+		templates {
+			mime text/html
+		}
+		header Content-Type "text/html; charset=utf-8"
+		file_server
+	}
+}

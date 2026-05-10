@@ -1,0 +1,29 @@
+{{- /*
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-License-Identifier: EUPL-1.2
+*/ -}}
+{{- $code := placeholder "http.error.status_code" -}}
+{{- $msg  := placeholder "http.error.status_text" -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ $code }} {{ $msg }} | Cute DevOps Patterns!</title>
+<link rel="icon" type="image/svg+xml" href="/static/emoji_u1f537.svg">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="site-title" href="/">
+    <img src="/static/emoji_u1f537.svg" alt="">
+    <span>Cute DevOps Patterns!</span>
+  </a>
+</header>
+<main class="content">
+  <article>
+    <h1>{{ $code }} — {{ $msg }}</h1>
+    <p>The page you requested could not be found. Try the <a href="/">home page</a>.</p>
+  </article>
+</main>
+</body>
+</html>
