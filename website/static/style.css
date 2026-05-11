@@ -110,8 +110,9 @@ a:hover {
  * 3. Header
  * ================================================================= */
 
-/* Title on the left, current section name centered, hamburger (mobile
-   only) on the right — three columns: auto | 1fr | auto. */
+/* Desktop: title left, section name centered, hamburger hidden.
+   Mobile: hamburger left, title centered, section name right.
+   Three columns either way: auto | 1fr | auto. */
 .site-header {
   position: fixed;
   top: 0;
@@ -501,12 +502,15 @@ body.home .hamburger { display: none; }
   /* Layout: drop the rail's reserved column. */
   .layout { padding-left: 0; }
 
-  /* Hamburger: snaps into column 3 of the header grid (right side).
-     The three spans are absolutely positioned so they can morph into
-     an X when the drawer is open. */
+  /* On mobile the order is: hamburger | logo | switcher, so reaching
+     the drawer toggle is a left-thumb gesture and the section switcher
+     sits on the right edge. The three hamburger spans are absolutely
+     positioned so they can morph into an X when the drawer is open. */
+  .site-title     { grid-column: 2; justify-self: center; }
+  .header-section { grid-column: 3; justify-self: end; }
   .hamburger {
-    grid-column: 3;
-    justify-self: end;
+    grid-column: 1;
+    justify-self: start;
     display: inline-flex;
     position: relative;
     width: 32px;
