@@ -10,21 +10,19 @@ SPDX-License-Identifier: EUPL-1.2
 
 ## Overview 📋
 
-A bare git repository lives on one host. Inside the bare repo, alongside `HEAD` and `refs/`, sit a `README.md`, a `.claude/` directory with hooks, permissions and skills already configured for Claude usage, and a `treehouses/` directory — one git worktree per contributor. The bare repo *is* the project: there's no wrapper directory, no parallel "checkout root", no per-clone setup. You `cd` into the bare repo and everything you need is already there.
+A bare git repository lives on one host. Inside the bare repo, alongside `HEAD` and `refs/`, sit a `README.md`, a `.claude/` directory with hooks, permissions and skills already configured for Claude usage, and a `treehouses/` directory — one git worktree per contributor. You `cd` into the bare repo and everything you need is already there.
 
 Everyone working on the project gets their own **treehouse**: a private worktree built on the same tree everyone else is climbing. A treehouse is light, spawnable, easy to dismantle — pull yourself up, do your work, climb back down. Filesystem permissions decide who can write where, and `git worktree` itself guarantees that no two treehouses share a branch.
-
-Same setup whether you're three operators sharing a server or one operator with three Claude agents alongside you. Everyone — you, your teammates, Claude — uses the same primitive (`git worktree add`) against the same bare repo.
 
 ## Goals 🎯
 
 - Give every contributor an isolated working tree without the cost of managing a full clone per person.
 - Let teammates read each other's in-progress work without races or permission gymnastics.
 - Push access control down to the kernel and git hooks — no bespoke "who can touch this branch" service.
-- Keep CI / linting / agent config inside the bare repo, so a fresh treehouse works the moment it exists. No `git clone && set up hooks && copy .env` ritual.
+- Keep CI / linting / agent config inside the bare repo, so a fresh treehouse works the moment it exists. 
 - One primitive (`git worktree`) for everyone; no bespoke way to set up a development environment.
-- Make `ls treehouses/` the honest answer to "what's everyone working on right now?"
-- Get transparency on what happens in the project by just looking at the files.
+- Get transparency on what happens in the project by just looking at the files – Make `ls treehouses/` the honest answer to "what's everyone working on right now?"
+
 
 ## Pattern Structure 📑
 
@@ -85,6 +83,8 @@ Concretely: set `core.sharedRepository = group`, `chgrp -R devops foo.git`, then
 
 Policy files still need to be *changed* — just not in place. Everything in `hooks/`, `.claude/`, and `README.md` is **tracked content on `main`**, and a `reference-transaction` hook syncs the new tree into the bare repo's live paths after every successful merge. Edit `.claude/settings.json` the same way you edit any other file: in your own treehouse, via an MR, merged into `main`. The repo updates itself.
 
+The same tracked files appear in every treehouse's working tree and in any normal clone of the repo. That's the source; the live config is the synced copy in the bare repo. The hook scripts (next section) resolve the project root via `git rev-parse --git-common-dir` plus a `core.bare` check so they spawn treehouses at the right level regardless of where they were invoked from — bare repo, treehouse, or normal clone.
+
 ### One branch ⇄ one treehouse
 
 Git already refuses to check out the same branch in two worktrees. Lean on that: the branch *is* the treehouse name, and the existence of the directory is the lock. No external coordination needed.
@@ -109,7 +109,7 @@ cd treehouses/feature/my-thing
 # you're home
 ```
 
-That's it. The setgid bit on `treehouses/` puts the new directory in the project group; the sticky bit keeps your neighbour from deleting it. There's no helper script and no setup step — `git worktree add` is the whole onboarding.
+That's it. The setgid bit on `treehouses/` puts the new directory in the project group; the sticky bit keeps your neighbour from deleting it (same pattern as the permissions of /tmp). There's no helper script and no setup step — `git worktree add` is the whole onboarding.
 
 **Claude is preconfigured to use the same primitive.** From the CLI, `claude --worktree feature/my-thing` (or just `claude --worktree` for a random name) spawns a session in a fresh treehouse; from inside an existing session, asking Claude to call `EnterWorktree` does the same thing. Both routes go through `.claude/hooks/worktree-create`, which runs the same `git worktree add` under the hood.
 
@@ -155,39 +155,6 @@ Beyond worktree lifecycle, the `.claude/` directory ships permissions, hooks, an
 
 There's no separate `push` step — see *Every treehouse is a public branch*. If the bare repo has a `reference-transaction` hook (as in this very project), `main` is fast-forward-only and merge-commit-only, protecting the village hall without extra services.
 
-### Multi-Repo Variant: Village of Villages 🏘️
-
-For organisations that run several related bare repos, wrap them in a thin **org directory**:
-
-```
-/srv/orgs/acme/
-├── README.md                     ← onboarding for the whole org
-├── CLAUDE.md → README.md
-├── .claude/                      ← shared agent skills / settings
-├── manifest.yaml                 ← lists member repos + their roles
-└── repos/
-    ├── frontend.git/             ← each is itself a treehouse village
-    │   ├── treehouses/{main, feature/x, ...}
-    │   └── .claude/, hooks/, README.md
-    ├── backend.git/
-    │   └── treehouses/...
-    └── infra.git/
-        └── treehouses/...
-```
-
-Each bare repo still follows the single-repo pattern internally — the org directory adds nothing to the per-repo workflow. What it provides:
-
-- **Cross-repo docs.** README for "what is acme, what does each repo do, where do issues go?"
-- **Shared agent assets.** Skills, slash commands, and prompts that apply org-wide live in the org's `.claude/`; per-repo `.claude/` inherits them by reference.
-- **A manifest.** Plain YAML naming each member repo, who maintains it, and any version-pinning rules. The manifest is the *only* thing humans need to read to understand the shape of the org.
-
-What it deliberately does *not* do:
-
-- **No org-level worktree.** Treehouses live inside the individual repos, not at the org root. A contributor working across repos has multiple treehouses, one per repo.
-- **No shared `main` treehouse.** Each repo's maintainer owns their own `treehouses/main/`; an org-wide merge is several per-repo merges.
-
-A "composed treehouse" — one directory holding coordinated worktrees of several repos on related branches — is a tempting extension but needs real tooling (multi-worktree helper, branch-bundle manifest, cross-repo MR ritual). Don't build it until a real workflow asks for it; until then, contributors juggle per-repo treehouses by hand.
-
 ## Security Considerations 🔐
 
 - **Input sanitisation in the `WorktreeCreate` hook is load-bearing.** The hook pulls a name out of an untrusted JSON payload. Reject anything outside `[A-Za-z0-9._/-]` and reject `..`. A typed-in `git worktree add` doesn't have this problem; the hook does.
@@ -227,6 +194,7 @@ A "composed treehouse" — one directory holding coordinated worktrees of severa
 - [ ] `git init --bare /srv/repos/foo.git`, owned by the project Unix group (e.g. `devops`).
 - [ ] `git config core.sharedRepository group` in the bare repo.
 - [ ] Create `foo.git/treehouses/` with `chmod 3775` (setgid + sticky + group write).
+- [ ] Add `/treehouses/` to `.gitignore` on `main` so normal clones don't track the directory.
 - [ ] Strip group-write on policy paths: `chmod -R g-w foo.git/{hooks,config,description,.claude,README.md,CLAUDE.md}` once they exist.
 - [ ] Add `treehouses/main/` as the maintainer's treehouse. Make sure the maintainer (not the `devops` group) owns it.
 - [ ] Write `foo.git/README.md` with: where the bare repo lives, the two-line `git worktree add` recipe, the `claude --worktree` entry point, and the who-merges-what rule for `treehouses/main/`.
@@ -235,8 +203,8 @@ A "composed treehouse" — one directory holding coordinated worktrees of severa
 ### Wire the Claude path
 
 - [ ] Add `foo.git/.claude/settings.json` with `WorktreeCreate` and `WorktreeRemove` hooks.
-- [ ] Add `foo.git/.claude/hooks/worktree-create` that reads the JSON from stdin, sanitises the name (`[A-Za-z0-9._/-]`, no `..`), runs `git worktree add`, and prints the path.
-- [ ] Add `foo.git/.claude/hooks/worktree-remove` that refuses any path outside `treehouses/` and then calls `git worktree remove --force`.
+- [ ] Add `foo.git/.claude/hooks/worktree-create` that reads the JSON from stdin, sanitises the name (`[A-Za-z0-9._/-]`, no `..`), resolves the project root via `git rev-parse --git-common-dir` + a `core.bare` check (so it works from a bare repo, a treehouse, or a normal clone), runs `git worktree add`, and prints the path.
+- [ ] Add `foo.git/.claude/hooks/worktree-remove` that refuses any path outside `<project-root>/treehouses/` and then calls `git worktree remove --force`.
 - [ ] Confirm the `CLAUDE.md → README.md` symlink covers the agent-side instructions too (use `EnterWorktree` or `claude --worktree`, never edit a treehouse you don't own).
 
 ### Protect the village hall
@@ -246,18 +214,12 @@ A "composed treehouse" — one directory holding coordinated worktrees of severa
 - [ ] Add `pre-receive` / `update` hooks for CI and lint that every push must satisfy.
 - [ ] Auto-push `main` to your public mirrors from the same hook.
 
-### Add a multi-repo wrapper (only if you need it)
-
-- [ ] Create `/srv/orgs/<org>/` with its own `README.md`, `CLAUDE.md → README.md` symlink, and `.claude/` for shared agent assets.
-- [ ] Place each member bare repo under `repos/<name>.git/`. Each still follows the single-repo checklist above.
-- [ ] Add `manifest.yaml` listing the member repos, their maintainers, and any pinned relationships.
-- [ ] Resist adding an org-level `treehouses/`. Treehouses live in the repos.
-
 ## Related Patterns 🔗
 
 - [Smalltown Infrastructure 🏘️](./smalltown-infrastructure.md) — the bigger village this treehouse sits in: small, legible, operable by the team you actually have.
 - [In-Tree Issues 🗂️](./in-tree-issues.md) — pair the worktree ritual with the same merge ritual for issues; both flow through `main`.
-- [Treehouse Branch Shape 🪧](../../issues/treehouse-branch-shape.pattern.md) — *(draft)* an optional `<category>/<name>` discipline for treehouse names; lifted out of this pattern as a separate, opt-in concern.
+- [Treehouse Branch Shape 🪧](../../issues/treehouse-branch-shape.pattern.md) — *(draft)* an optional `<category>/<name>` discipline for treehouse names.
+- [Village of Villages 🏘️](../../issues/village-of-villages.pattern.md) — *(draft)* multi-repo extension: a thin org directory wrapping several bare repos, each one its own treehouse village.
 - [Cuteness Pattern 🌸](../meta/cuteness.md) — why two lines of plain git and an `ls treehouses/` are friendlier than a sprawl of clones.
 
 ## References 📚
