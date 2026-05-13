@@ -111,32 +111,11 @@ cd treehouses/feature/my-thing
 
 That's it. The setgid bit on `treehouses/` puts the new directory in the project group; the sticky bit keeps your neighbour from deleting it (same pattern as the permissions of /tmp). There's no helper script and no setup step — `git worktree add` is the whole onboarding.
 
-**Claude is preconfigured to use the same primitive.** From the CLI, `claude --worktree feature/my-thing` (or just `claude --worktree` for a random name) spawns a session in a fresh treehouse; from inside an existing session, asking Claude to call `EnterWorktree` does the same thing. Both routes go through `.claude/hooks/worktree-create`, which runs the same `git worktree add` under the hood.
-
 ### The maintainer's treehouse
 
 `treehouses/main/` is **the maintainer's treehouse**, not a shared scratch area. It's where the person responsible for the project decides which branches get merged into `main` — the only treehouse from which that decision is allowed to land. Everyone else can read it; only the maintainer pushes from it.
 
 If the bare repo's `reference-transaction` hook enforces fast-forward-only + merge-commit-only updates to `main` (as in this project), the rule is mechanical, not social: pushes from anywhere else will simply be rejected.
-
-### Claude integration
-
-`.claude/settings.json` wires Claude's `WorktreeCreate` and `WorktreeRemove` lifecycle hooks to two small shell scripts in `.claude/hooks/`:
-
-```json
-{
-  "hooks": {
-    "WorktreeCreate": [{"hooks": [{"type": "command",
-      "command": "/srv/repos/foo.git/.claude/hooks/worktree-create"}]}],
-    "WorktreeRemove": [{"hooks": [{"type": "command",
-      "command": "/srv/repos/foo.git/.claude/hooks/worktree-remove"}]}]
-  }
-}
-```
-
-The create hook does the same `git worktree add` a human runs by hand, with one extra job: sanitise the branch name pulled from the JSON payload (reject anything outside `[A-Za-z0-9._/-]`, reject `..`) because that input is untrusted in a way a typed-in command isn't. The remove hook refuses to act on any path outside `treehouses/`, then calls `git worktree remove --force`.
-
-Beyond worktree lifecycle, the `.claude/` directory ships permissions, hooks, and skills tuned for this repo — so a Claude session in a fresh treehouse starts already knowing how the project works. No per-session bootstrapping.
 
 ### Lifecycle
 
@@ -157,6 +136,28 @@ Beyond worktree lifecycle, the `.claude/` directory ships permissions, hooks, an
 ```
 
 There's no separate `push` step *within* the village — see *Every treehouse is a public branch*. Reaching the outside world (a deploy target, a VM, a forge) is its own `git push` to a configured remote; see [[push-to-deploy]]. If the bare repo has a `reference-transaction` hook (as in this very project), `main` is fast-forward-only and merge-commit-only, protecting the village hall without extra services.
+
+### Claude Code integration
+
+**Claude Code already has a worktree isolation feature.** From the CLI, `claude --worktree feature/my-thing` (or just `claude --worktree` for a random name) spawns a session in a fresh treehouse; from inside an existing session, asking Claude to call `EnterWorktree` does the same thing. Both routes go through `.claude/hooks/worktree-create`, which runs the same `git worktree add` under the hood.
+
+
+`.claude/settings.json` wires Claude's `WorktreeCreate` and `WorktreeRemove` lifecycle hooks to two small shell scripts in `.claude/hooks/`:
+
+```json
+{
+  "hooks": {
+    "WorktreeCreate": [{"hooks": [{"type": "command",
+      "command": "/srv/repos/foo.git/.claude/hooks/worktree-create"}]}],
+    "WorktreeRemove": [{"hooks": [{"type": "command",
+      "command": "/srv/repos/foo.git/.claude/hooks/worktree-remove"}]}]
+  }
+}
+```
+
+The create hook does the same `git worktree add` a human runs by hand, with one extra job: sanitise the branch name pulled from the JSON payload (reject anything outside `[A-Za-z0-9._/-]`, reject `..`) because that input is untrusted in a way a typed-in command isn't. The remove hook refuses to act on any path outside `treehouses/`, then calls `git worktree remove --force`.
+
+Beyond worktree lifecycle, the `.claude/` directory ships permissions, hooks, and skills tuned for this repo — so a Claude session in a fresh treehouse starts already knowing how the project works. No per-session bootstrapping.
 
 ## Security Considerations 🔐
 
