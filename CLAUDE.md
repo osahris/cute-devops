@@ -30,8 +30,7 @@ The project has three primary surfaces:
 Besides the rendered HTML, the site also serves the raw `.md` files so
 LLMs can fetch the markdown directly.
 
-Keep yourself short. Clear structure, low duplication. Don't
-blabber, auntie claudie.
+Keep yourself short, especially in documentation markdown files.
 
 @README.md
 @improve/coding.md
