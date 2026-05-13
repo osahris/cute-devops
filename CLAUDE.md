@@ -30,6 +30,11 @@ The project has three primary surfaces:
 Besides the rendered HTML, the site also serves the raw `.md` files so
 LLMs can fetch the markdown directly.
 
+When writing or editing markdown, match the surrounding terseness:
+a three-word neighbour means a three-word new bullet, not a
+paragraph. If a thought needs more room, find it a paragraph-shaped
+home elsewhere. (Don't be a blabbering auntie.)
+
 @README.md
 @improve/coding.md
 @improve/release.md
