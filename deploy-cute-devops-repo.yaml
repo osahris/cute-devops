@@ -17,3 +17,19 @@
         description: "Cute DevOps Patterns! — Ansible roles + patterns. https://devops.patterns.how"
   roles:
     - role: repos
+  post_tasks:
+    - name: Locate the source bare repo of the cute-devops project
+      ansible.builtin.command:
+        cmd: "git rev-parse --path-format=absolute --git-common-dir"
+        chdir: "{{ playbook_dir }}"
+      register: _source_common_dir
+      changed_when: false
+
+    - name: "Mirror branches + tags into /srv/repos/cute-devops.git from {{ _source_common_dir.stdout | trim }}"  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: >-
+          git -C {{ _source_common_dir.stdout | trim }}
+          push /srv/repos/cute-devops.git
+          'refs/heads/*:refs/heads/*'
+          'refs/tags/*:refs/tags/*'
+      changed_when: true
