@@ -10,7 +10,7 @@ SPDX-License-Identifier: EUPL-1.2
 
 ## Overview 📋
 
-A bare git repository lives on one host. Inside the bare repo, alongside `HEAD` and `refs/`, sit a `README.md`, a `.claude/` directory with hooks, permissions and skills already configured for Claude usage, and a `treehouses/` directory — one git worktree per contributor. You `cd` into the bare repo and everything you need is already there.
+A bare git repository lives on one host. Inside the bare repo, alongside `HEAD` and `refs/`, sit a `README.md`, permissions and skills already configured for Claude usage in a `.claude/` directory, and a `treehouses/` directory — one git worktree per contributor. You `cd` into the bare repo and everything you need is already there.
 
 Everyone working on the project gets their own **treehouse**: a private worktree built on the same tree everyone else is climbing. A treehouse is light, spawnable, easy to dismantle — pull yourself up, do your work, climb back down. Filesystem permissions decide who can write where, and `git worktree` itself guarantees that no two treehouses share a branch.
 
@@ -150,10 +150,13 @@ Beyond worktree lifecycle, the `.claude/` directory ships permissions, hooks, an
               MR / merge into main      (see [[in-tree-issues]])
                        │
                        ▼
+              git push deploy main      (see [[push-to-deploy]] — optional)
+                       │
+                       ▼
               git worktree remove        (or ExitWorktree)
 ```
 
-There's no separate `push` step — see *Every treehouse is a public branch*. If the bare repo has a `reference-transaction` hook (as in this very project), `main` is fast-forward-only and merge-commit-only, protecting the village hall without extra services.
+There's no separate `push` step *within* the village — see *Every treehouse is a public branch*. Reaching the outside world (a deploy target, a VM, a forge) is its own `git push` to a configured remote; see [[push-to-deploy]]. If the bare repo has a `reference-transaction` hook (as in this very project), `main` is fast-forward-only and merge-commit-only, protecting the village hall without extra services.
 
 ## Security Considerations 🔐
 
@@ -220,6 +223,7 @@ There's no separate `push` step — see *Every treehouse is a public branch*. If
 - [In-Tree Issues 🗂️](./in-tree-issues.md) — pair the worktree ritual with the same merge ritual for issues; both flow through `main`.
 - [Treehouse Branch Shape 🪧](../../issues/treehouse-branch-shape.pattern.md) — *(draft)* an optional `<category>/<name>` discipline for treehouse names.
 - [Village of Villages 🏘️](../../issues/village-of-villages.pattern.md) — *(draft)* multi-repo extension: a thin org directory wrapping several bare repos, each one its own treehouse village.
+- [Push to Deploy 🚀](../../issues/push-to-deploy.pattern.md) — *(draft)* extends the lifecycle with a `git push` to a deploy remote; same primitive, no extra protocol.
 - [Cuteness Pattern 🌸](../meta/cuteness.md) — why two lines of plain git and an `ls treehouses/` are friendlier than a sprawl of clones.
 
 ## References 📚
