@@ -28,6 +28,7 @@ The key to implementing cuteness is to identify areas where complexity, stress, 
 - Intimidating interfaces
 - Cold or inhuman environments
 - Rigid or formal communication
+- Long, unreviewed AI slop — a wall of plausible-looking output that nobody actually read. Cute AI collaboration is small, scoped, reviewed by a human before it lands. A 2000-line agent commit nobody can hold in their head is the opposite of approachable.
 
 ## Tips 💡
 - Start small and gradually add cute elements
