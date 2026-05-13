@@ -10,6 +10,14 @@
       - repos is iterable
     fail_msg: "repos must be defined as a list of repo definitions"
 
+- name: Register system-wide git safe.directory
+  community.general.git_config:
+    name: safe.directory
+    value: "{{ repos_safe_directory }}"
+    scope: system
+    state: present
+  when: repos_with_safe_directory | bool
+
 - name: Set up each bare repository
   ansible.builtin.include_tasks: repo.yml
   loop: "{{ repos }}"

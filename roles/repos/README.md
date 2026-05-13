@@ -32,6 +32,12 @@ Defaults (see `defaults/main.yml`):
 - `repos_default_owner: root`
 - `repos_with_treehouses: true`
 - `repos_with_claude_hooks: true`
+- `repos_with_safe_directory: true` — register `repos_safe_directory` as a
+  system-wide `safe.directory` in `/etc/gitconfig`, so root and other users
+  can operate on repos owned by the `devops` group without git complaining
+  about "dubious ownership".
+- `repos_safe_directory: /srv/repos/*` — the path (wildcard supported,
+  git ≥ 2.36) recorded under `safe.directory`.
 
 ## Example
 
