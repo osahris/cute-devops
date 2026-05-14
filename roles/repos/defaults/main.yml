@@ -5,6 +5,7 @@
 ---
 repos_default_group: devops
 repos_default_owner: root
+repos_default_branch: main
 repos_with_treehouses: true
 repos_with_claude_hooks: true
 repos_with_safe_directory: true

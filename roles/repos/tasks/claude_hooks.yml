@@ -13,7 +13,7 @@
 
 - name: "Scaffold .claude/settings.json in {{ _repo_path }}"
   ansible.builtin.template:
-    src: settings.json.j2
+    src: claude/settings.json.j2
     dest: "{{ _repo_path }}/.claude/settings.json"
     owner: "{{ _repo_owner }}"
     group: "{{ _repo_group }}"
@@ -22,7 +22,7 @@
 
 - name: "Scaffold WorktreeCreate hook in {{ _repo_path }}"
   ansible.builtin.template:
-    src: worktree-create.sh.j2
+    src: claude/worktree-create.sh.j2
     dest: "{{ _repo_path }}/.claude/hooks/worktree-create"
     owner: "{{ _repo_owner }}"
     group: "{{ _repo_group }}"
@@ -31,14 +31,9 @@
 
 - name: "Scaffold WorktreeRemove hook in {{ _repo_path }}"
   ansible.builtin.template:
-    src: worktree-remove.sh.j2
+    src: claude/worktree-remove.sh.j2
     dest: "{{ _repo_path }}/.claude/hooks/worktree-remove"
     owner: "{{ _repo_owner }}"
     group: "{{ _repo_group }}"
     mode: "0755"
     force: false
-
-- name: "Strip group-write under .claude in {{ _repo_path }}"
-  ansible.builtin.command:
-    cmd: "chmod -R g-w {{ _repo_path }}/.claude"
-  changed_when: false

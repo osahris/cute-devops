@@ -22,6 +22,7 @@ repos:
     group: devops                   # who can spawn treehouses (defaults to repos_default_group)
     owner: root                     # who owns policy files (defaults to repos_default_owner)
     description: "A cute project."  # optional; written to bare repo's `description`
+    default_branch: main            # per-repo override of repos_default_branch
     with_treehouses: true           # per-repo override of repos_with_treehouses
     with_claude_hooks: true         # per-repo override of repos_with_claude_hooks
 ```
@@ -30,6 +31,9 @@ Defaults (see `defaults/main.yml`):
 
 - `repos_default_group: devops`
 - `repos_default_owner: root`
+- `repos_default_branch: main` — passed to `git init --initial-branch` on
+  creation and enforced on every run via `git symbolic-ref HEAD`, so the
+  bare repo's HEAD always points at this branch.
 - `repos_with_treehouses: true`
 - `repos_with_claude_hooks: true`
 - `repos_with_safe_directory: true` — register `repos_safe_directory` as a

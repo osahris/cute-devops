@@ -24,3 +24,10 @@
   loop_control:
     loop_var: repo
     label: "{{ repo.name | default(repo.path | basename) }}"
+  vars:
+    _repo_path: "{{ repo.path }}"
+    _repo_group: "{{ repo.group | default(repos_default_group) }}"
+    _repo_owner: "{{ repo.owner | default(repos_default_owner) }}"
+    _repo_treehouses: "{{ repo.with_treehouses | default(repos_with_treehouses) }}"
+    _repo_claude: "{{ repo.with_claude_hooks | default(repos_with_claude_hooks) }}"
+    _repo_default_branch: "{{ repo.default_branch | default(repos_default_branch) }}"

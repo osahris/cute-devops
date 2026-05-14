@@ -3,14 +3,6 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 ---
-- name: "Resolve per-repo facts for {{ repo.name | default(repo.path | basename) }}"
-  ansible.builtin.set_fact:
-    _repo_path: "{{ repo.path }}"
-    _repo_group: "{{ repo.group | default(repos_default_group) }}"
-    _repo_owner: "{{ repo.owner | default(repos_default_owner) }}"
-    _repo_treehouses: "{{ repo.with_treehouses | default(repos_with_treehouses) }}"
-    _repo_claude: "{{ repo.with_claude_hooks | default(repos_with_claude_hooks) }}"
-
 - name: "Assert repo.path is absolute and ends in .git: {{ _repo_path }}"
   ansible.builtin.assert:
     that:
@@ -23,27 +15,8 @@
     state: directory
     mode: "0755"
 
-- name: "Initialise bare git repository at {{ _repo_path }}"  # noqa: command-instead-of-module
-  ansible.builtin.command:
-    cmd: "git init --bare --shared=group {{ _repo_path }}"
-  args:
-    creates: "{{ _repo_path }}/HEAD"
-
-- name: "Set repository description for {{ _repo_path }}"
-  ansible.builtin.copy:
-    content: "{{ repo.description | default(repo.name | default(repo.path | basename)) }}\n"
-    dest: "{{ _repo_path }}/description"
-    owner: "{{ _repo_owner }}"
-    group: "{{ _repo_group }}"
-    mode: "0644"
-
-- name: "Set group ownership across {{ _repo_path }}"
-  ansible.builtin.file:
-    path: "{{ _repo_path }}"
-    state: directory
-    owner: "{{ _repo_owner }}"
-    group: "{{ _repo_group }}"
-    recurse: true
+- name: "Construct bare git repository at {{ _repo_path }}"
+  ansible.builtin.include_tasks: bare.yml
 
 - name: "Set up Worktree Treehouses layout in {{ _repo_path }}"
   ansible.builtin.include_tasks: treehouse.yml

@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: "Ensure bare repo directory tree under {{ _repo_path }}"
+  ansible.builtin.file:
+    path: "{{ _repo_path }}/{{ item.path }}"
+    state: directory
+    owner: "{{ _repo_owner }}"
+    group: "{{ _repo_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "", mode: "2775" }
+    - { path: "objects", mode: "2775" }
+    - { path: "objects/info", mode: "2775" }
+    - { path: "objects/pack", mode: "2775" }
+    - { path: "refs", mode: "2775" }
+    - { path: "refs/heads", mode: "2775" }
+    - { path: "refs/tags", mode: "2775" }
+    - { path: "info", mode: "2775" }
+    - { path: "hooks", mode: "2755" }
+
+- name: "Seed bare repo config in {{ _repo_path }}"
+  ansible.builtin.template:
+    src: git/config.j2
+    dest: "{{ _repo_path }}/config"
+    owner: "{{ _repo_owner }}"
+    group: "{{ _repo_group }}"
+    mode: "0644"
+    force: false
+
+- name: "Point HEAD at the default branch in {{ _repo_path }}"
+  ansible.builtin.copy:
+    content: "ref: refs/heads/{{ _repo_default_branch }}\n"
+    dest: "{{ _repo_path }}/HEAD"
+    owner: "{{ _repo_owner }}"
+    group: "{{ _repo_group }}"
+    mode: "0644"
+
+- name: "Seed info/exclude in {{ _repo_path }}"
+  ansible.builtin.template:
+    src: git/exclude.j2
+    dest: "{{ _repo_path }}/info/exclude"
+    owner: "{{ _repo_owner }}"
+    group: "{{ _repo_group }}"
+    mode: "0644"
+    force: false
+
+- name: "Write description for {{ _repo_path }}"
+  ansible.builtin.copy:
+    content: "{{ repo.description | default(repo.name | default(repo.path | basename)) }}\n"
+    dest: "{{ _repo_path }}/description"
+    owner: "{{ _repo_owner }}"
+    group: "{{ _repo_group }}"
+    mode: "0644"
