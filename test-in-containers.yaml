@@ -239,3 +239,94 @@
     - name: Assert the push-triggered deploy succeeded
       ansible.builtin.assert:
         that: push_deploy_status.status.Result == 'success'
+
+- name: Apply the vhosts role for the test vhost
+  hosts: setup_deploy
+  become: true
+  roles:
+    - role: vhosts
+      vars:
+        vhosts_polkit_group: devops
+        vhosts:  # noqa: var-naming[no-role-prefix]  -- vhosts role's primary input
+          - name: testvhost
+
+- name: Vhost push-to-deploy end-to-end test
+  hosts: setup_deploy
+  become: true
+  vars:
+    vhost_name: testvhost
+    vhost_dir: /srv/vhosts/testvhost
+    vhost_marker: /tmp/vhost-test-deploy-fired
+  tasks:
+    - name: Clear the vhost deploy marker from any previous run
+      ansible.builtin.file:
+        path: "{{ vhost_marker }}"
+        state: absent
+
+    - name: As testpusher, push a commit that includes a deploy/ script
+      become: true
+      become_user: testpusher
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: |
+          set -eu
+          cd ~
+          rm -rf vhostpush
+          git clone -q "file://{{ vhost_dir }}" vhostpush
+          cd vhostpush
+          git remote remove origin
+          git remote add "vhost/{{ vhost_name }}" "file://{{ vhost_dir }}"
+          git config user.email t@example.com
+          git config user.name testpusher
+          git checkout -q -B main
+          mkdir -p deploy
+          cat > deploy/10-mark <<'EOS'
+          #!/bin/sh
+          touch {{ vhost_marker }}
+          EOS
+          chmod +x deploy/10-mark
+          # vary content per run so re-runs always have something to commit
+          date -u +%FT%TZ > pushed-at
+          git add deploy/10-mark pushed-at
+          git commit -qm "vhost test push $(date -u +%FT%TZ)"
+          git push -q "vhost/{{ vhost_name }}" HEAD:deploy
+      changed_when: true
+
+    - name: Wait for the vhost deploy unit to reach a terminal state
+      ansible.builtin.shell:  # noqa: command-instead-of-module
+        executable: /bin/bash
+        cmd: |
+          for _ in $(seq 1 30); do
+            s=$(systemctl show -p ActiveState --value deploy-vhost@{{ vhost_name }}.service)
+            [ "$s" = inactive ] || [ "$s" = failed ] && exit 0
+            sleep 1
+          done
+          systemctl status --no-pager deploy-vhost@{{ vhost_name }}.service >&2 || true
+          exit 1
+      changed_when: false
+
+    - name: Capture the vhost deploy unit status
+      ansible.builtin.systemd_service:
+        name: "deploy-vhost@{{ vhost_name }}.service"
+      register: vhost_status
+
+    - name: Assert the vhost deploy Result=success
+      ansible.builtin.assert:
+        that: vhost_status.status.Result == 'success'
+
+    - name: Assert the marker was created (the pushed deploy/ script ran)
+      ansible.builtin.stat:
+        path: "{{ vhost_marker }}"
+      register: vhost_marker_stat
+      failed_when: not vhost_marker_stat.stat.exists
+
+    - name: List the vhost's deployed-to-* tags
+      ansible.builtin.command:  # noqa: command-instead-of-module
+        cmd: git tag --list "deployed-to-{{ vhost_name }}-at-*"
+        chdir: "{{ vhost_dir }}"
+      register: vhost_tags
+      changed_when: false
+
+    - name: Assert at least one deployed-to-* tag exists
+      ansible.builtin.assert:
+        that: vhost_tags.stdout_lines | length > 0

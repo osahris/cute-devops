@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+vhosts_default_pushers_group: devops
+vhosts_with_safe_directory: true
+vhosts_safe_directory: /srv/vhosts/*
+vhosts_helper_dir: /usr/local/lib/vhost
+
+# Push-to-deploy bridge: a Unix group allowed to `systemctl start
+# deploy-vhost@<name>.service` without authentication (polkit rule).
+# Empty disables the grant.
+vhosts_polkit_group: ""

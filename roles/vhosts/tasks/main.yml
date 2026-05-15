@@ -1,0 +1,81 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: Assert vhosts is defined and iterable
+  ansible.builtin.assert:
+    that:
+      - vhosts is defined
+      - vhosts is iterable
+    fail_msg: "vhosts must be defined as a list of vhost definitions"
+
+- name: Register system-wide git safe.directory for vhosts
+  community.general.git_config:
+    name: safe.directory
+    value: "{{ vhosts_safe_directory }}"
+    scope: system
+    state: present
+  when: vhosts_with_safe_directory | bool
+
+- name: Ensure the vhost helper directory exists
+  ansible.builtin.file:
+    path: "{{ vhosts_helper_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the tag-deployed helper used by deploy-vhost@.service
+  ansible.builtin.copy:
+    src: tag-deployed
+    dest: "{{ vhosts_helper_dir }}/tag-deployed"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the deploy-vhost@.service template unit
+  ansible.builtin.copy:
+    src: systemd/system/deploy-vhost@.service
+    dest: /etc/systemd/system/deploy-vhost@.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd daemon
+
+- name: Authorise a group to start deploy-vhost@ units (push-to-deploy)
+  ansible.builtin.template:
+    src: polkit.rules.j2
+    dest: /etc/polkit-1/rules.d/50-vhost.rules
+    owner: root
+    group: root
+    mode: "0644"
+  when: vhosts_polkit_group | length > 0
+
+- name: Remove the vhost polkit rule when no group is set
+  ansible.builtin.file:
+    path: /etc/polkit-1/rules.d/50-vhost.rules
+    state: absent
+  when: vhosts_polkit_group | length == 0
+
+- name: Ensure /srv/vhosts/ exists
+  ansible.builtin.file:
+    path: /srv/vhosts
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Flush handlers so the template unit is registered before per-vhost work
+  ansible.builtin.meta: flush_handlers
+
+- name: Set up each vhost
+  ansible.builtin.include_tasks: vhost.yml
+  loop: "{{ vhosts }}"
+  loop_control:
+    loop_var: vhost
+    label: "{{ vhost.name }}"
+  vars:
+    _vhost_name: "{{ vhost.name }}"
+    _vhost_dir: "/srv/vhosts/{{ vhost.name }}"
+    _vhost_pushers_group: "{{ vhost.pushers_group | default(vhosts_default_pushers_group) }}"

@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Vhost deploy template. One file, all vhosts -- %i carries the vhost name
+# through every setting, so no per-vhost drop-in is needed.
+#
+# Triggered by /srv/vhosts/%i/.git/hooks/post-receive on a push to the
+# `deploy` branch. ExecStartPre ff-merges the new tip into the checked-out
+# `deployment` branch; ExecStart runs the vhost's tracked deploy/ scripts;
+# ExecStartPost tags the deploy with a UTC timestamp.
+
+[Unit]
+Description=Vhost deploy for %i
+
+[Service]
+Type=oneshot
+User=%i
+Group=%i
+WorkingDirectory=/srv/vhosts/%i
+EnvironmentFile=-/srv/vhosts/%i/.env
+ExecStartPre=/usr/bin/git merge --ff-only deploy
+ExecStart=/usr/bin/run-parts --exit-on-error --verbose deploy/
+ExecStartPost=/usr/local/lib/vhost/tag-deployed %i

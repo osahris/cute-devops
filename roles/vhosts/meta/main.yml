@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+galaxy_info:
+  author: Markus Katharina Brechtel
+  description: Set up vhosts -- per-service deploy targets at /srv/vhosts/<name>
+  license: EUPL-1.2
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+  galaxy_tags:
+    - deployment
+    - systemd
+    - git
+
+dependencies: []

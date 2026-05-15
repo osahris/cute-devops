@@ -1,0 +1,14 @@
+#!/bin/bash
+# This file is managed by the mkbrechtel.devops.vhosts Ansible role!
+# MANUAL CHANGES WILL BE OVERWRITTEN WITHOUT WARNING!
+#
+# Standard vhost post-receive. Runs as the pushing user; holds no
+# privilege of its own. The push protocol (ff-merge, run-parts, tag)
+# lives in the per-vhost systemd drop-in -- this hook just fires the
+# unit when the deploy branch was the ref that moved.
+set -eu
+
+while read -r _old _new ref; do
+    [ "${ref}" = "refs/heads/deploy" ] || continue
+    systemctl --no-block start "deploy-vhost@{{ _vhost_name }}.service"
+done

@@ -1,0 +1,16 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+#
+# This file is managed by the mkbrechtel.devops.vhosts Ansible role!
+# MANUAL CHANGES WILL BE OVERWRITTEN WITHOUT WARNING!
+#
+# vhost-deploy finaliser: tag the deploy with a timestamped name. Invoked
+# as ExecStartPost= from the per-vhost systemd drop-in, running as the
+# vhost's User= from WorkingDirectory=/srv/vhosts/<vhost>.
+set -eu
+
+vhost="$1"
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+git tag "deployed-to-${vhost}-at-${timestamp}"

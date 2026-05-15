@@ -41,7 +41,7 @@ is *the* answer to "how do I deploy foo".
 ├── VHOST.md              # what this vhost is, who runs it
 ├── config/               # read-only config (if any)
 ├── data/                 # persistent state — backup target
-├── deploy/               # deploy scripts run by deploy@vhost-<name>
+├── deploy/               # deploy scripts run by deploy-vhost@<name>
 │   ├── 01-pull           # tracked in git, pushed with the code
 │   ├── 02-up
 │   └── 03-restart
@@ -69,7 +69,8 @@ sudo -u <name> bash -c '
   # local-only files: never tracked, never clobbered by push
   printf "%s\n" ".env" .git/info/exclude
 '
-# the role installs hooks/post-receive and the systemd drop-in (below)
+# the role installs hooks/post-receive; the systemd template lives once
+# at /etc/systemd/system/deploy-vhost@.service for *all* vhosts
 ```
 
 From anywhere — a treehouse, a village bare repo, a CI runner — you add
@@ -85,9 +86,9 @@ identically — no per-vhost push logic):
 
 1. `git-receive-pack` updates `refs/heads/deploy`. (No `denyCurrentBranch`
    override needed: `deploy` is *not* the current branch.)
-2. `post-receive` fires `deploy@vhost-<name>.service`.
-3. The unit's drop-in runs three steps as `User=<name>` from
-   `/srv/vhosts/<name>`:
+2. `post-receive` fires `deploy-vhost@<name>.service`.
+3. The unit (one template, `%i` carries `<name>` everywhere — see
+   below) runs three steps as `User=<name>` from `/srv/vhosts/<name>`:
    1. `git merge --ff-only deploy` — bring the `deployment` branch
       (the working tree) up to the pushed tip. Non-fast-forward pushes
       fail loud here, before any deploy script runs.
@@ -99,8 +100,9 @@ identically — no per-vhost push logic):
       `deploy`.
 
 The protocol — branches, ff-merge, tag, `.env` excluded — is the same
-for every vhost. The drop-in carries it; the vhost's `deploy/` directory
-carries only what's *vhost-specific* (compose up, migrations, restarts).
+for every vhost. The single `deploy-vhost@.service` template carries it;
+the vhost's `deploy/` directory carries only what's *vhost-specific*
+(compose up, migrations, restarts).
 
 ## Relationship to the village bare repo
 
@@ -121,30 +123,23 @@ after a successful merge to `main`.
 
 ## How it composes with the rest
 
-**One vhost ⇄ one deploy instance, namespaced under `vhost-`.**
-A vhost's deploy unit is `deploy@vhost-<name>.service`; the
-`vhost-` prefix in the systemd instance id separates vhost deploys
-from other kinds of `deploy@…` instances (cron-driven backups,
-ad-hoc jobs) sharing the same template.
-`systemctl list-units 'deploy@vhost-*'` lists every vhost deploy on
-the host.
-
-**The per-vhost drop-in carries the standard push protocol.** Every
-vhost gets the same drop-in shape — only `<name>` varies — at
-`/etc/systemd/system/deploy@vhost-<name>.service.d/10-vhost.conf`:
+**One template unit serves every vhost.** The push protocol lives in a
+single file — `/etc/systemd/system/deploy-vhost@.service` — fully
+parameterized on `%i` (the vhost name):
 
 ```ini
+[Unit]
+Description=Vhost deploy for %i
+
 [Service]
 Type=oneshot
-User=<name>
-Group=<name>
-WorkingDirectory=/srv/vhosts/<name>
-EnvironmentFile=
-EnvironmentFile=-/srv/vhosts/<name>/.env
+User=%i
+Group=%i
+WorkingDirectory=/srv/vhosts/%i
+EnvironmentFile=-/srv/vhosts/%i/.env
 ExecStartPre=/usr/bin/git merge --ff-only deploy
-ExecStart=
 ExecStart=/usr/bin/run-parts --exit-on-error --verbose deploy/
-ExecStartPost=/usr/local/lib/vhost/tag-deployed <name>
+ExecStartPost=/usr/local/lib/vhost/tag-deployed %i
 ```
 
 Each phase carries one job:
@@ -153,14 +148,14 @@ Each phase carries one job:
 - **`ExecStart`** runs the vhost's tracked deploy scripts.
 - **`ExecStartPost`** marks the deploy with a tag.
 
-`Type=oneshot` is required: it's what makes systemd wait for `ExecStart`
-to *exit* before running `ExecStartPost` (under the template's default
-`Type=simple`, `ExecStartPost` would fire as soon as `ExecStart` was
-forked, before run-parts finished). The base `deploy@.service` template
-stays unchanged; generic, non-vhost deploys keep using `/etc/deploy/<id>/`
-as before. `EnvironmentFile=` and `ExecStart=` on their own clear the
-template's values before the new ones replace them. `tag-deployed` is
-a one-line helper shipped by the role:
+`Type=oneshot` makes systemd wait for `ExecStart` to *exit* before
+running `ExecStartPost`. `systemctl list-units 'deploy-vhost@*'` lists
+every vhost deploy on the host. Adding the hundredth vhost touches no
+systemd state — the template already covers it. Per-vhost overrides
+remain possible via `deploy-vhost@<name>.service.d/` drop-ins, but
+become a rare exception, not the rule.
+
+`tag-deployed` is a one-line helper shipped by the role:
 `git tag "deployed-to-$1-at-$(date -u +%Y%m%dT%H%M%SZ)"`.
 
 **Repos are independent of vhosts.** A repo may feed one vhost, several
@@ -169,29 +164,29 @@ remote pointing at `/srv/vhosts/<name>`", not name equality:
 
 - **One repo, one vhost** (the common case): the village repo has
   `vhost/foo` pointing at `/srv/vhosts/foo`. Push lands,
-  `deploy@vhost-foo` restarts.
+  `deploy-vhost@foo` runs.
 - **One repo, several vhosts** (a monorepo with a webapp + a worker):
   the village repo has `vhost/myapp-web` and `vhost/myapp-worker`,
   pointing at `/srv/vhosts/myapp-web` and `/srv/vhosts/myapp-worker`.
-  Each one's `post-receive` fires its own `deploy@vhost-<name>`.
+  Each one's `post-receive` fires its own `deploy-vhost@<name>`.
   `git remote | grep '^vhost/'` and `systemctl list-units
-  'deploy@vhost-*'` each list every target.
+  'deploy-vhost@*'` each list every target.
 - **Several repos, one vhost** (frontend + backend assembled into one
   running thing): both village repos have `vhost/myapp` pointing at
   the same `/srv/vhosts/myapp`. Each push updates a different subtree
-  (or branch); `post-receive` fires the same `deploy@vhost-myapp`
+  (or branch); `post-receive` fires the same `deploy-vhost@myapp`
   either way.
 
 Other roles latch onto the vhost-name spine:
 
-- **[[setup_deploy]]:** ships the `deploy@.service` template. For
-  vhost deploys, the per-vhost drop-in points it at
-  `/srv/vhosts/<name>/deploy/`; non-vhost instances keep using
-  `/etc/deploy/<id>/`. The `vhost-` prefix on the systemd instance
-  is the namespace marker.
+- **[[setup_deploy]]:** ships the generic `deploy@.service` template
+  for run-parts-style deploys reading `/etc/deploy/<id>/`. Vhosts are
+  *parallel infrastructure*: their own `deploy-vhost@.service` template
+  lives in this role, alongside its own polkit grant. The two
+  coexist on a host but don't depend on each other.
 - **[[compose-service]]:** the vhost directory holds `compose.yaml` /
   `compose.override.yaml`; `docker-compose up -d` is run from there by
-  `deploy@vhost-<name>.service`. (The pattern's own name — *Compose
+  `deploy-vhost@<name>.service`. (The pattern's own name — *Compose
   Service* — is about compose's `services:` block, not our vhost.)
 - **Backup roles** (restic / borg, when they land): `data/` is the
   source; `<vhost>` is the backup-unit name.
@@ -199,9 +194,9 @@ Other roles latch onto the vhost-name spine:
 ## Naming
 
 `<vhost>` is lowercase `[a-z0-9.-]+` — the charset systemd instance
-ids allow, so `deploy@vhost-<vhost>.service` exists without escaping.
+ids allow, so `deploy-vhost@<vhost>.service` exists without escaping.
 That charset is a *requirement* here, not a convenience, because the
-deploy instance carries the name.
+deploy instance carries the name as its `%i`.
 
 **Git remote names** that point at a vhost take the shape
 `vhost/<vhost>`. Git allows `/` in ref names, so the remote lands at
@@ -210,7 +205,7 @@ deploy instance carries the name.
 grep ^vhost/` to list all vhost remotes). One namespace per purpose,
 each target named by exactly the vhost it points at. Inside each path
 component, stay in `[a-z0-9.-]+` so the whole chain — `<repo>` →
-`vhost/<vhost>` → `<vhost>` → `deploy@vhost-<vhost>.service` — is
+`vhost/<vhost>` → `<vhost>` → `deploy-vhost@<vhost>.service` — is
 one charset, with "vhost" used everywhere our concept appears.
 
 **Tag names** for successful deploys take the shape
@@ -231,9 +226,13 @@ git refs), no separators that confuse `git tag | grep ^deployed-to-`.
   in the same sentence; the overlap is exactly the trap this pattern
   exists to avoid.
 - ❌ **Naming the deploy instance after the repo, not the vhost.**
-  `systemctl list-units 'deploy@*'` should answer "what vhosts deploy
-  here?" — not "what repos can push?". When repo and vhost names
-  diverge, the instance follows the vhost.
+  `systemctl list-units 'deploy-vhost@*'` should answer "what vhosts
+  deploy here?" — not "what repos can push?". When repo and vhost
+  names diverge, the instance follows the vhost.
+- ❌ **Per-vhost drop-ins for the standard push protocol.** One
+  templated unit + `%i` covers every vhost; a per-vhost drop-in
+  duplicates state without adding power. Keep drop-ins for genuine
+  overrides only.
 - ❌ **A separate "deploy bare repo" at `/srv/repos/<name>.git` that
   exists only to receive deploy pushes** and then checks out into
   `/srv/vhosts/<name>`. That's an extra hop with no purpose — push
@@ -257,10 +256,9 @@ git refs), no separators that confuse `git tag | grep ^deployed-to-`.
   `/srv/repos/<name>.git`**, treating the bare repo as the push
   target. Under this pattern, the post-receive belongs at
   `/srv/vhosts/<name>/.git/hooks/`, on the vhost. The `repos` feature
-  is mis-located and probably wants to move into a future `vhost`
-  role (or a `deploy_compose` / `deploy_static`) that creates the
-  vhost directory + `.git/` + hook + `deploy@vhost-<name>` instance
-  + its per-vhost drop-in together.
+  is mis-located; the `vhosts` role now covers the right shape, and
+  `repos` `with_deploy` should probably be retired (or repurposed as
+  a "village bare repo auto-pushes to deploy/<name>" feature).
 - **Wider rename.** Other docs currently say "service" for our
   unit-of-deployment (the existing `push-to-deploy.md`, parts of
   `compose-service.md`, the `deploy.user` / `deploy.work_tree`
@@ -268,9 +266,9 @@ git refs), no separators that confuse `git tag | grep ^deployed-to-`.
   through, or live with the local-to-this-pattern naming.
 - **Pure-static vhosts** (no compose, no restart): the ff-merge step
   already lands the files; the `deploy/` directory can be empty.
-  Is it worth standing up the whole deploy instance + drop-in for a
-  vhost whose deploy is "files on disk" full stop, or is a stripped-down
-  variant warranted?
+  The shared template costs nothing extra to instantiate, so this is
+  no longer a concern — but worth confirming `run-parts` over an
+  empty dir really does exit 0 in practice.
 - **Project prefix.** Does `<vhost>` ever need a project prefix
   (`<project>-<vhost>`) to disambiguate on shared hosts, or does
   `<vhost>` stay globally unique per host? Defer to
@@ -281,12 +279,11 @@ git refs), no separators that confuse `git tag | grep ^deployed-to-`.
 
 Promote to `patterns/operation/` once:
 
-1. A role creates `/srv/vhosts/<name>/` with `.git/` initialised on
+1. A role ships the `deploy-vhost@.service` template and creates
+   per-vhost `/srv/vhosts/<name>/` with `.git/` initialised on
    `deployment`, a `deploy` branch, `.env` in `info/exclude`, the
-   `deploy/` subdir present (even if empty), the `post-receive` hook
-   firing `deploy@vhost-<name>.service`, and the per-vhost drop-in at
-   `deploy@vhost-<name>.service.d/10-vhost.conf` doing the ff-merge +
-   run-parts + tag — end to end on one push.
+   `deploy/` subdir present (even if empty), and the `post-receive`
+   hook firing `deploy-vhost@<name>.service` — end to end on one push.
 2. The relationship to `repos` `with_deploy` is resolved (either move
    the hook to the vhost side, or document why both placements
    coexist).

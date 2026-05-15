@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
