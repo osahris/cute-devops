@@ -81,7 +81,8 @@ step. For staging vs. prod, use two remotes (see [Stages 🎭](./stages.md)).
 - [Worktree Treehouses 🌳](../../approaches/worktree-treehouses.md) — the
   lifecycle this deploy step extends.
 - [Stages 🎭](./stages.md) — staging vs. prod as separate remotes.
-- [Compose Service 🐋](./compose-service.md) — a common deploy target shape.
+- [Compose Service 🐋](../vhost/compose-service.md) — a common deploy target shape.
+- [Vhost Directory 🏠](../vhost/vhost-directory.md) — the same-host shape: push directly to a `/srv/vhosts/<name>/` git remote.
 
 ## References 📚
 

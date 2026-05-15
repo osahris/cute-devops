@@ -100,6 +100,6 @@ boundary isn't "what does the Internet say is best practice" but
 
 ## Related Patterns 🔗
 
-- [Compose Service Pattern 🐋](../operation/deployment/compose-service.md)
+- [Compose Service Pattern 🐋](../operation/vhost/compose-service.md)
 - [Stages Pattern 🎭](../operation/deployment/stages.md)
 - [Cuteness Pattern 🌸](../meta/cuteness.md)

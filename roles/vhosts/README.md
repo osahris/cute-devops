@@ -7,8 +7,9 @@ SPDX-License-Identifier: EUPL-1.2
 # Vhosts Role
 
 Sets up vhosts — per-service deploy targets at `/srv/vhosts/<name>/`.
-Implements the [Vhost Directory 🏠](../../issues/vhost-directory.pattern.md)
-*(draft)* pattern.
+Implements the
+[Vhost Directory 🏠](../../patterns/operation/vhost/vhost-directory.md)
+pattern.
 
 Each vhost is a non-bare git repo. Pushing `main:deploy` to it
 ff-merges into the checked-out `deployment` branch, runs the vhost's
@@ -78,7 +79,7 @@ git push vhost/foo main:deploy
 
 ## Implements
 
-- [Vhost Directory 🏠](../../issues/vhost-directory.pattern.md) *(draft)*
+- [Vhost Directory 🏠](../../patterns/operation/vhost/vhost-directory.md)
 
 ## License
 

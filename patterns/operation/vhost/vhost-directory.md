@@ -1,5 +1,5 @@
 ---
-status: draft
+title: Vhost Directory 🏠
 ---
 
 <!--
@@ -7,11 +7,6 @@ SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechte
 
 SPDX-License-Identifier: EUPL-1.2
 -->
-
-# Vhost Directory 🏠
-
-> **Pattern (draft).** Cross-cutting convention. Once a role or two adopt
-> `/srv/vhosts/<name>/`, promote to `patterns/operation/`.
 
 ## Why "vhost", not "service"
 
@@ -275,17 +270,21 @@ git refs), no separators that confuse `git tag | grep ^deployed-to-`.
   [[project-service-terminology]] (which itself probably wants to
   become *project-vhost-host-terminology*).
 
-## Acceptance
+## Possible Implementations 🛠️
 
-Promote to `patterns/operation/` once:
+- [`mkbrechtel.devops.vhosts`](../../../roles/vhosts/README.md) — ships
+  `deploy-vhost@.service` + its polkit grant, and creates each vhost
+  with `.git/` initialised on `deployment`, a `deploy` branch, `.env`
+  in `info/exclude`, the `deploy/` subdir, and the post-receive hook
+  firing `deploy-vhost@<name>.service`. Validated end-to-end in
+  `test-in-containers.yaml`.
 
-1. A role ships the `deploy-vhost@.service` template and creates
-   per-vhost `/srv/vhosts/<name>/` with `.git/` initialised on
-   `deployment`, a `deploy` branch, `.env` in `info/exclude`, the
-   `deploy/` subdir present (even if empty), and the `post-receive`
-   hook firing `deploy-vhost@<name>.service` — end to end on one push.
-2. The relationship to `repos` `with_deploy` is resolved (either move
-   the hook to the vhost side, or document why both placements
-   coexist).
-3. The conflict with `compose-service.md`'s `/srv/<hostname>/` is
-   resolved one way or the other.
+## Related Patterns 🔗
+
+- [Worktree Treehouses 🌳](../../approaches/worktree-treehouses.md) —
+  the village bare repo this pattern's vhosts often deploy from.
+- [Compose Service 🐋](./compose-service.md) — a common shape for what
+  lives inside a vhost directory.
+- [Push to Deploy 🚀](../deployment/push-to-deploy.md) — the more
+  generic statement of "deployment is a `git push`" that this
+  pattern specialises for same-host vhosts.

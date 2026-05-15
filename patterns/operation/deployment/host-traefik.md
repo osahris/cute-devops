@@ -65,4 +65,4 @@ http:
 - Network isolation via proxy network
 - TLS certificate management
 
-For detailed setup instructions see the [Docker/Podman Compose Service Pattern](./compose-service.md) documentation.
+For detailed setup instructions see the [Docker/Podman Compose Service Pattern](../vhost/compose-service.md) documentation.
