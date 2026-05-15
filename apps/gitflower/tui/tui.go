@@ -838,32 +838,30 @@ func (m *model) refreshViewportWithContext(ctx int) {
 	m.updateDisplayed()
 }
 
-// snapCursorIntoView ensures the line cursor (m.hunkIdx + m.lineCursor) is
-// inside the visible viewport. If it would fall above the top, snap to the
-// uppermost visible hunk's first reviewable line; if below the bottom, snap
-// to the bottommost visible hunk's first reviewable line.
+// snapCursorIntoView re-binds the line cursor to the topmost hunk that is
+// (at least partially) visible in the current viewport, and sets the
+// line cursor to that hunk's first reviewable line. Called after every
+// viewport scroll in line mode, so PgUp / PgDn / mouse-wheel each move the
+// active line along with the view.
 func (m *model) snapCursorIntoView() {
 	if len(m.hunkRanges) == 0 {
 		return
 	}
 	top := m.viewport.YOffset()
-	bot := top + m.viewport.Height() - 1
-	// Find current cursor's row range.
-	if m.hunkIdx >= 0 && m.hunkIdx < len(m.hunkRanges) {
-		r := m.hunkRanges[m.hunkIdx]
-		if r.botRow >= top && r.topRow <= bot {
-			return // cursor's hunk overlaps the viewport
-		}
-	}
-	// Off-screen: snap to first hunk inside (or near) the visible range.
 	for i, r := range m.hunkRanges {
-		if r.botRow >= top && r.topRow <= bot {
+		if r.botRow >= top {
 			m.hunkIdx = i
 			if h := m.currentHunk(); h != nil {
 				m.lineCursor = m.firstNonDelete(h, 0, +1)
 			}
 			return
 		}
+	}
+	// Scrolled past every hunk; clamp to the last.
+	last := len(m.hunkRanges) - 1
+	m.hunkIdx = last
+	if h := m.currentHunk(); h != nil {
+		m.lineCursor = m.firstNonDelete(h, 0, +1)
 	}
 }
 
