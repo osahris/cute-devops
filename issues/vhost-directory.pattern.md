@@ -76,8 +76,8 @@ From anywhere — a treehouse, a village bare repo, a CI runner — you add
 the vhost as a remote and push to `deploy`:
 
 ```bash
-git remote add deploy/<name> ssh://host/srv/vhosts/<name>
-git push deploy/<name> main:deploy
+git remote add vhost/<name> ssh://host/srv/vhosts/<name>
+git push vhost/<name> main:deploy
 ```
 
 What happens at the other end is **standardised** (every vhost behaves
@@ -114,8 +114,8 @@ code**:
 - **`/srv/vhosts/<name>`** — the running vhost's directory, which also
   acts as a git push target. Deployment surface.
 
-Wiring them together is just `git remote add deploy/<name> …` on the
-bare repo and `git push deploy/<name> main:deploy`. The village bare
+Wiring them together is just `git remote add vhost/<name> …` on the
+bare repo and `git push vhost/<name> main:deploy`. The village bare
 repo's `reference-transaction` hook can issue that push automatically
 after a successful merge to `main`.
 
@@ -135,38 +135,49 @@ vhost gets the same drop-in shape — only `<name>` varies — at
 
 ```ini
 [Service]
+Type=oneshot
 User=<name>
+Group=<name>
 WorkingDirectory=/srv/vhosts/<name>
+EnvironmentFile=
 EnvironmentFile=-/srv/vhosts/<name>/.env
+ExecStartPre=/usr/bin/git merge --ff-only deploy
 ExecStart=
-ExecStart=/usr/bin/git merge --ff-only deploy
 ExecStart=/usr/bin/run-parts --exit-on-error --verbose deploy/
-ExecStart=/usr/local/lib/vhost/tag-deployed <name>
+ExecStartPost=/usr/local/lib/vhost/tag-deployed <name>
 ```
 
-(`ExecStart=` on its own clears the template's value before the new
-ones replace it; multiple `ExecStart=` on `Type=oneshot` run in
-sequence and any failure aborts.) `tag-deployed` is a one-line helper
-shipped by the role: `git tag "deployed-to-$1-at-$(date -u +%Y%m%dT%H%M%SZ)"`.
+Each phase carries one job:
+- **`ExecStartPre`** brings the tree to the pushed tip (fail loud on
+  non-fast-forward).
+- **`ExecStart`** runs the vhost's tracked deploy scripts.
+- **`ExecStartPost`** marks the deploy with a tag.
 
-The base `deploy@.service` template stays unchanged; generic,
-non-vhost deploys keep using `/etc/deploy/<id>/` as before.
+`Type=oneshot` is required: it's what makes systemd wait for `ExecStart`
+to *exit* before running `ExecStartPost` (under the template's default
+`Type=simple`, `ExecStartPost` would fire as soon as `ExecStart` was
+forked, before run-parts finished). The base `deploy@.service` template
+stays unchanged; generic, non-vhost deploys keep using `/etc/deploy/<id>/`
+as before. `EnvironmentFile=` and `ExecStart=` on their own clear the
+template's values before the new ones replace them. `tag-deployed` is
+a one-line helper shipped by the role:
+`git tag "deployed-to-$1-at-$(date -u +%Y%m%dT%H%M%SZ)"`.
 
 **Repos are independent of vhosts.** A repo may feed one vhost, several
 vhosts, or share a vhost with other repos. The connection is "a git
 remote pointing at `/srv/vhosts/<name>`", not name equality:
 
 - **One repo, one vhost** (the common case): the village repo has
-  `deploy/foo` pointing at `/srv/vhosts/foo`. Push lands,
+  `vhost/foo` pointing at `/srv/vhosts/foo`. Push lands,
   `deploy@vhost-foo` restarts.
 - **One repo, several vhosts** (a monorepo with a webapp + a worker):
-  the village repo has `deploy/myapp-web` and `deploy/myapp-worker`,
+  the village repo has `vhost/myapp-web` and `vhost/myapp-worker`,
   pointing at `/srv/vhosts/myapp-web` and `/srv/vhosts/myapp-worker`.
   Each one's `post-receive` fires its own `deploy@vhost-<name>`.
-  `git remote | grep '^deploy/'` and `systemctl list-units
+  `git remote | grep '^vhost/'` and `systemctl list-units
   'deploy@vhost-*'` each list every target.
 - **Several repos, one vhost** (frontend + backend assembled into one
-  running thing): both village repos have `deploy/myapp` pointing at
+  running thing): both village repos have `vhost/myapp` pointing at
   the same `/srv/vhosts/myapp`. Each push updates a different subtree
   (or branch); `post-receive` fires the same `deploy@vhost-myapp`
   either way.
@@ -193,14 +204,14 @@ That charset is a *requirement* here, not a convenience, because the
 deploy instance carries the name.
 
 **Git remote names** that point at a vhost take the shape
-`deploy/<vhost>`. Git allows `/` in ref names, so the remote lands at
-`refs/remotes/deploy/<vhost>/deploy` and tooling treats it normally
-(`git remote -v`, `git push deploy/<vhost> main:deploy`, `git remote |
-grep ^deploy/` to list all deploy targets). One namespace per purpose,
+`vhost/<vhost>`. Git allows `/` in ref names, so the remote lands at
+`refs/remotes/vhost/<vhost>/deploy` and tooling treats it normally
+(`git remote -v`, `git push vhost/<vhost> main:deploy`, `git remote |
+grep ^vhost/` to list all vhost remotes). One namespace per purpose,
 each target named by exactly the vhost it points at. Inside each path
 component, stay in `[a-z0-9.-]+` so the whole chain — `<repo>` →
-`deploy/<vhost>` → `<vhost>` → `deploy@vhost-<vhost>.service` — is
-one charset.
+`vhost/<vhost>` → `<vhost>` → `deploy@vhost-<vhost>.service` — is
+one charset, with "vhost" used everywhere our concept appears.
 
 **Tag names** for successful deploys take the shape
 `deployed-to-<vhost>-at-<utc-timestamp>`. The timestamp is
