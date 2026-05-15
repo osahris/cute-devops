@@ -1,0 +1,241 @@
+#!/usr/bin/env -S ansible-playbook -i environments/test-in-containers/
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Deploy-stack test suite, running in podman containers. Companion to
+# test-in-vms.yaml -- mirrors its role wiring but provisions systemd-enabled
+# containers instead of incus VMs, so the suite runs anywhere podman runs.
+#
+# Re-running the playbook IS the idempotency check: the second run should
+# report changed=0 across the role plays (push-test fixtures and the push
+# itself naturally show changed=true on every run).
+#
+# Reset between runs: `podman rm -f devops-test-deploy`.
+---
+- name: Provision podman test containers
+  hosts: containers
+  gather_facts: false
+  vars:
+    test_image: localhost/devops-test:trixie
+  tasks:
+    - name: Build the systemd-env stage of the root Containerfile
+      delegate_to: localhost
+      become: false
+      containers.podman.podman_image:
+        name: "{{ test_image }}"
+        path: "{{ playbook_dir }}"
+        build:
+          target: systemd-env
+        state: build
+
+    - name: Start the test container with systemd as PID 1
+      delegate_to: localhost
+      become: false
+      containers.podman.podman_container:
+        name: "{{ inventory_hostname }}"
+        image: "{{ test_image }}"
+        hostname: "{{ inventory_hostname }}"
+        state: started
+        systemd: always  # podman sets stop_signal=SIGRTMIN+3 implicitly
+        recreate: false
+
+    - name: Wait for systemd to finish starting inside the container
+      ansible.builtin.command: systemctl is-system-running --wait  # noqa: command-instead-of-module
+      changed_when: false
+      failed_when: false
+
+- name: Apply deploy-stack roles
+  hosts: setup_deploy
+  become: true
+  roles:
+    - setup_deploy
+    - test_deploy_ohai
+    - test_deploy_fail
+
+- name: Behavioural assertions for the deploy stack
+  hosts: setup_deploy
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Assert deploy@.service is installed
+      ansible.builtin.stat:
+        path: /etc/systemd/system/deploy@.service
+      register: deploy_service
+      failed_when: not deploy_service.stat.exists
+
+    - name: Assert the push-to-deploy polkit rule is installed
+      ansible.builtin.stat:
+        path: /etc/polkit-1/rules.d/50-deploy.rules
+      register: polkit_rule
+      failed_when: not polkit_rule.stat.exists
+
+    # deploy@.service is Type=simple, so `systemctl start` returns when
+    # run-parts is forked, not when it finishes. We start the units, then
+    # poll for a terminal ActiveState before sampling Result.
+
+    - name: Trigger deploy@ohai (run-parts script set, expected to succeed)
+      ansible.builtin.shell:  # noqa: command-instead-of-module
+        cmd: systemctl reset-failed deploy@ohai.service; systemctl start deploy@ohai.service
+      changed_when: true
+      failed_when: false
+
+    - name: Wait for deploy@ohai to reach a terminal state
+      ansible.builtin.shell:  # noqa: command-instead-of-module
+        executable: /bin/bash
+        cmd: |
+          for _ in $(seq 1 60); do
+            s=$(systemctl show -p ActiveState --value deploy@ohai.service)
+            [ "$s" = inactive ] || [ "$s" = failed ] && exit 0
+            sleep 1
+          done
+          exit 1
+      changed_when: false
+
+    - name: Capture deploy@ohai service status
+      ansible.builtin.systemd_service:
+        name: deploy@ohai.service
+      register: ohai_status
+
+    - name: Assert deploy@ohai Result=success
+      ansible.builtin.assert:
+        that: ohai_status.status.Result == 'success'
+
+    - name: Trigger deploy@failed (run-parts script set, expected to fail)
+      ansible.builtin.shell:  # noqa: command-instead-of-module
+        cmd: systemctl reset-failed deploy@failed.service; systemctl start deploy@failed.service
+      changed_when: true
+      failed_when: false
+
+    - name: Wait for deploy@failed to reach a terminal state
+      ansible.builtin.shell:  # noqa: command-instead-of-module
+        executable: /bin/bash
+        cmd: |
+          for _ in $(seq 1 60); do
+            s=$(systemctl show -p ActiveState --value deploy@failed.service)
+            [ "$s" = inactive ] || [ "$s" = failed ] && exit 0
+            sleep 1
+          done
+          exit 1
+      changed_when: false
+
+    - name: Capture deploy@failed service status
+      ansible.builtin.systemd_service:
+        name: deploy@failed.service
+      register: failed_status
+
+    - name: Assert deploy@failed did not succeed
+      ansible.builtin.assert:
+        that: failed_status.status.Result != 'success'
+
+- name: Push-to-deploy end-to-end test
+  hosts: setup_deploy
+  become: true
+  vars:
+    test_repo_path: /srv/repos/testapp.git
+    test_repo_instance: testapp
+    test_pusher: testpusher
+    test_marker: /tmp/test-push-to-deploy-fired
+  tasks:
+    - name: Ensure the devops group exists
+      ansible.builtin.group:
+        name: devops
+        state: present
+
+    - name: Create an unprivileged pusher in the devops group
+      ansible.builtin.user:
+        name: "{{ test_pusher }}"
+        groups: [devops]
+        shell: /bin/bash
+        create_home: true
+        state: present
+
+    - name: Install the bare repo with with_deploy
+      ansible.builtin.include_role:
+        name: repos
+      vars:
+        repos:  # noqa: var-naming[no-role-prefix]  -- this is the repos role's primary input
+          - name: "{{ test_repo_instance }}"
+            path: "{{ test_repo_path }}"
+            group: devops
+            with_deploy: true
+            deploy:
+              instance: "{{ test_repo_instance }}"
+
+    - name: Create the deploy instance directory
+      ansible.builtin.file:
+        path: "/etc/deploy/{{ test_repo_instance }}"
+        state: directory
+        mode: "0755"
+
+    - name: Drop an empty deploy.env (required by deploy@.service)
+      ansible.builtin.copy:
+        dest: "/etc/deploy/{{ test_repo_instance }}/deploy.env"
+        content: ""
+        mode: "0644"
+
+    - name: Install a tiny deploy script that touches a marker
+      ansible.builtin.copy:
+        dest: "/etc/deploy/{{ test_repo_instance }}/01-touch-marker"
+        mode: "0755"
+        content: |
+          #!/bin/bash
+          touch {{ test_marker }}
+
+    - name: Clear any marker from a previous run
+      ansible.builtin.file:
+        path: "{{ test_marker }}"
+        state: absent
+
+    - name: As the pusher, clone-commit-push to the bare repo
+      become: true
+      become_user: "{{ test_pusher }}"
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: |
+          set -eu
+          cd ~
+          rm -rf work
+          git clone -q "{{ test_repo_path }}" work 2>/dev/null || true
+          cd work
+          git config user.email t@example.com
+          git config user.name testpusher
+          git checkout -q -B main
+          echo "$(date -Is)" > index.txt
+          git add index.txt
+          git commit -qm "test push"
+          git push -q origin HEAD:main
+      changed_when: true
+
+    - name: Wait for the deploy unit triggered by the push to finish
+      ansible.builtin.shell:  # noqa: command-instead-of-module
+        executable: /bin/bash
+        cmd: |
+          for _ in $(seq 1 30); do
+            state=$(systemctl is-active deploy@{{ test_repo_instance }}.service 2>/dev/null || true)
+            result=$(systemctl show -p Result --value deploy@{{ test_repo_instance }}.service 2>/dev/null || true)
+            if [ "$state" = "inactive" ] && [ -n "$result" ]; then
+              echo "deploy@{{ test_repo_instance }}: state=$state result=$result"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "timeout waiting for deploy@{{ test_repo_instance }}.service" >&2
+          systemctl status --no-pager deploy@{{ test_repo_instance }}.service >&2 || true
+          exit 1
+      changed_when: false
+
+    - name: Assert the marker exists (the deploy actually fired)
+      ansible.builtin.stat:
+        path: "{{ test_marker }}"
+      register: marker
+      failed_when: not marker.stat.exists
+
+    - name: Capture the push-triggered deploy service status
+      ansible.builtin.systemd_service:
+        name: "deploy@{{ test_repo_instance }}.service"
+      register: push_deploy_status
+
+    - name: Assert the push-triggered deploy succeeded
+      ansible.builtin.assert:
+        that: push_deploy_status.status.Result == 'success'

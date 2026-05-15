@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+---
+ansible_connection: containers.podman.podman
+
+# Wire up the push-to-deploy bridge so the suite can exercise the polkit path.
+setup_deploy_polkit_group: devops

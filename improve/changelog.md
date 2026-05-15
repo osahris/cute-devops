@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Implements the new
     [Push to Deploy 🚀](patterns/operation/deployment/push-to-deploy.md)
     pattern (promoted from the `issues/` draft).
+- `test-in-containers.yaml`: deploy-stack integration suite running in
+  rootless podman containers — companion to `test-in-vms.yaml` for
+  environments without VMs. Provisions a systemd-enabled container from
+  a `systemd-env` stage in the root `Containerfile` (now multi-stage:
+  `systemd-env` + the existing Caddy `website` stage), applies
+  `setup_deploy` + `test_deploy_ohai` + `test_deploy_fail`, and asserts
+  behaviour end-to-end including the push-to-deploy polkit path.
 
 ### Changed
 - Relicensed from AGPL-3.0-or-later to EUPL-1.2; the

@@ -93,6 +93,12 @@ Before submitting changes, run the following checks in order:
    ```bash
    ./test-in-vms.yaml
    ```
+   Where VMs aren't available, the deploy-stack subset runs in rootless
+   podman containers (uses the `systemd-env` stage of the root
+   `Containerfile`):
+   ```bash
+   ./test-in-containers.yaml
+   ```
 
 All three checks must pass before changes are considered ready.
 
