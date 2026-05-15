@@ -1,9 +1,0 @@
-# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
-# SPDX-License-Identifier: EUPL-1.2
-
-# VHS output artefacts live next to the tape; tracked separately if
-# wanted but skipped by default to keep the repo small.
-scenarios/*.gif
-scenarios/*.mp4
-scenarios/*.webm
-scenarios/*.cast

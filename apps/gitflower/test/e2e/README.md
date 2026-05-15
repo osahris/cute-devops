@@ -5,57 +5,65 @@ SPDX-License-Identifier: EUPL-1.2
 
 # gitflower e2e tests
 
-Three runners covering different layers.
+Two ways of exercising the binary against a deterministic fixture repo.
 
-| Runner | Needs | What it does |
+| Runner | Path | What it checks |
 |---|---|---|
-| `go test ./tui/` | Go only | drives the bubbletea model in-process via synthetic key events. Verifies section→line drill-in, comment creation, verdict cycling, and save. Sub-second. **Canonical** TUI behaviour check. |
-| `test/e2e/smoke.sh` | Go + diff | rebuilds the fixture repo, runs `gitflower review --no-tui`, diffs the output `.review` against the golden after normalising dates/SHAs. Covers the format pipeline against real git. |
-| `test/e2e/run.sh` | [VHS](https://github.com/charmbracelet/vhs) + `ttyd` + `ffmpeg` | drives each `scenarios/*.tape` through a real PTY/TUI session, then runs the same golden check. Produces `.gif` and `.cast` recordings. Slow but visual. |
+| `go test ./test/e2e/` | PTY-driven, spawns the real binary | full interactive flow: build → setup → spawn under PTY → walk + comment + verdict → save → diff a real `.review` file |
+| `./smoke.sh` | scripted | format pipeline: build → setup → `gitflower review --no-tui` → normalised diff vs golden |
 
-The top-level `Makefile` wires these as `make test` / `make e2e` / `make e2e-vhs`.
+Both rely on `setup.sh`, which rebuilds a small, deterministic git repo at `/tmp/gitflower-e2e-repo`: fixed author identities and commit dates → stable SHAs.
 
-The fixture repo is deterministic: `setup.sh` reconstructs it from scratch every run, with fixed identities and author dates so commit SHAs are byte-stable.
+## Running
+
+From `apps/gitflower/`:
+
+```bash
+make test         # unit + TUI integration + PTY e2e (all Go tests)
+make e2e-format   # smoke.sh
+make e2e          # both of the above
+```
+
+Or directly:
+
+```bash
+go test ./test/e2e/ -v
+./test/e2e/smoke.sh
+./test/e2e/smoke.sh --update   # rewrite the golden after intentional changes
+```
+
+## The PTY test (`e2e_test.go`)
+
+Uses `github.com/creack/pty` to spawn `gitflower review --base main feature` on a real PTY against the fixture repo, then drives this scripted sequence:
+
+1. wait 800 ms for the first frame
+2. `Space` — section mode drills into Changes' first unread hunk
+3. `>` — cycle verdict to `requested-changes`
+4. `c` — open the inline comment editor
+5. type `Inline comment from PTY test.`
+6. `Alt+Enter` — submit (`\x1b\r` on the wire)
+7. `s` — explicit save
+8. `q` — quit
+
+The produced `reviews/*.review` is read back and asserted to contain the expected sections (`# Review`, `## Sources`, `## Verdicts`, the new verdict, both file diffs, the comment).
+
+## The smoke check (`smoke.sh`)
+
+Runs the binary with `--no-tui`, skipping the TUI entirely. Useful for nailing down format regressions in CI where you don't want to depend on terminal sizing. Diffs against `expected/smoke.review` after a `sed`-based normaliser replaces dates and SHAs with placeholders.
+
+Update the golden after an intentional format change:
+
+```bash
+./smoke.sh --update
+```
 
 ## Layout
 
 ```
 test/e2e/
-├── setup.sh            # rebuilds the fixture repo at /tmp/gitflower-e2e-repo
-├── smoke.sh            # non-TUI golden check
-├── run.sh              # VHS-driven golden check
-├── scenarios/
-│   └── walk-and-comment.tape  # VHS script: enter Changes, walk, comment, approve
+├── setup.sh            # rebuilds /tmp/gitflower-e2e-repo
+├── e2e_test.go         # PTY-driven Go test
+├── smoke.sh            # --no-tui golden diff
 └── expected/
-    └── smoke.review    # normalised golden for smoke.sh
+    └── smoke.review    # normalised golden
 ```
-
-## Adding a scenario
-
-1. Drop a new `scenarios/<name>.tape` in. VHS's reference: <https://github.com/charmbracelet/vhs>.
-2. Run `./run.sh --update` once to generate `expected/<name>.review`.
-3. Review the golden by hand. Commit when happy.
-
-## Updating the golden after an intentional change
-
-```bash
-./smoke.sh --update
-./run.sh   --update
-```
-
-Both rewrite the goldens from the current run's output. `git diff expected/` to sanity-check, then commit.
-
-## Why VHS, not asciinema
-
-VHS is bubbletea's native demo tool — one `.tape` file describes keys + timing declaratively, and VHS handles the PTY plumbing. It does also emit an asciinema `.cast` alongside the GIF if you `Output …cast` in the tape, so you don't lose the asciinema replay path. The `.gif` is for humans, the golden `.review` is for CI.
-
-Generated `.gif` / `.cast` / `.mp4` / `.webm` files in `scenarios/` are gitignored by default — promote individual files by adding them explicitly with `git add -f`.
-
-## Installing VHS
-
-```bash
-go install github.com/charmbracelet/vhs@latest
-# also: ttyd (or wezterm) + ffmpeg per the VHS README
-```
-
-`smoke.sh` is the CI-friendly path — it covers the format round-trip and most of the workflow surface without needing a PTY. VHS scenarios stay as on-demand visual checks.

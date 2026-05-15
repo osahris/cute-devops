@@ -5,10 +5,11 @@ A Git workflow tool.
 ## Quick start
 
 ```bash
-make build              # produce ./gitflower
-make test               # unit + TUI integration tests (~50ms)
-make e2e                # full pipeline against a generated fixture repo
-make help               # everything else
+make build         # produce ./gitflower
+make test          # unit + TUI integration + PTY e2e (everything Go)
+make e2e-format    # format-pipeline golden-diff against a generated fixture
+make e2e           # both of the above
+make help          # the rest
 ```
 
 The `review` subcommand is the headline feature:
