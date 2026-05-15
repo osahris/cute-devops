@@ -12,15 +12,36 @@
       vhost.name must match ^[a-z0-9.-]+$ (FQDN form, max 253 chars);
       got '{{ _vhost_name }}'
 
-- name: "Ensure vhost directory exists and is group-shared with pushers for {{ _vhost_name }}"
+- name: "Ensure the Unix user exists for vhost {{ _vhost_name }}"
+  ansible.builtin.user:
+    name: "{{ _vhost_name }}"
+    home: "{{ _vhost_dir }}"
+    shell: /usr/sbin/nologin
+    create_home: true
+    state: present
+  register: _vhost_user
+
+- name: "Ensure vhost directory ownership and group-share for {{ _vhost_name }}"
   ansible.builtin.file:
     path: "{{ _vhost_dir }}"
     state: directory
-    owner: root
+    owner: "{{ _vhost_name }}"
     group: "{{ _vhost_pushers_group }}"
     mode: "2775"
 
+- name: "Enable lingering (= auto-start user@.service at boot) for {{ _vhost_name }}"
+  ansible.builtin.command: "loginctl enable-linger {{ _vhost_name }}"
+  args:
+    creates: "/var/lib/systemd/linger/{{ _vhost_name }}"
+
+- name: "Make sure user@.service is running now for {{ _vhost_name }}"
+  ansible.builtin.systemd_service:
+    name: "user@{{ _vhost_user.uid }}.service"
+    state: started
+
 - name: "Initialise the vhost git tree on the deployment branch for {{ _vhost_name }}"
+  become: true
+  become_user: "{{ _vhost_name }}"
   ansible.builtin.shell:  # noqa: command-instead-of-module
     executable: /bin/bash
     chdir: "{{ _vhost_dir }}"
@@ -50,6 +71,6 @@
   ansible.builtin.template:
     src: post-receive.j2
     dest: "{{ _vhost_dir }}/.git/hooks/post-receive"
-    owner: root
+    owner: "{{ _vhost_name }}"
     group: "{{ _vhost_pushers_group }}"
     mode: "0755"

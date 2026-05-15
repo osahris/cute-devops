@@ -17,9 +17,12 @@ tracked `deploy/` scripts, and tags `deployed-to-<name>-at-<utc>`.
 
 The role ships **one** systemd template — `deploy-vhost@.service` —
 fully parameterized on `%i` (the vhost FQDN), so no per-vhost drop-in
-is needed. Adding a vhost just means: dir + git init + post-receive
-hook. The deploy unit currently runs as root; per-vhost isolation is
-deferred (see the pattern's open questions).
+is needed. Adding a vhost means: FQDN Unix user (with auto-allocated
+subuid/subgid for rootless podman), `loginctl enable-linger` so the
+user-systemd manager runs continuously, `user@<uid>.service` started,
+git tree initialised, and the post-receive hook. The deploy unit
+runs as the FQDN user, so quadlets under `~/.config/containers/systemd/`
+and rootless containers work naturally.
 
 ## Requirements
 

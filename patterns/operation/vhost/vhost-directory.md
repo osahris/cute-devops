@@ -47,10 +47,13 @@ do I deploy it".
 └── .gitignore            # ignores compose.override.yaml, .env, data/, …
 ```
 
-Owned `root:<pushers-group>`, mode `2775` (setgid so pushed objects
-inherit the group). The deploy unit currently runs as root —
-per-vhost isolation is a separate problem the pattern doesn't try to
-solve on disk (see *Open questions*).
+Owned `<fqdn>:<pushers-group>`, mode `2775` (setgid so pushed objects
+inherit the group). **Each vhost is its own Unix user** — the username
+is the FQDN — with lingering enabled (`loginctl enable-linger`), a
+`systemd --user` instance running continuously, and an auto-allocated
+subuid/subgid range. That's what makes rootless podman per vhost
+natural: quadlets in `~/.config/containers/systemd/`, container state
+in `~/.local/share/containers/`, all under one tree owned by one user.
 
 ## The vhost directory is a git remote
 
@@ -62,13 +65,21 @@ directory is the whole app as a git working tree. Two branches:
   running. Fast-forwards from `deploy` on each successful deploy.
 
 ```bash
-cd /srv/vhosts/<fqdn>
-git init -b deployment .
-git commit --allow-empty -m "initial"
-git branch deploy deployment
-# local-only files: never tracked, never clobbered by push
-printf "%s\n" ".env" >> .git/info/exclude
+# create the FQDN user (subuid/subgid auto-allocated)
+useradd --create-home --home-dir /srv/vhosts/<fqdn> \
+        --shell /usr/sbin/nologin <fqdn>
+# user-systemd auto-starts at boot AND now
+loginctl enable-linger <fqdn>
+systemctl start user@$(id -u <fqdn>).service
 
+sudo -u <fqdn> bash -c '
+  cd /srv/vhosts/<fqdn>
+  git init -b deployment .
+  git commit --allow-empty -m "initial"
+  git branch deploy deployment
+  # local-only files: never tracked, never clobbered by push
+  printf "%s\n" ".env" >> .git/info/exclude
+'
 # the role installs hooks/post-receive; the systemd template lives once
 # at /etc/systemd/system/deploy-vhost@.service for *all* vhosts
 ```
@@ -133,6 +144,7 @@ Description=Vhost deploy for %i
 
 [Service]
 Type=oneshot
+User=%i
 WorkingDirectory=/srv/vhosts/%i
 EnvironmentFile=-/srv/vhosts/%i/.env
 ExecStartPre=/usr/bin/git merge --ff-only deploy
@@ -248,15 +260,15 @@ git refs), no separators that confuse `git tag | grep ^deployed-to-`.
 
 ## Open questions
 
-- **Per-vhost isolation.** The deploy unit currently runs as root and
-  every vhost shares the same Unix identity. That's the smallest
-  amount of plumbing — but it means a compromised deploy script in
-  one vhost can touch any other. Per-vhost Unix users were considered
-  and rejected (FQDN-as-username trips `useradd`'s charset and adds a
-  whole user-lifecycle problem the role would have to own). What's
-  the right isolation primitive? Likely containerised deploys (the
-  vhost is a quadlet / a compose stack with its own UID inside) so
-  isolation is the *container's* job, not the host user's.
+- **XDG_RUNTIME_DIR in the deploy unit.** Deploy scripts that want to
+  talk to user-systemd (`systemctl --user`, quadlets) need
+  `XDG_RUNTIME_DIR=/run/user/<uid>` set. The system-level
+  `deploy-vhost@.service` switches user via `User=%i` but doesn't run
+  pam_systemd, so this env var isn't set automatically. Either set it
+  in `deploy/` scripts that need it, or have the deploy unit do a tiny
+  uid lookup in a wrapper (`Environment=XDG_RUNTIME_DIR=/run/user/$(id -u %i)`
+  doesn't work — no shell substitution in unit files). Probably ends up
+  being a one-line `eval` in the scripts.
 - **The `repos` role's `with_deploy`** puts the post-receive on
   `/srv/repos/<name>.git`, treating the bare repo as the push target.
   Under this pattern, the post-receive belongs at
