@@ -3,7 +3,7 @@
 
 // Package review is the workflow core for code reviews. It is interface-
 // agnostic — a TUI, a web handler, or a CLI scaffold-only mode all
-// manipulate a *Session via the same methods, and persist by Save().
+// manipulate a *ReviewSession via the same methods, and persist by Save().
 package review
 
 import (
@@ -83,8 +83,30 @@ type Issue struct {
 	Date   string
 }
 
-// Session is an in-progress (or saved) review.
-type Session struct {
+// VerdictEvent is one entry in the # Review > ## Verdicts audit log.
+type VerdictEvent struct {
+	State   Verdict // open | requested-changes | approved | denied
+	Author  string  // "Name <email>"
+	Date    string  // RFC3339
+	Summary string  // markdown summary body
+}
+
+// FileReview captures a file inspected in file-review mode at a particular
+// tip SHA. Lines holds only the visited ranges (line-number → content).
+type FileReview struct {
+	Path   string
+	TipSHA string
+	Lines  []FileLine // sorted ascending by Number
+}
+
+// FileLine is one numbered line in a FileReview.
+type FileLine struct {
+	Number  int    // 1-based line number in the file at TipSHA
+	Content string // raw line content
+}
+
+// ReviewSession is an in-progress (or saved) review.
+type ReviewSession struct {
 	Path     string
 	Reviewer string
 	Date     string
@@ -93,16 +115,52 @@ type Session struct {
 	Scope    Scope
 
 	read     map[Anchor]bool   // hunks the reviewer has finished reading
-	markers  map[Anchor]Marker // good/bad reactions
+	markers  map[Anchor]Marker // good/bad reactions → emitted as Like/Dislike events
 	comments []Comment         // includes both KindComment and KindQuestion
 	issues   []Issue           // free-form issues added during review
+
+	// Verdicts is the audit log. The most recent entry is the current state.
+	// Backwards-compat: if empty, fall back to the single Verdict/Summary
+	// fields above. Render() always emits one Verdict event from the
+	// current canonical state.
+	verdicts []VerdictEvent
+
+	// FileReviews holds file-mode visits. Empty until the reviewer enters
+	// file-review mode on at least one file.
+	fileReviews []FileReview
 
 	dirty bool
 }
 
-// New creates a fresh Session.
-func New(scope Scope, reviewer, path string) *Session {
-	return &Session{
+// Verdicts returns the verdict audit log.
+func (s *ReviewSession) Verdicts() []VerdictEvent { return s.verdicts }
+
+// AddVerdict appends to the audit log.
+func (s *ReviewSession) AddVerdict(v VerdictEvent) {
+	if v.Author == "" {
+		v.Author = s.Reviewer
+	}
+	if v.Date == "" {
+		v.Date = time.Now().UTC().Format(time.RFC3339)
+	}
+	s.verdicts = append(s.verdicts, v)
+	s.Verdict = v.State
+	s.Summary = v.Summary
+	s.dirty = true
+}
+
+// FileReviews returns the file-review list.
+func (s *ReviewSession) FileReviews() []FileReview { return s.fileReviews }
+
+// AddFileReview appends a FileReview entry.
+func (s *ReviewSession) AddFileReview(fr FileReview) {
+	s.fileReviews = append(s.fileReviews, fr)
+	s.dirty = true
+}
+
+// New creates a fresh ReviewSession.
+func New(scope Scope, reviewer, path string) *ReviewSession {
+	return &ReviewSession{
 		Path:     path,
 		Reviewer: reviewer,
 		Verdict:  VerdictOpen,
@@ -112,27 +170,27 @@ func New(scope Scope, reviewer, path string) *Session {
 	}
 }
 
-func (s *Session) Dirty() bool { return s.dirty }
+func (s *ReviewSession) Dirty() bool { return s.dirty }
 
 // Read state.
 
-func (s *Session) IsRead(a Anchor) bool { return s.read[a] }
+func (s *ReviewSession) IsRead(a Anchor) bool { return s.read[a] }
 
-func (s *Session) MarkRead(a Anchor) {
+func (s *ReviewSession) MarkRead(a Anchor) {
 	if !s.read[a] {
 		s.read[a] = true
 		s.dirty = true
 	}
 }
 
-func (s *Session) MarkUnread(a Anchor) {
+func (s *ReviewSession) MarkUnread(a Anchor) {
 	if s.read[a] {
 		delete(s.read, a)
 		s.dirty = true
 	}
 }
 
-func (s *Session) ToggleRead(a Anchor) {
+func (s *ReviewSession) ToggleRead(a Anchor) {
 	if s.read[a] {
 		s.MarkUnread(a)
 	} else {
@@ -141,7 +199,7 @@ func (s *Session) ToggleRead(a Anchor) {
 }
 
 // ReadAnchors returns the read-marked anchors in deterministic order.
-func (s *Session) ReadAnchors() []Anchor {
+func (s *ReviewSession) ReadAnchors() []Anchor {
 	out := make([]Anchor, 0, len(s.read))
 	for a := range s.read {
 		out = append(out, a)
@@ -152,9 +210,9 @@ func (s *Session) ReadAnchors() []Anchor {
 
 // Markers.
 
-func (s *Session) Marker(a Anchor) Marker { return s.markers[a] }
+func (s *ReviewSession) Marker(a Anchor) Marker { return s.markers[a] }
 
-func (s *Session) SetMarker(a Anchor, m Marker) {
+func (s *ReviewSession) SetMarker(a Anchor, m Marker) {
 	cur := s.markers[a]
 	if cur == m {
 		// Toggling the same marker clears it.
@@ -170,7 +228,7 @@ func (s *Session) SetMarker(a Anchor, m Marker) {
 	s.dirty = true
 }
 
-func (s *Session) MarkerAnchors() []Anchor {
+func (s *ReviewSession) MarkerAnchors() []Anchor {
 	out := make([]Anchor, 0, len(s.markers))
 	for a := range s.markers {
 		out = append(out, a)
@@ -181,7 +239,7 @@ func (s *Session) MarkerAnchors() []Anchor {
 
 // Comments and questions.
 
-func (s *Session) AddComment(c Comment) {
+func (s *ReviewSession) AddComment(c Comment) {
 	if c.Author == "" {
 		c.Author = s.Reviewer
 	}
@@ -193,11 +251,11 @@ func (s *Session) AddComment(c Comment) {
 }
 
 // Comments returns all comments (questions included). Filter by Kind if needed.
-func (s *Session) Comments() []Comment { return s.comments }
+func (s *ReviewSession) Comments() []Comment { return s.comments }
 
 // UpdateComment replaces the comment at idx (0-based) with c, preserving
 // the original Author/Date. Returns false if idx is out of range.
-func (s *Session) UpdateComment(idx int, text string) bool {
+func (s *ReviewSession) UpdateComment(idx int, text string) bool {
 	if idx < 0 || idx >= len(s.comments) {
 		return false
 	}
@@ -211,7 +269,7 @@ func (s *Session) UpdateComment(idx int, text string) bool {
 
 // CommentIndexAt returns the index of the first comment matching anchor
 // (exact match), or -1 if none. Used by edit-comment flow.
-func (s *Session) CommentIndexAt(a Anchor) int {
+func (s *ReviewSession) CommentIndexAt(a Anchor) int {
 	for i, c := range s.comments {
 		if c.Anchor == a {
 			return i
@@ -221,10 +279,10 @@ func (s *Session) CommentIndexAt(a Anchor) int {
 }
 
 // Issues returns all free-form issues added during the review.
-func (s *Session) Issues() []Issue { return s.issues }
+func (s *ReviewSession) Issues() []Issue { return s.issues }
 
 // AddIssue appends an issue. Author and Date are filled in if empty.
-func (s *Session) AddIssue(it Issue) {
+func (s *ReviewSession) AddIssue(it Issue) {
 	if it.Author == "" {
 		it.Author = s.Reviewer
 	}
@@ -237,7 +295,7 @@ func (s *Session) AddIssue(it Issue) {
 
 // UpdateIssue replaces the issue at idx with the given title/body, preserving
 // Author/Date.
-func (s *Session) UpdateIssue(idx int, title, body string) bool {
+func (s *ReviewSession) UpdateIssue(idx int, title, body string) bool {
 	if idx < 0 || idx >= len(s.issues) {
 		return false
 	}
@@ -250,7 +308,7 @@ func (s *Session) UpdateIssue(idx int, title, body string) bool {
 	return true
 }
 
-func (s *Session) CommentsOn(path string) []Comment {
+func (s *ReviewSession) CommentsOn(path string) []Comment {
 	var out []Comment
 	for _, c := range s.comments {
 		if strings.HasPrefix(string(c.Anchor), path+":") || string(c.Anchor) == path {
@@ -262,14 +320,14 @@ func (s *Session) CommentsOn(path string) []Comment {
 
 // Verdict and summary.
 
-func (s *Session) SetVerdict(v Verdict) {
+func (s *ReviewSession) SetVerdict(v Verdict) {
 	if s.Verdict != v {
 		s.Verdict = v
 		s.dirty = true
 	}
 }
 
-func (s *Session) SetSummary(text string) {
+func (s *ReviewSession) SetSummary(text string) {
 	if s.Summary != text {
 		s.Summary = text
 		s.dirty = true
@@ -277,7 +335,7 @@ func (s *Session) SetSummary(text string) {
 }
 
 // Save serialises the session.
-func (s *Session) Save() error {
+func (s *ReviewSession) Save() error {
 	if s.Date == "" {
 		s.Date = time.Now().UTC().Format(time.RFC3339)
 	}
@@ -292,17 +350,28 @@ func (s *Session) Save() error {
 	return nil
 }
 
-func (s *Session) Exists() bool {
+func (s *ReviewSession) Exists() bool {
 	_, err := os.Stat(s.Path)
 	return err == nil
 }
 
-// DefaultPath returns the conventional review-file path.
-func DefaultPath(repoRoot, tipSHA, reviewer string) string {
-	short := tipSHA
-	if len(short) > 12 {
-		short = short[:12]
+// DefaultPath returns the conventional review-file path per the spec:
+//
+//	reviews/<to-slug>-<to-short>-from-<from-slug>-<from-short>.review
+//
+// where slugify replaces `/` and other unsafe chars with `-`.
+func DefaultPath(repoRoot string, scope *Scope) string {
+	toSlug := slugify(scope.Branch)
+	fromSlug := slugify(scope.Base)
+	toShort := shortSHA(scope.TipSHA)
+	fromShort := shortSHA(scope.BaseSHA)
+	name := toSlug + "-" + toShort + "-from-" + fromSlug + "-" + fromShort + ".review"
+	return filepath.Join(repoRoot, "reviews", name)
+}
+
+func shortSHA(s string) string {
+	if len(s) > 12 {
+		return s[:12]
 	}
-	rslug := slugify(strings.SplitN(reviewer, "@", 2)[0])
-	return filepath.Join(repoRoot, "issues", short+"."+rslug+".review.md")
+	return s
 }

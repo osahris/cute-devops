@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: EUPL-1.2
 
 // Package tui is a bubbletea-v2 driver for review sessions. State changes
-// go through *review.Session methods so a web driver can do the same.
+// go through *review.ReviewSession methods so a web driver can do the same.
 // Every mutation auto-saves the file.
 //
 // Three top-level modes:
@@ -30,7 +30,7 @@ import (
 	"gitflower/review"
 )
 
-func Run(sess *review.Session) error {
+func Run(sess *review.ReviewSession) error {
 	root, _ := gitRoot()
 	m := newModel(sess, root)
 	_, err := tea.NewProgram(m).Run()
@@ -92,7 +92,7 @@ type hunkRange struct {
 }
 
 type model struct {
-	sess *review.Session
+	sess *review.ReviewSession
 	root string
 
 	// Static-ish data loaded at startup.
@@ -140,7 +140,7 @@ type model struct {
 	status string
 }
 
-func newModel(sess *review.Session, root string) *model {
+func newModel(sess *review.ReviewSession, root string) *model {
 	files := review.ParseDiff(sess.Scope.RawDiff)
 
 	ta := textarea.New()

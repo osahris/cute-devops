@@ -12,14 +12,23 @@ import (
 
 // Scope describes what a review covers.
 type Scope struct {
-	Branch  string   // the branch being reviewed
-	Base    string   // ref the diff is taken against
+	Branch  string   // the branch being reviewed ("to" side)
+	Base    string   // ref the diff is taken against ("from" side)
 	TipSHA  string   // resolved tip of Branch at time of scope computation
+	BaseSHA string   // resolved tip of Base at time of scope computation
 	Diff    string   // symbolic diff range (Base..Branch)
 	Commits []Commit // commits in Base..Branch, oldest last (git log order)
 	Files   []string // paths changed in Base...Branch
 	RawDiff string   // full unified diff, base...branch
 	Title   string   // parsed from most-recent [Merge Request] subject; falls back to branch
+
+	// FilePatches: per-file unified diff (git diff base..branch -- <path>).
+	// Populated lazily by Render so unused files don't pay the cost.
+	FilePatches map[string]string
+
+	// CommitPatches: per-commit `git format-patch --stdout` body keyed by SHA.
+	// Lazily populated.
+	CommitPatches map[string]string
 }
 
 // Commit is one entry in Scope.Commits. Patch is the mbox-style git
@@ -49,7 +58,8 @@ func ScopeFor(branch, base string) (*Scope, error) {
 	if base == "" {
 		base = "main"
 	}
-	if _, err := gitOut("rev-parse", "--verify", base); err != nil {
+	baseSHA, err := gitOut("rev-parse", "--verify", base)
+	if err != nil {
 		return nil, fmt.Errorf("scope: base ref %q not found (override with --base)", base)
 	}
 
@@ -109,15 +119,54 @@ func ScopeFor(branch, base string) (*Scope, error) {
 	}
 
 	return &Scope{
-		Branch:  branch,
-		Base:    base,
-		TipSHA:  tip,
-		Diff:    base + ".." + branch,
-		Commits: commits,
-		Files:   files,
-		RawDiff: rawDiff,
-		Title:   title,
+		Branch:        branch,
+		Base:          base,
+		TipSHA:        tip,
+		BaseSHA:       baseSHA,
+		Diff:          base + ".." + branch,
+		Commits:       commits,
+		Files:         files,
+		RawDiff:       rawDiff,
+		Title:         title,
+		FilePatches:   map[string]string{},
+		CommitPatches: map[string]string{},
 	}, nil
+}
+
+// FilePatch returns the unified diff for one path in scope, computing it on
+// demand and caching.
+func (s *Scope) FilePatch(path string) string {
+	if p, ok := s.FilePatches[path]; ok {
+		return p
+	}
+	out, err := gitOut("diff", "--no-color",
+		"-U2", "--inter-hunk-context=0",
+		s.Base+".."+s.Branch, "--", path)
+	if err != nil {
+		return ""
+	}
+	if s.FilePatches == nil {
+		s.FilePatches = map[string]string{}
+	}
+	s.FilePatches[path] = out
+	return out
+}
+
+// CommitPatch returns the `git format-patch --stdout` body for one commit
+// in scope, computing on demand and caching.
+func (s *Scope) CommitPatch(sha string) string {
+	if p, ok := s.CommitPatches[sha]; ok {
+		return p
+	}
+	out, err := gitOut("format-patch", "--stdout", sha+"^.."+sha)
+	if err != nil {
+		return ""
+	}
+	if s.CommitPatches == nil {
+		s.CommitPatches = map[string]string{}
+	}
+	s.CommitPatches[sha] = out
+	return out
 }
 
 // gitOut runs `git` with the given args and returns stdout (trailing newline trimmed).

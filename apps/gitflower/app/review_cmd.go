@@ -18,14 +18,14 @@ import (
 func cmdReview(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("review", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	out := fs.String("o", "", "output path (default: <repo>/issues/<short-sha>.<reviewer>.review.md)")
+	out := fs.String("o", "", "output path (default: <repo>/reviews/<to>-<sha>-from-<from>-<sha>.review)")
 	baseOverride := fs.String("base", "", "override the base ref (default: parsed from `Base:` line, fallback main)")
 	noTUI := fs.Bool("no-tui", false, "scaffold the review file and exit; do not launch the TUI")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: gitflower review [-o path] [--base ref] [--no-tui] [<branch>]")
 		fmt.Fprintln(stderr)
 		fmt.Fprintln(stderr, "Open a review for <branch> (default: current HEAD).")
-		fmt.Fprintln(stderr, "Writes to issues/<short-sha>.<reviewer>.review.md and launches the TUI.")
+		fmt.Fprintln(stderr, "Writes to reviews/<to>-<sha>-from-<from>-<sha>.review and launches the TUI.")
 		fmt.Fprintln(stderr)
 		fs.PrintDefaults()
 	}
@@ -58,10 +58,10 @@ func cmdReview(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "review: %v\n", err)
 			return 1
 		}
-		path = review.DefaultPath(root, scope.TipSHA, reviewer)
+		path = review.DefaultPath(root, scope)
 	}
 
-	var sess *review.Session
+	var sess *review.ReviewSession
 	if fileExists(path) {
 		sess, err = review.Load(path)
 		if err != nil {
