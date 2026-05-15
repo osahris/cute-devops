@@ -724,92 +724,75 @@ func (m *model) cursorNewLine(h *review.Hunk) int {
 	return 0
 }
 
-// spaceWalk implements the "page-walk with overlap → last line → next file"
-// behaviour described in the spec. Each Space press:
-//   - if viewport is not at the bottom of the current file's content,
-//     scroll down by viewport_height - 5 lines (5-line overlap from the
-//     previous view's bottom), put the cursor at the top of the new view
-//   - else if the cursor is not on the last hunk, place it on the last hunk
-//   - else advance to the next file in the Changes list (or to the next
-//     FileReview in modeFile)
+// spaceWalk jumps the cursor to the next unread hunk in the Changes list.
+// "Unread" = the hunk's read marker is not set on the session. The viewport
+// is positioned so 5 rows of context precede the new cursor (clamped to
+// top-of-content when there's less room).
+//
+// Behaviour by mode:
+//   - Section mode: enters line mode and seeks from the section-cursor's
+//     file (so pressing Space on a file in the sidebar drills in and lands
+//     on its first unread hunk).
+//   - Line mode: advances strictly past the current hunk to the next
+//     unread one.
+//   - End of all files: status "all read".
 func (m *model) spaceWalk() {
-	// Bottom of viewport content?
-	if !m.viewport.AtBottom() {
-		h := m.viewport.Height()
-		step := h - 5
-		if step < 1 {
-			step = 1
+	startFile := m.fileIdx
+	startHunk := m.hunkIdx + 1
+	if m.mode == modeTree {
+		if m.sect == sectionChanges {
+			startFile = m.sectIdx[m.sect]
+		} else {
+			startFile = 0
 		}
-		m.viewport.SetYOffset(m.viewport.YOffset() + step)
-		m.updateDisplayed()
-		// Move cursor to whatever's at the top of the new view so it
-		// stays selected when the user keeps pressing space.
-		m.hunkAtTopOfView()
-		return
+		startHunk = 0
+		m.mode = modeDiff
 	}
-	// At bottom: ensure cursor is on the last line of the last hunk first.
-	f := m.currentFile()
-	last := len(f.Hunks) - 1
-	if last >= 0 {
-		lastH := &f.Hunks[last]
-		lastLine := m.firstNonDelete(lastH, len(lastH.Lines)-1, -1)
-		if m.hunkIdx < last || m.lineCursor < lastLine {
-			m.hunkIdx = last
-			m.lineCursor = lastLine
-			m.refreshViewport()
-			return
-		}
+	if !m.jumpToNextUnread(startFile, startHunk) {
+		m.status = "all read"
 	}
-	// Already on the last line; advance to next file.
-	if m.fileIdx+1 < len(m.files) {
-		m.fileIdx++
-		m.hunkIdx = 0
-		m.lineCursor = 0
-		if h := m.currentHunk(); h != nil {
-			m.lineCursor = m.firstNonDelete(h, 0, +1)
-		}
-		m.refreshViewport()
-		return
-	}
-	m.status = "end of changes"
 }
 
-// spaceWalkFile is the file-mode counterpart of spaceWalk.
-func (m *model) spaceWalkFile() {
-	if !m.viewport.AtBottom() {
-		h := m.viewport.Height()
-		step := h - 5
-		if step < 1 {
-			step = 1
+// jumpToNextUnread scans forward from (startFile, startHunk) and lands the
+// cursor on the first hunk whose read marker is unset. Returns false if no
+// unread hunk remains in or after the start position.
+func (m *model) jumpToNextUnread(startFile, startHunk int) bool {
+	for fi := startFile; fi < len(m.files); fi++ {
+		f := &m.files[fi]
+		startHi := 0
+		if fi == startFile {
+			startHi = startHunk
 		}
-		newTop := m.viewport.YOffset() + step
-		m.viewport.SetYOffset(newTop)
-		// Cursor follows to roughly the top of the new view.
-		if newTop < len(m.fileLines) {
-			m.fileLineCursor = newTop
+		for hi := startHi; hi < len(f.Hunks); hi++ {
+			h := &f.Hunks[hi]
+			anchor := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
+			if m.sess.IsRead(anchor) {
+				continue
+			}
+			m.fileIdx = fi
+			m.hunkIdx = hi
+			m.lineCursor = m.firstNonDelete(h, 0, +1)
+			m.refreshViewportWithContext(5)
+			return true
 		}
+	}
+	return false
+}
+
+// refreshViewportWithContext renders the current file and scrolls the
+// viewport so the cursor's hunk sits with `ctx` lines of context above it.
+// Falls back to top-of-content when fewer rows are available.
+func (m *model) refreshViewportWithContext(ctx int) {
+	m.refreshViewport()
+	if m.hunkIdx < 0 || m.hunkIdx >= len(m.hunkRanges) {
 		return
 	}
-	// At bottom of file: cursor → last line first.
-	last := len(m.fileLines) - 1
-	if last >= 0 && m.fileLineCursor < last {
-		m.fileLineCursor = last
-		m.refreshViewport()
-		return
+	target := m.hunkRanges[m.hunkIdx].topRow - ctx
+	if target < 0 {
+		target = 0
 	}
-	// On last line and at bottom: advance to next FileReview.
-	frs := m.sess.FileReviews()
-	for i, fr := range frs {
-		if fr.Path == m.filePath && i+1 < len(frs) {
-			next := frs[i+1]
-			m.filePath = next.Path
-			m.fileLines, _ = gitFileLines(m.sess.Scope.TipSHA, m.filePath)
-			m.fileLineCursor = 0
-			m.refreshViewport()
-			return
-		}
-	}
-	m.status = "end of file review"
+	m.viewport.SetYOffset(target)
+	m.updateDisplayed()
 }
 
 // hunkAtTopOfView places the cursor on the first reviewable line of whichever
@@ -943,7 +926,9 @@ func (m *model) updateFile(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fileLineCursor = max(0, len(m.fileLines)-1)
 		m.refreshViewport()
 	case " ", "space":
-		m.spaceWalkFile()
+		// Same semantics everywhere: next unread in Changes. From modeFile
+		// this takes the user out into modeDiff at the next unread hunk.
+		m.spaceWalk()
 	case "c", "!", "enter":
 		m.openCommentEdit()
 		return m, m.textarea.Focus()
