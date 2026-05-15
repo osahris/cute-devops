@@ -7,30 +7,20 @@
   ansible.builtin.assert:
     that:
       - _vhost_name is match('^[a-z0-9.-]+$')
-      - _vhost_name | length <= 64
+      - _vhost_name | length <= 253       # RFC 1035 FQDN max
     fail_msg: >-
-      vhost.name must match ^[a-z0-9.-]+$ (max 64 chars);
+      vhost.name must match ^[a-z0-9.-]+$ (FQDN form, max 253 chars);
       got '{{ _vhost_name }}'
-
-- name: "Ensure the Unix user exists for vhost {{ _vhost_name }}"
-  ansible.builtin.user:
-    name: "{{ _vhost_name }}"
-    home: "{{ _vhost_dir }}"
-    shell: /bin/bash
-    create_home: false
-    state: present
 
 - name: "Ensure vhost directory exists and is group-shared with pushers for {{ _vhost_name }}"
   ansible.builtin.file:
     path: "{{ _vhost_dir }}"
     state: directory
-    owner: "{{ _vhost_name }}"
+    owner: root
     group: "{{ _vhost_pushers_group }}"
     mode: "2775"
 
 - name: "Initialise the vhost git tree on the deployment branch for {{ _vhost_name }}"
-  become: true
-  become_user: "{{ _vhost_name }}"
   ansible.builtin.shell:  # noqa: command-instead-of-module
     executable: /bin/bash
     chdir: "{{ _vhost_dir }}"
@@ -50,7 +40,9 @@
       set -eu
       chgrp -R "{{ _vhost_pushers_group }}" "{{ _vhost_dir }}/.git"
       find "{{ _vhost_dir }}/.git" -type d -exec chmod g+rwxs {} +
-      find "{{ _vhost_dir }}/.git/objects" "{{ _vhost_dir }}/.git/refs" \
+      find "{{ _vhost_dir }}/.git/objects" \
+           "{{ _vhost_dir }}/.git/refs" \
+           "{{ _vhost_dir }}/.git/logs" \
            -type f -exec chmod g+rw {} + 2>/dev/null || true
   changed_when: false
 
@@ -58,6 +50,6 @@
   ansible.builtin.template:
     src: post-receive.j2
     dest: "{{ _vhost_dir }}/.git/hooks/post-receive"
-    owner: "{{ _vhost_name }}"
+    owner: root
     group: "{{ _vhost_pushers_group }}"
     mode: "0755"

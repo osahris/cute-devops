@@ -9,51 +9,72 @@ SPDX-License-Identifier: EUPL-1.2
 -->
 
 ## Overview 📋
-This pattern describes how to structure and manage services running with docker-compose on Debian stable systems.
+
+How to structure and manage a docker-compose-driven app inside a
+[vhost directory 🏠](./vhost-directory.md). The vhost dir *is* the
+service's home; the compose file lives at its root and is run from
+there. The pattern's name says "service" because that's compose's own
+term for the `services:` block — it's distinct from our vhost (the
+running thing on disk).
 
 ## Goals 🎯
-- Consistent service deployment structure
+
+- Consistent compose layout across vhosts
 - Predictable locations and configurations
-- Easy backup and maintenance
-- Secure default settings
+- Easy backup (`data/` is the trustworthy source)
+- Secure defaults: pinned images, read-only config, no socket access
 
 ## Directory Structure 📂
-```bash
-/srv/{hostname}/          # Root directory for the service
-├── compose.yaml          # Main compose file (new standard name)
-├── compose.override.yaml # Proxy network integration
-├── .env                 # Environment variables
-├── .gitignore          # Git ignore file
-└── SERVICE.md           # Service documentation
+
+```text
+/srv/vhosts/<fqdn>/         # the vhost directory
+├── .git/                   # push target (see vhost-directory pattern)
+├── compose.yaml            # main compose file
+├── compose.override.yaml   # local overrides (proxy network, …)
+├── .env                    # env vars (in .git/info/exclude)
+├── VHOST.md                # what this vhost is, who runs it
+├── config/                 # read-only mounted into the container
+├── data/                   # persistent state — backup target
+├── deploy/                 # post-push hooks (compose pull, up -d)
+└── .gitignore              # compose.override.yaml, VHOST.md, …
 ```
+
+`<fqdn>` is the vhost's fully-qualified hostname (e.g.
+`www.example.com`). Owned by a per-vhost Unix user named the same.
 
 ## Base Requirements 🛠️
-- Debian Stable (current: Bookworm)
-- docker.io and docker-compose from debian-stable repository with apt
-- Regular system updates via unattended-upgrades
 
-## Manual Service Setup 📝
+- Debian 13 (trixie)
+- `docker.io` and `docker-compose` from the trixie repository, via apt
+- Regular system updates via `unattended-upgrades`
 
-### System Packages
+## Setting up a compose vhost 📝
+
+### Install Docker
+
 ```bash
 sudo apt update
-sudo apt install docker.io docker-compose-plugin apparmor
+sudo apt install docker.io docker-compose apparmor
 ```
 
-### Service Directory
+### Create the vhost
+
+Use [`mkbrechtel.devops.vhosts`](../../../roles/vhosts/README.md) to
+provision the vhost directory + Unix user + post-receive hook + the
+`deploy-vhost@.service` template + polkit grant. After it runs you can
+push from anywhere:
+
 ```bash
-mkdir /srv/{hostname}
-cd /srv/hostname}
+git remote add vhost/www.example.com ssh://host/srv/vhosts/www.example.com
+git push vhost/www.example.com main:deploy
 ```
 
-### Base Compose File
-compose.yaml:
-```yaml
-version: '3.9'
+### compose.yaml (committed, in the push)
 
+```yaml
 services:
   app:
-    image: application:version
+    image: application:1.2.3        # pin a tag, not :latest
     restart: unless-stopped
     environment:
       - TZ=UTC
@@ -67,11 +88,12 @@ networks:
     driver: bridge
 ```
 
-### Proxy Integration
-compose.override.yaml:
-```yaml
-version: '3.9'
+### compose.override.yaml (not committed; local to the vhost)
 
+For host-Traefik integration (see
+[Host-wide Traefik 🌐](../deployment/host-traefik.md)):
+
+```yaml
 networks:
   proxy:
     external: true
@@ -83,47 +105,89 @@ services:
       - default
 ```
 
-### Git Configuration
-If your service is stored in a Git repo, you should ignore the compose.override.yaml and SERVICE.md.
-.gitignore:
-```
-compose.override.yaml
-SERVICE.md
+### deploy/ scripts (committed, in the push)
+
+The push fast-forwards the working tree, then runs `deploy/` via
+run-parts. A typical compose deploy:
+
+```sh
+# deploy/10-pull
+#!/bin/sh
+exec docker-compose pull
 ```
 
+```sh
+# deploy/20-up
+#!/bin/sh
+exec docker-compose up -d --remove-orphans
+```
+
+### .gitignore (committed)
+
+Mark local files that should *not* travel in the push:
+
+```text
+compose.override.yaml
+VHOST.md
+```
+
+`.env` is already kept out by the vhost's `.git/info/exclude` (set by
+the role at init time) — it stays local to each vhost and never enters
+git's view.
+
 ## Security Practices 🔐
-- Use specific version tags
-- Restrict directory permissions
-- Read-only mounts where possible
-- Limit network exposure
-- Run services as non-root user
-- Only expose necessary services to proxy network
+
+- Pin image tags (`:1.2.3`, never `:latest`)
+- Read-only `config/` mount, writable `data/` only where needed
+- Run containers as a non-root user inside the image
+- No `docker.sock` exposure unless absolutely required
+- Only join the proxy network from services that need external traffic
 
 ## Operations 🔄
 
-### Start/Stop
+### Manual start / stop (operator at the vhost)
+
 ```bash
-cd /srv/{hostname}
-docker-compose up -d    # Start
-docker-compose down     # Stop
+sudo -u <fqdn> bash -c '
+  cd /srv/vhosts/<fqdn>
+  docker-compose up -d
+'
 ```
 
-### Updates
+Normal updates happen via push — the deploy scripts run `pull` and
+`up -d` automatically.
+
+### Inspecting the deploy
+
 ```bash
-cd /srv/{hostname}
-docker-compose pull
-docker-compose up -d
+systemctl status deploy-vhost@<fqdn>.service
+journalctl -u deploy-vhost@<fqdn>.service
+git -C /srv/vhosts/<fqdn> tag --list 'deployed-to-*'
 ```
 
 ## Anti-patterns ⚠️
-- Using latest tag
-- Storing secrets in compose.yaml
-- Direct modification of container data
-- Exposing services to proxy network unnecessarily
+
+- ❌ Using the `latest` tag
+- ❌ Committing secrets to `compose.yaml` or `.env`
+- ❌ Directly editing files in `data/` instead of through the app
+- ❌ Joining services to the proxy network when they don't expose HTTP
+- ❌ Running `docker-compose` from outside the vhost dir (loses the
+  `compose.override.yaml` and `.env`)
 
 ## Tips 💡
-- Document service specifics in SERVICE.md
-- Use .env-File for configuration
-- Enable health checks
-- Keep proxy network configuration separate in override file
-- On Debian Stable the docker-compose command is based on the old Python compose implementation. Because of this you need to write `docker-compose` and not `docker compose`
+
+- Document the vhost's quirks in `VHOST.md` (not tracked)
+- Use `.env` for per-deployment configuration (DB passwords, secrets,
+  per-environment endpoints)
+- Enable container health checks; let compose restart on failure
+- Keep `compose.override.yaml` for host-local concerns (proxy network,
+  bind mounts, ports) so the committed `compose.yaml` stays portable
+
+## Related Patterns 🔗
+
+- [Vhost Directory 🏠](./vhost-directory.md) — the directory layout
+  and push protocol this pattern lives inside.
+- [Host-wide Traefik 🌐](../deployment/host-traefik.md) — the proxy
+  network the `compose.override.yaml` plugs into.
+- [Push to Deploy 🚀](../deployment/push-to-deploy.md) — the
+  push-is-the-deploy idea this realises.

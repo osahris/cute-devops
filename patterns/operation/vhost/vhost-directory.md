@@ -19,11 +19,15 @@ meaning.
 
 ## Goal
 
-One canonical place on disk for each running vhost: `/srv/vhosts/<name>/`.
-The vhost directory *is* the vhost — its files, its persistent state,
-its identity, and its **git push target**. `cd /srv/vhosts/foo` is *the*
-answer to "where does foo live"; `git push host:/srv/vhosts/foo main:deploy`
-is *the* answer to "how do I deploy foo".
+One canonical place on disk for each running vhost: `/srv/vhosts/<fqdn>/`,
+where `<fqdn>` is the vhost's fully-qualified hostname
+(e.g. `www.example.com`). The FQDN gives global uniqueness for free —
+no project prefix, no path nesting, no symlink farm. The vhost
+directory *is* the vhost — its files, its persistent state, its
+identity, and its **git push target**. `cd /srv/vhosts/www.example.com`
+is *the* answer to "where does it live"; `git push
+host:/srv/vhosts/www.example.com main:deploy` is *the* answer to "how
+do I deploy it".
 
 ## Shape
 
@@ -43,8 +47,10 @@ is *the* answer to "how do I deploy foo".
 └── .gitignore            # ignores compose.override.yaml, .env, data/, …
 ```
 
-Owned by a per-vhost Unix user — typically `<name>` — mode `0755`.
-The vhost's process runs as that user.
+Owned `root:<pushers-group>`, mode `2775` (setgid so pushed objects
+inherit the group). The deploy unit currently runs as root —
+per-vhost isolation is a separate problem the pattern doesn't try to
+solve on disk (see *Open questions*).
 
 ## The vhost directory is a git remote
 
@@ -56,14 +62,13 @@ directory is the whole app as a git working tree. Two branches:
   running. Fast-forwards from `deploy` on each successful deploy.
 
 ```bash
-sudo -u <name> bash -c '
-  cd /srv/vhosts/<name>
-  git init -b deployment .
-  git commit --allow-empty -m "initial"
-  git branch deploy deployment
-  # local-only files: never tracked, never clobbered by push
-  printf "%s\n" ".env" .git/info/exclude
-'
+cd /srv/vhosts/<fqdn>
+git init -b deployment .
+git commit --allow-empty -m "initial"
+git branch deploy deployment
+# local-only files: never tracked, never clobbered by push
+printf "%s\n" ".env" >> .git/info/exclude
+
 # the role installs hooks/post-receive; the systemd template lives once
 # at /etc/systemd/system/deploy-vhost@.service for *all* vhosts
 ```
@@ -128,8 +133,6 @@ Description=Vhost deploy for %i
 
 [Service]
 Type=oneshot
-User=%i
-Group=%i
 WorkingDirectory=/srv/vhosts/%i
 EnvironmentFile=-/srv/vhosts/%i/.env
 ExecStartPre=/usr/bin/git merge --ff-only deploy
@@ -158,19 +161,19 @@ vhosts, or share a vhost with other repos. The connection is "a git
 remote pointing at `/srv/vhosts/<name>`", not name equality:
 
 - **One repo, one vhost** (the common case): the village repo has
-  `vhost/foo` pointing at `/srv/vhosts/foo`. Push lands,
-  `deploy-vhost@foo` runs.
-- **One repo, several vhosts** (a monorepo with a webapp + a worker):
-  the village repo has `vhost/myapp-web` and `vhost/myapp-worker`,
-  pointing at `/srv/vhosts/myapp-web` and `/srv/vhosts/myapp-worker`.
-  Each one's `post-receive` fires its own `deploy-vhost@<name>`.
+  `vhost/www.example.com` pointing at `/srv/vhosts/www.example.com`.
+  Push lands, `deploy-vhost@www.example.com` runs.
+- **One repo, several vhosts** (a monorepo serving web + worker):
+  the village repo has `vhost/www.example.com` and
+  `vhost/worker.example.com`, pointing at the two vhost directories.
+  Each one's `post-receive` fires its own `deploy-vhost@<fqdn>`.
   `git remote | grep '^vhost/'` and `systemctl list-units
   'deploy-vhost@*'` each list every target.
 - **Several repos, one vhost** (frontend + backend assembled into one
-  running thing): both village repos have `vhost/myapp` pointing at
-  the same `/srv/vhosts/myapp`. Each push updates a different subtree
-  (or branch); `post-receive` fires the same `deploy-vhost@myapp`
-  either way.
+  running thing at `app.example.com`): both village repos have
+  `vhost/app.example.com` pointing at the same vhost. Each push
+  updates a different subtree (or branch); `post-receive` fires the
+  same `deploy-vhost@app.example.com` either way.
 
 Other roles latch onto the vhost-name spine:
 
@@ -188,10 +191,12 @@ Other roles latch onto the vhost-name spine:
 
 ## Naming
 
-`<vhost>` is lowercase `[a-z0-9.-]+` — the charset systemd instance
-ids allow, so `deploy-vhost@<vhost>.service` exists without escaping.
-That charset is a *requirement* here, not a convenience, because the
-deploy instance carries the name as its `%i`.
+**`<vhost>` is the FQDN.** It's the same charset systemd instance ids
+allow (lowercase `[a-z0-9.-]+`), so `deploy-vhost@<fqdn>.service`
+exists without escaping. The FQDN gives global uniqueness for free —
+two projects can't accidentally collide; multi-tenant hosts work without
+prefixes; the name doubles as the natural identifier in TLS,
+reverse-proxy config, and DNS.
 
 **Git remote names** that point at a vhost take the shape
 `vhost/<vhost>`. Git allows `/` in ref names, so the remote lands at
@@ -243,32 +248,30 @@ git refs), no separators that confuse `git tag | grep ^deployed-to-`.
 
 ## Open questions
 
-- **Compose-service today says `/srv/<hostname>/`.** Either retire that
-  in favour of `/srv/vhosts/<vhost>/` (small breaking change in the
-  pattern), or keep `<hostname>` as the special case for the
-  one-vhost-per-host shape. Pick one.
-- **The `repos` role's `with_deploy` puts the post-receive on
-  `/srv/repos/<name>.git`**, treating the bare repo as the push
-  target. Under this pattern, the post-receive belongs at
-  `/srv/vhosts/<name>/.git/hooks/`, on the vhost. The `repos` feature
-  is mis-located; the `vhosts` role now covers the right shape, and
-  `repos` `with_deploy` should probably be retired (or repurposed as
-  a "village bare repo auto-pushes to deploy/<name>" feature).
-- **Wider rename.** Other docs currently say "service" for our
-  unit-of-deployment (the existing `push-to-deploy.md`, parts of
-  `compose-service.md`, the `deploy.user` / `deploy.work_tree`
-  naming in role configs). Decide whether to chase the rename
-  through, or live with the local-to-this-pattern naming.
+- **Per-vhost isolation.** The deploy unit currently runs as root and
+  every vhost shares the same Unix identity. That's the smallest
+  amount of plumbing — but it means a compromised deploy script in
+  one vhost can touch any other. Per-vhost Unix users were considered
+  and rejected (FQDN-as-username trips `useradd`'s charset and adds a
+  whole user-lifecycle problem the role would have to own). What's
+  the right isolation primitive? Likely containerised deploys (the
+  vhost is a quadlet / a compose stack with its own UID inside) so
+  isolation is the *container's* job, not the host user's.
+- **The `repos` role's `with_deploy`** puts the post-receive on
+  `/srv/repos/<name>.git`, treating the bare repo as the push target.
+  Under this pattern, the post-receive belongs at
+  `/srv/vhosts/<fqdn>/.git/hooks/`, on the vhost. The `repos` feature
+  is mis-located; the `vhosts` role now covers the right shape.
+  `repos` `with_deploy` should be retired, or repurposed as a
+  "village bare repo auto-pushes to vhost/<fqdn>" feature.
+- **Wider terminology rename.** A few drafts still say "service" for
+  our concept (`oidc-gating.pattern.md`, `project-service-terminology
+  .pattern.md`, parts of `hashicorp-vault-integration.feature.md`).
+  Chase the rename through when the terminology draft is settled.
 - **Pure-static vhosts** (no compose, no restart): the ff-merge step
   already lands the files; the `deploy/` directory can be empty.
-  The shared template costs nothing extra to instantiate, so this is
-  no longer a concern — but worth confirming `run-parts` over an
-  empty dir really does exit 0 in practice.
-- **Project prefix.** Does `<vhost>` ever need a project prefix
-  (`<project>-<vhost>`) to disambiguate on shared hosts, or does
-  `<vhost>` stay globally unique per host? Defer to
-  [[project-service-terminology]] (which itself probably wants to
-  become *project-vhost-host-terminology*).
+  Confirm `run-parts` over an empty dir really does exit 0 in
+  practice.
 
 ## Possible Implementations 🛠️
 

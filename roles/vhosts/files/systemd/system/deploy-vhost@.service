@@ -15,8 +15,6 @@ Description=Vhost deploy for %i
 
 [Service]
 Type=oneshot
-User=%i
-Group=%i
 WorkingDirectory=/srv/vhosts/%i
 EnvironmentFile=-/srv/vhosts/%i/.env
 ExecStartPre=/usr/bin/git merge --ff-only deploy

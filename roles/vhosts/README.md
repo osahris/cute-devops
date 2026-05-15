@@ -16,9 +16,10 @@ ff-merges into the checked-out `deployment` branch, runs the vhost's
 tracked `deploy/` scripts, and tags `deployed-to-<name>-at-<utc>`.
 
 The role ships **one** systemd template — `deploy-vhost@.service` —
-fully parameterized on `%i` (the vhost name), so no per-vhost drop-in
-is needed. Adding a vhost just means: Unix user + dir + git init +
-post-receive hook.
+fully parameterized on `%i` (the vhost FQDN), so no per-vhost drop-in
+is needed. Adding a vhost just means: dir + git init + post-receive
+hook. The deploy unit currently runs as root; per-vhost isolation is
+deferred (see the pattern's open questions).
 
 ## Requirements
 
@@ -31,7 +32,8 @@ post-receive hook.
 
 ```yaml
 vhosts:
-  - name: foo                     # required; matches [a-z0-9.-]+
+  - name: www.example.com         # required; the vhost's FQDN
+                                  #   (lowercase [a-z0-9.-]+, max 253 chars)
     pushers_group: devops         # optional; group allowed to push
                                   #   (defaults to vhosts_default_pushers_group)
 ```
@@ -61,14 +63,14 @@ Defaults (see `defaults/main.yml`):
       vars:
         vhosts_polkit_group: devops
         vhosts:
-          - name: foo
+          - name: www.example.com
 ```
 
 After the role runs, push to it from anywhere:
 
 ```bash
-git remote add vhost/foo ssh://appserver/srv/vhosts/foo
-git push vhost/foo main:deploy
+git remote add vhost/www.example.com ssh://appserver/srv/vhosts/www.example.com
+git push vhost/www.example.com main:deploy
 ```
 
 ## What this role does NOT do

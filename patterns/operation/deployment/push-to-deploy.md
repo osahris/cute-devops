@@ -12,9 +12,12 @@ SPDX-License-Identifier: EUPL-1.2
 
 We have a repo. Pushing to it triggers the deploy. That's the whole pattern.
 
-A bare git repo lives on the host. A `post-receive` hook fires when the deploy
-branch is pushed, and starts a systemd unit that does the deploy. No deploy
-command, no pipeline DSL, no upload protocol — the git remote *is* the deploy.
+A git repo lives on the host — bare or non-bare, the pattern doesn't care.
+A `post-receive` hook fires when the deploy branch is pushed, and starts a
+systemd unit that does the deploy. No deploy command, no pipeline DSL, no
+upload protocol — the git remote *is* the deploy. (For the "non-bare, push
+to the running thing itself" specialisation, see
+[Vhost Directory 🏠](../vhost/vhost-directory.md).)
 
 ## Goals 🎯
 
@@ -26,7 +29,7 @@ command, no pipeline DSL, no upload protocol — the git remote *is* the deploy.
 ## How it works 🛠️
 
 ```
-git push  ──►  bare repo  ──►  post-receive hook  ──►  systemctl start deploy@<id>
+git push  ──►  target repo  ──►  post-receive hook  ──►  systemctl start deploy@<id>
                                                               │
                                                               ▼
                                                    the unit deploys (checkout, restart)
@@ -46,9 +49,10 @@ deploy unit, and nothing else.
 ## Automating it 🔄
 
 Pair this with [Worktree Treehouses 🌳](../../approaches/worktree-treehouses.md):
-extend the bare repo's `reference-transaction` hook to `git push` the deploy
-remote after a merge to `main`. Then a merge *is* the deploy — no separate
-step. For staging vs. prod, use two remotes (see [Stages 🎭](./stages.md)).
+extend the village bare repo's `reference-transaction` hook to `git push`
+the deploy remote after a merge to `main`. Then a merge *is* the deploy —
+no separate step. For staging vs. prod, use two remotes (see
+[Stages 🎭](./stages.md)).
 
 ## Security 🔐
 

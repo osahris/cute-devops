@@ -248,14 +248,14 @@
       vars:
         vhosts_polkit_group: devops
         vhosts:  # noqa: var-naming[no-role-prefix]  -- vhosts role's primary input
-          - name: testvhost
+          - name: testapp.example.test
 
 - name: Vhost push-to-deploy end-to-end test
   hosts: setup_deploy
   become: true
   vars:
-    vhost_name: testvhost
-    vhost_dir: /srv/vhosts/testvhost
+    vhost_name: testapp.example.test
+    vhost_dir: /srv/vhosts/testapp.example.test
     vhost_marker: /tmp/vhost-test-deploy-fired
   tasks:
     - name: Clear the vhost deploy marker from any previous run
