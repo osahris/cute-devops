@@ -51,23 +51,33 @@ const (
 
 type section int
 
+// Sections mirror the H1 chapters of the .review file plus the two
+// sub-sections of `# Review` (Sources, Verdicts).
 const (
-	sectionDiffs section = iota
-	sectionTree
-	sectionCommits
+	sectionSources section = iota
+	sectionVerdicts
 	sectionIssues
+	sectionChanges
+	sectionCommits
+	sectionFileReview
 )
+
+const numSections = 6
 
 func (s section) Label() string {
 	switch s {
-	case sectionDiffs:
-		return "Diffs"
-	case sectionTree:
-		return "Tree"
+	case sectionSources:
+		return "Sources"
+	case sectionVerdicts:
+		return "Verdicts"
+	case sectionIssues:
+		return "General Issues"
+	case sectionChanges:
+		return "Changes"
 	case sectionCommits:
 		return "Commits"
-	case sectionIssues:
-		return "Issues"
+	case sectionFileReview:
+		return "File Review"
 	}
 	return "?"
 }
@@ -100,8 +110,8 @@ type model struct {
 	treeFiles []string      // files at tip SHA (`git ls-tree -r <tip>`)
 
 	// Tree mode state.
-	sect        section
-	sectIdx     [4]int // per-section item index
+	sect    section
+	sectIdx [numSections]int // per-section item index
 
 	// Diff mode state.
 	fileIdx    int
@@ -161,7 +171,7 @@ func newModel(sess *review.ReviewSession, root string) *model {
 		files:      files,
 		treeFiles:  treeFiles,
 		mode:       modeTree,
-		sect:       sectionDiffs,
+		sect:       sectionChanges,
 		editCmtIdx: -1,
 		editIssIdx: -1,
 		textarea:   ta,
@@ -280,24 +290,46 @@ func (m *model) save(s string) {
 // Issues returns titles.
 func (m *model) sectionItems(s section) []string {
 	switch s {
-	case sectionDiffs:
-		out := make([]string, len(m.files))
-		for i, f := range m.files {
-			out[i] = f.Path
+	case sectionSources:
+		return []string{
+			"From: " + m.sess.Scope.Base,
+			"To: " + m.sess.Scope.Branch,
+			"Diff: " + m.sess.Scope.Diff,
+			fmt.Sprintf("Commits: %d", len(m.sess.Scope.Commits)),
 		}
-		return out
-	case sectionTree:
-		return m.treeFiles
-	case sectionCommits:
-		out := make([]string, len(m.sess.Scope.Commits))
-		for i, c := range m.sess.Scope.Commits {
-			out[i] = c.Short + "  " + c.Subject
+	case sectionVerdicts:
+		vs := m.sess.Verdicts()
+		if len(vs) == 0 {
+			return []string{string(m.sess.Verdict) + " (initial)"}
+		}
+		out := make([]string, len(vs))
+		for i, v := range vs {
+			out[i] = string(v.State) + "  " + v.Date
 		}
 		return out
 	case sectionIssues:
 		out := make([]string, len(m.sess.Issues()))
 		for i, it := range m.sess.Issues() {
 			out[i] = it.Title
+		}
+		return out
+	case sectionChanges:
+		out := make([]string, len(m.files))
+		for i, f := range m.files {
+			out[i] = f.Path
+		}
+		return out
+	case sectionCommits:
+		out := make([]string, len(m.sess.Scope.Commits))
+		for i, c := range m.sess.Scope.Commits {
+			out[i] = c.Short + "  " + c.Subject
+		}
+		return out
+	case sectionFileReview:
+		frs := m.sess.FileReviews()
+		out := make([]string, len(frs))
+		for i, fr := range frs {
+			out[i] = fr.Path
 		}
 		return out
 	}
@@ -361,10 +393,15 @@ func (m *model) treeNext() {
 	items := m.currentSectionItems()
 	if m.sectIdx[m.sect]+1 < len(items) {
 		m.sectIdx[m.sect]++
-	} else if int(m.sect) < 3 {
-		// advance to next section
-		m.sect = section(int(m.sect) + 1)
-		m.sectIdx[m.sect] = 0
+	} else if int(m.sect)+1 < numSections {
+		// advance to next non-empty section
+		for s := int(m.sect) + 1; s < numSections; s++ {
+			if len(m.sectionItems(section(s))) > 0 {
+				m.sect = section(s)
+				m.sectIdx[m.sect] = 0
+				break
+			}
+		}
 	}
 	m.onTreeSelectionChanged()
 }
@@ -373,9 +410,14 @@ func (m *model) treePrev() {
 	if m.sectIdx[m.sect] > 0 {
 		m.sectIdx[m.sect]--
 	} else if int(m.sect) > 0 {
-		m.sect = section(int(m.sect) - 1)
-		items := m.currentSectionItems()
-		m.sectIdx[m.sect] = max(0, len(items)-1)
+		for s := int(m.sect) - 1; s >= 0; s-- {
+			items := m.sectionItems(section(s))
+			if len(items) > 0 {
+				m.sect = section(s)
+				m.sectIdx[m.sect] = len(items) - 1
+				break
+			}
+		}
 	}
 	m.onTreeSelectionChanged()
 }
@@ -383,21 +425,18 @@ func (m *model) treePrev() {
 // onTreeSelectionChanged peeks the right pane content based on the selected item.
 func (m *model) onTreeSelectionChanged() {
 	switch m.sect {
-	case sectionDiffs:
+	case sectionChanges:
 		m.fileIdx = m.sectIdx[m.sect]
 		m.hunkIdx = 0
-	case sectionTree:
-		// peek file content
+	case sectionFileReview:
 		idx := m.sectIdx[m.sect]
-		if idx < len(m.treeFiles) {
-			m.filePath = m.treeFiles[idx]
+		frs := m.sess.FileReviews()
+		if idx < len(frs) {
+			m.filePath = frs[idx].Path
 			m.fileLines, _ = gitFileLines(m.sess.Scope.TipSHA, m.filePath)
 		}
-	case sectionCommits:
-		// peek that commit's diff
-		// kept simple: just stays on current file's full-scope diff
-	case sectionIssues:
-		// nothing to peek
+	case sectionCommits, sectionIssues, sectionSources, sectionVerdicts:
+		// no peek-side-effect; renderTreePeek handles display
 	}
 	m.refreshViewport()
 }
@@ -405,15 +444,18 @@ func (m *model) onTreeSelectionChanged() {
 // openSelectedItem performs the natural drill-in action.
 func (m *model) openSelectedItem() {
 	switch m.sect {
-	case sectionDiffs:
+	case sectionSources, sectionVerdicts:
+		// peek-only; drilling in just keeps the right pane content
+	case sectionChanges:
 		m.fileIdx = m.sectIdx[m.sect]
 		m.hunkIdx = 0
 		m.mode = modeDiff
 		m.refreshViewport()
-	case sectionTree:
+	case sectionFileReview:
 		idx := m.sectIdx[m.sect]
-		if idx < len(m.treeFiles) {
-			m.filePath = m.treeFiles[idx]
+		frs := m.sess.FileReviews()
+		if idx < len(frs) {
+			m.filePath = frs[idx].Path
 			m.fileLines, _ = gitFileLines(m.sess.Scope.TipSHA, m.filePath)
 			m.fileLineCursor = 0
 			m.fileSelStart = 0
@@ -1043,9 +1085,9 @@ func (m *model) refreshViewport() {
 	case modeTree:
 		// Peek: render whatever the selection suggests.
 		switch m.sect {
-		case sectionDiffs:
+		case sectionChanges:
 			body, ranges, cursorRow = renderFileDiff(m)
-		case sectionTree:
+		case sectionFileReview:
 			body, cursorRow = renderFileView(m)
 		case sectionCommits:
 			body = renderCommitDetail(m)
@@ -1171,7 +1213,7 @@ func helpFor(m *model) string {
 func (m *model) viewSidebar() string {
 	w := sidebarWidth(m.width)
 	var sb strings.Builder
-	for _, sec := range []section{sectionDiffs, sectionTree, sectionCommits, sectionIssues} {
+	for _, sec := range []section{sectionSources, sectionVerdicts, sectionIssues, sectionChanges, sectionCommits, sectionFileReview} {
 		items := m.sectionItems(sec)
 		hdr := fmt.Sprintf("%s (%d)", sec.Label(), len(items))
 		if m.mode == modeTree && m.sect == sec {
@@ -1195,7 +1237,7 @@ func (m *model) viewSidebar() string {
 				line = styleCursor.Render(line)
 			}
 			// Read-state annotation for Diffs only.
-			if sec == sectionDiffs {
+			if sec == sectionChanges {
 				r, t := m.fileReadStats(i)
 				if t > 0 {
 					stat := fmt.Sprintf(" %d/%d", r, t)
