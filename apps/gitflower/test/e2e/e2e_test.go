@@ -81,24 +81,58 @@ func TestReviewViaPTY(t *testing.T) {
 		close(doneRead)
 	}()
 
-	// Sequence:
-	//   1.  Space      — section mode → drill into Changes' first unread hunk
-	//   2.  >          — cycle verdict to requested-changes
-	//   3.  c          — open inline comment editor
-	//   4.  "Inline comment from PTY test."
-	//   5.  Alt+Enter  — submit comment
-	//   6.  s          — explicit save
-	//   7.  q          — quit
+	// Sequence (covers every .review feature touched by the TUI):
+	//   1.  Space         — section mode → drill into Changes' first unread hunk
+	//   2.  >             — cycle verdict to requested-changes
+	//   3.  c + body + Alt+Enter   — add an inline comment
+	//   4.  F             — enter file-review mode on the current Changes file
+	//   5.  j j j         — walk a few lines (populates # File Review)
+	//   6.  ← (h)         — back to section mode
+	//   7.  k k k k k k   — climb up to Issues section (Changes is index 3)
+	//   8.  i + title + Tab + body + Alt+Enter   — add a general issue
+	//   9.  Space, Space, Space, …  — walk through every remaining unread
+	//                                   hunk; when all-read, lands on the
+	//                                   verdict editor with current state.
+	//   10. summary + Alt+Enter  — submit a Verdict audit-log entry
+	//   11. s             — explicit save
+	//   12. q             — quit
 	steps := []sendStep{
-		// Wait for the first frame.
-		{wait: 800 * time.Millisecond},
-		{keys: " ", wait: defaultStepGap},
-		{keys: ">", wait: defaultStepGap},
-		{keys: "c", wait: defaultStepGap},
+		{wait: 800 * time.Millisecond}, // first frame
+
+		{keys: " ", wait: defaultStepGap},                          // drill in
+		{keys: ">", wait: defaultStepGap},                          // verdict cycle
+		{keys: "c", wait: defaultStepGap},                          // comment
 		{keys: "Inline comment from PTY test.", wait: defaultStepGap},
-		{keys: "\x1b\r", wait: defaultStepGap}, // Alt+Enter → submit
-		{keys: "s", wait: defaultStepGap},
-		{keys: "q", wait: 100 * time.Millisecond},
+		{keys: "\x1b\r", wait: defaultStepGap},                     // Alt+Enter submit
+
+		{keys: "F", wait: defaultStepGap},                          // file review
+		{keys: "jjj", wait: defaultStepGap},                         // walk lines
+		{keys: "h", wait: defaultStepGap},                          // back to section
+
+		// Walk up from File Review (idx 5) to General Issues (idx 2): five k.
+		{keys: "kkkkk", wait: defaultStepGap},
+
+		{keys: "i", wait: defaultStepGap},                          // new issue
+		{keys: "Project-wide style nit", wait: defaultStepGap},     // title
+		{keys: "\t", wait: defaultStepGap},                         // Tab → body
+		{keys: "Some identifiers are single-letter.", wait: defaultStepGap},
+		{keys: "\x1b\r", wait: defaultStepGap},                     // Alt+Enter submit
+
+		// Walk to end: pressing Space repeatedly. Each Space either advances
+		// or, when there's nothing left, opens the verdict editor.
+		{keys: " ", wait: 1500 * time.Millisecond}, // let read tick fire (100ms delay)
+		{keys: " ", wait: 1500 * time.Millisecond},
+		{keys: " ", wait: 1500 * time.Millisecond},
+		{keys: " ", wait: 1500 * time.Millisecond},
+		{keys: " ", wait: 1500 * time.Millisecond},
+		{keys: " ", wait: 1500 * time.Millisecond},
+
+		// At end-of-changes Space opens the verdict editor.
+		{keys: "Implementation is sound. Ready to merge.", wait: defaultStepGap},
+		{keys: "\x1b\r", wait: defaultStepGap},                     // Alt+Enter submit
+
+		{keys: "s", wait: defaultStepGap},                          // save
+		{keys: "q", wait: 100 * time.Millisecond},                  // quit
 	}
 	for i, s := range steps {
 		if s.keys != "" {
@@ -129,19 +163,36 @@ func TestReviewViaPTY(t *testing.T) {
 	}
 
 	for _, want := range []string{
+		// Sections & meta
 		"# Review\n",
 		"## Sources\n",
 		"- From: `main`",
 		"- To: `feature`",
 		"## Verdicts\n",
-		"### Verdict: requested-changes (From: reviewer <reviewer@example.com>",
 		"# General Issues\n",
 		"# Changes\n",
+		"# Commits\n",
+		"# File Review\n",
+
+		// Per-file change subsections
 		"## Changes in `greet.go`",
 		"## Changes in `greet_test.go`",
-		"# Commits\n",
+
+		// Verdict audit-log entry from the V submission at the end
+		"### Verdict: requested-changes (From: reviewer <reviewer@example.com>",
+		"Implementation is sound. Ready to merge.",
+
+		// Inline comment
 		"### Comment (From: reviewer <reviewer@example.com>",
 		"Inline comment from PTY test.",
+
+		// General issue
+		"## Issue 1: Project-wide style nit",
+		"Some identifiers are single-letter.",
+
+		// File Review section pulled in
+		"## File `greet.go` @",
+		"> 1: package greet",
 	} {
 		if !strings.Contains(string(produced), want) {
 			t.Errorf("produced .review missing %q\n--- file ---\n%s\n--- end ---",

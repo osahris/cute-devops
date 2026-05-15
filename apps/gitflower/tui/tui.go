@@ -311,9 +311,8 @@ func (m *model) handleGlobal(key string) (tea.Cmd, bool) {
 		}
 		return nil, true
 	case "V":
-		m.openEdit(editSummary, "", -1, -1, "")
-		m.textarea.SetValue(m.sess.Summary)
-		return m.textarea.Focus(), true
+		m.openVerdictEditor()
+		return nil, true
 	}
 	return nil, false
 }
@@ -612,6 +611,11 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.edit != editNone {
 			return m, m.textarea.Focus()
 		}
+	case "F":
+		// Enter file-review mode on the current Changes file. The session
+		// gains a FileReview entry; cursor moves below will populate its
+		// Lines with the content the reviewer actually visits.
+		m.enterFileReview(m.currentFile().Path)
 	default:
 		// Viewport scroll fallback: after scrolling, keep the line cursor
 		// inside the visible viewport so the highlight is never lost.
@@ -825,8 +829,23 @@ func (m *model) spaceWalk() {
 		return
 	}
 
-	// (6) End of changes.
-	m.status = "all read"
+	// (6) End of changes — land on Verdicts and open the summary editor
+	// so the reviewer commits a verdict to wrap up the walk.
+	m.sect = sectionVerdicts
+	m.sectIdx[sectionVerdicts] = max(0, len(m.sess.Verdicts())-1)
+	m.mode = modeTree
+	m.refreshViewport()
+	m.openVerdictEditor()
+	m.status = "all read — record your verdict"
+}
+
+// openVerdictEditor opens the inline summary editor pre-populated with the
+// current canonical summary. Submitting calls AddVerdict so the audit log
+// gets a fresh entry.
+func (m *model) openVerdictEditor() {
+	m.openEdit(editSummary, "", -1, -1, "")
+	m.textarea.SetValue(m.sess.Summary)
+	_ = m.textarea.Focus()
 }
 
 // refreshViewportWithContext renders the current file and scrolls the
@@ -850,6 +869,42 @@ func (m *model) refreshViewportWithContext(ctx int) {
 // line cursor to that hunk's first reviewable line. Called after every
 // viewport scroll in line mode, so PgUp / PgDn / mouse-wheel each move the
 // active line along with the view.
+// enterFileReview switches to modeFile on the given path. Loads the file
+// content at the scope's tip SHA, parks the cursor at the top, and records
+// the first visited line so the # File Review section gets a sub-section
+// even if the user just opens-and-closes.
+func (m *model) enterFileReview(path string) {
+	if path == "" {
+		return
+	}
+	lines, err := gitFileLines(m.sess.Scope.TipSHA, path)
+	if err != nil || len(lines) == 0 {
+		m.status = "no content at tip for " + path
+		return
+	}
+	m.filePath = path
+	m.fileLines = lines
+	m.fileLineCursor = 0
+	m.mode = modeFile
+	m.recordVisitedLine()
+	m.refreshViewport()
+}
+
+// recordVisitedLine records the cursor's current file-mode line into the
+// session's FileReview entry for the active path.
+func (m *model) recordVisitedLine() {
+	if m.filePath == "" || m.fileLineCursor < 0 || m.fileLineCursor >= len(m.fileLines) {
+		return
+	}
+	m.sess.RecordFileLine(
+		m.filePath,
+		m.sess.Scope.TipSHA,
+		m.fileLineCursor+1, // 1-based line numbers
+		m.fileLines[m.fileLineCursor],
+	)
+	_ = m.sess.Save()
+}
+
 func (m *model) snapCursorIntoView() {
 	if len(m.hunkRanges) == 0 {
 		return
@@ -997,18 +1052,22 @@ func (m *model) updateFile(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case "j", "down":
 		if m.fileLineCursor+1 < len(m.fileLines) {
 			m.fileLineCursor++
+			m.recordVisitedLine()
 			m.refreshViewport()
 		}
 	case "k", "up":
 		if m.fileLineCursor > 0 {
 			m.fileLineCursor--
+			m.recordVisitedLine()
 			m.refreshViewport()
 		}
 	case "home":
 		m.fileLineCursor = 0
+		m.recordVisitedLine()
 		m.refreshViewport()
 	case "end":
 		m.fileLineCursor = max(0, len(m.fileLines)-1)
+		m.recordVisitedLine()
 		m.refreshViewport()
 	case " ", "space":
 		// Same semantics everywhere: next unread in Changes. From modeFile
@@ -1170,8 +1229,16 @@ func (m *model) submitEdit() {
 			m.save(word + " added")
 		}
 	case editSummary:
+		// Commit a fresh verdict audit-log entry alongside the summary so
+		// each explicit V submission becomes a new entry in # Verdicts.
+		// (The </> cycle only mutates the canonical state and produces no
+		// audit entry until the user lands here.)
 		m.sess.SetSummary(text)
-		m.save("summary updated")
+		m.sess.AddVerdict(review.VerdictEvent{
+			State:   m.sess.Verdict,
+			Summary: text,
+		})
+		m.save("verdict recorded")
 	case editIssue:
 		title := strings.TrimSpace(m.title.Value())
 		if title == "" {

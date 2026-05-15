@@ -158,6 +158,39 @@ func (s *ReviewSession) AddFileReview(fr FileReview) {
 	s.dirty = true
 }
 
+// RecordFileLine finds-or-creates a FileReview entry for (path, tipSHA) and
+// appends the given line if it isn't already recorded. Lines stay sorted by
+// number. Called by the TUI on every cursor move in file-review mode so the
+// # File Review section accumulates exactly the content the reviewer visited.
+func (s *ReviewSession) RecordFileLine(path, tipSHA string, number int, content string) {
+	if number <= 0 {
+		return
+	}
+	for i := range s.fileReviews {
+		if s.fileReviews[i].Path != path {
+			continue
+		}
+		for _, fl := range s.fileReviews[i].Lines {
+			if fl.Number == number {
+				return
+			}
+		}
+		s.fileReviews[i].Lines = append(s.fileReviews[i].Lines,
+			FileLine{Number: number, Content: content})
+		sort.Slice(s.fileReviews[i].Lines, func(a, b int) bool {
+			return s.fileReviews[i].Lines[a].Number < s.fileReviews[i].Lines[b].Number
+		})
+		s.dirty = true
+		return
+	}
+	s.fileReviews = append(s.fileReviews, FileReview{
+		Path:   path,
+		TipSHA: tipSHA,
+		Lines:  []FileLine{{Number: number, Content: content}},
+	})
+	s.dirty = true
+}
+
 // New creates a fresh ReviewSession.
 func New(scope Scope, reviewer, path string) *ReviewSession {
 	return &ReviewSession{
