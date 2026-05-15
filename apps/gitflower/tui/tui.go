@@ -606,9 +606,12 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.textarea.Focus()
 		}
 	default:
+		// Viewport scroll fallback: after scrolling, keep the line cursor
+		// inside the visible viewport so the highlight is never lost.
 		var cmd tea.Cmd
 		m.viewport, cmd = m.viewport.Update(msg)
 		m.updateDisplayed()
+		m.snapCursorIntoView()
 		return m, cmd
 	}
 	return m, nil
@@ -724,59 +727,99 @@ func (m *model) cursorNewLine(h *review.Hunk) int {
 	return 0
 }
 
-// spaceWalk jumps the cursor to the next unread hunk in the Changes list.
-// "Unread" = the hunk's read marker is not set on the session. The viewport
-// is positioned so 5 rows of context precede the new cursor (clamped to
-// top-of-content when there's less room).
+// spaceWalk does the same thing everywhere: take the user to the next
+// unread hunk. Concretely:
 //
-// Behaviour by mode:
-//   - Section mode: enters line mode and seeks from the section-cursor's
-//     file (so pressing Space on a file in the sidebar drills in and lands
-//     on its first unread hunk).
-//   - Line mode: advances strictly past the current hunk to the next
-//     unread one.
-//   - End of all files: status "all read".
+//   1. From section mode: enter line mode on the file under the section
+//      cursor (or fileIdx if no section cursor). Treat as "before hunk 0"
+//      and seek the first unread hunk in that file.
+//   2. From line mode, if the current hunk is unread: no-op. The current
+//      line IS the next unread.
+//   3. Else, look for an unread hunk strictly after the cursor IN THE
+//      CURRENT FILE. If found, jump there.
+//   4. Else (no unread left in current file), if the cursor is not yet on
+//      the last reviewable line of the file: move there. No file change.
+//   5. Else, advance to the next file. In that file, seek the first
+//      unread; if none, land on the last reviewable line.
+//   6. If no further file: status "all read".
+//
+// The viewport is positioned so 5 rows of context precede the new cursor
+// (clamped to top-of-content).
 func (m *model) spaceWalk() {
-	startFile := m.fileIdx
-	startHunk := m.hunkIdx + 1
 	if m.mode == modeTree {
 		if m.sect == sectionChanges {
-			startFile = m.sectIdx[m.sect]
-		} else {
-			startFile = 0
+			m.fileIdx = m.sectIdx[m.sect]
 		}
-		startHunk = 0
+		m.hunkIdx = -1 // virtual "before first hunk"
 		m.mode = modeDiff
 	}
-	if !m.jumpToNextUnread(startFile, startHunk) {
-		m.status = "all read"
-	}
-}
 
-// jumpToNextUnread scans forward from (startFile, startHunk) and lands the
-// cursor on the first hunk whose read marker is unset. Returns false if no
-// unread hunk remains in or after the start position.
-func (m *model) jumpToNextUnread(startFile, startHunk int) bool {
-	for fi := startFile; fi < len(m.files); fi++ {
-		f := &m.files[fi]
-		startHi := 0
-		if fi == startFile {
-			startHi = startHunk
-		}
-		for hi := startHi; hi < len(f.Hunks); hi++ {
-			h := &f.Hunks[hi]
-			anchor := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
-			if m.sess.IsRead(anchor) {
-				continue
+	// (2) Current hunk unread? Stay put.
+	if m.hunkIdx >= 0 {
+		if h := m.currentHunk(); h != nil {
+			a := review.HunkAnchor(m.currentFile().Path, h.NewStart, h.NewLines)
+			if !m.sess.IsRead(a) {
+				return
 			}
-			m.fileIdx = fi
-			m.hunkIdx = hi
-			m.lineCursor = m.firstNonDelete(h, 0, +1)
-			m.refreshViewportWithContext(5)
-			return true
 		}
 	}
-	return false
+
+	// (3) Next unread strictly after the cursor in current file.
+	f := m.currentFile()
+	for hi := m.hunkIdx + 1; hi < len(f.Hunks); hi++ {
+		h := &f.Hunks[hi]
+		a := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
+		if m.sess.IsRead(a) {
+			continue
+		}
+		m.hunkIdx = hi
+		m.lineCursor = m.firstNonDelete(h, 0, +1)
+		m.refreshViewportWithContext(5)
+		return
+	}
+
+	// (4) No unread left in this file: park on the last reviewable line.
+	if last := len(f.Hunks) - 1; last >= 0 {
+		lastH := &f.Hunks[last]
+		lastLine := m.firstNonDelete(lastH, len(lastH.Lines)-1, -1)
+		if m.hunkIdx < last || m.lineCursor < lastLine {
+			m.hunkIdx = last
+			m.lineCursor = lastLine
+			m.refreshViewportWithContext(5)
+			return
+		}
+	}
+
+	// (5) On the last line and no unreads here; advance to next file.
+	if m.fileIdx+1 < len(m.files) {
+		m.fileIdx++
+		m.hunkIdx = -1
+		nf := m.currentFile()
+		for hi := 0; hi < len(nf.Hunks); hi++ {
+			h := &nf.Hunks[hi]
+			a := review.HunkAnchor(nf.Path, h.NewStart, h.NewLines)
+			if !m.sess.IsRead(a) {
+				m.hunkIdx = hi
+				m.lineCursor = m.firstNonDelete(h, 0, +1)
+				m.refreshViewportWithContext(5)
+				return
+			}
+		}
+		// New file is also all-read; land on its last line.
+		if last := len(nf.Hunks) - 1; last >= 0 {
+			m.hunkIdx = last
+			lastH := &nf.Hunks[last]
+			m.lineCursor = m.firstNonDelete(lastH, len(lastH.Lines)-1, -1)
+		} else {
+			m.hunkIdx = 0
+			m.lineCursor = 0
+		}
+		m.refreshViewportWithContext(5)
+		return
+	}
+
+	// (6) End of changes.
+	m.status = "all read"
 }
 
 // refreshViewportWithContext renders the current file and scrolls the
@@ -793,6 +836,35 @@ func (m *model) refreshViewportWithContext(ctx int) {
 	}
 	m.viewport.SetYOffset(target)
 	m.updateDisplayed()
+}
+
+// snapCursorIntoView ensures the line cursor (m.hunkIdx + m.lineCursor) is
+// inside the visible viewport. If it would fall above the top, snap to the
+// uppermost visible hunk's first reviewable line; if below the bottom, snap
+// to the bottommost visible hunk's first reviewable line.
+func (m *model) snapCursorIntoView() {
+	if len(m.hunkRanges) == 0 {
+		return
+	}
+	top := m.viewport.YOffset()
+	bot := top + m.viewport.Height() - 1
+	// Find current cursor's row range.
+	if m.hunkIdx >= 0 && m.hunkIdx < len(m.hunkRanges) {
+		r := m.hunkRanges[m.hunkIdx]
+		if r.botRow >= top && r.topRow <= bot {
+			return // cursor's hunk overlaps the viewport
+		}
+	}
+	// Off-screen: snap to first hunk inside (or near) the visible range.
+	for i, r := range m.hunkRanges {
+		if r.botRow >= top && r.topRow <= bot {
+			m.hunkIdx = i
+			if h := m.currentHunk(); h != nil {
+				m.lineCursor = m.firstNonDelete(h, 0, +1)
+			}
+			return
+		}
+	}
 }
 
 // hunkAtTopOfView places the cursor on the first reviewable line of whichever
@@ -941,8 +1013,15 @@ func (m *model) updateFile(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.textarea.Focus()
 		}
 	default:
+		// Viewport scroll fallback in file-review mode: keep the line
+		// cursor in view (snap to the first visible line if scrolled away).
 		var cmd tea.Cmd
 		m.viewport, cmd = m.viewport.Update(msg)
+		if top := m.viewport.YOffset(); m.fileLineCursor < top {
+			m.fileLineCursor = top
+		} else if bot := top + m.viewport.Height() - 1; m.fileLineCursor > bot {
+			m.fileLineCursor = bot
+		}
 		return m, cmd
 	}
 	return m, nil
