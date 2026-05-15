@@ -1,0 +1,20 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+#
+# This file is managed by the mkbrechtel.devops.vhosts Ansible role!
+# MANUAL CHANGES WILL BE OVERWRITTEN WITHOUT WARNING!
+#
+# Run-parts wrapper for deploy-vhost@.service's ExecStart. systemd's User=
+# switch doesn't go through pam_systemd, so XDG_RUNTIME_DIR isn't populated
+# for the unit's processes -- which would block `systemctl --user`,
+# quadlets, and anything else that talks to user-systemd. We set it here
+# (from $(id -u) at run time -- %U at unit-parse time resolves to the
+# manager's UID, not User='s) and exec run-parts so deploy/ scripts
+# inherit it and can deploy into the user scope directly.
+set -eu
+
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+
+exec /usr/bin/run-parts --exit-on-error --verbose deploy/

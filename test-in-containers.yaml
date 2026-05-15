@@ -282,6 +282,10 @@
           mkdir -p deploy
           cat > deploy/10-mark <<'EOS'
           #!/bin/sh
+          # Prove the wrapper gave us a usable XDG_RUNTIME_DIR by talking
+          # to user-systemd. If that fails, the deploy fails.
+          set -eu
+          systemctl --user list-units --no-pager >/dev/null
           touch {{ vhost_marker }}
           EOS
           chmod +x deploy/10-mark

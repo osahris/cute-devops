@@ -26,13 +26,16 @@
     group: root
     mode: "0755"
 
-- name: Install the tag-deployed helper used by deploy-vhost@.service
+- name: Install the helpers used by deploy-vhost@.service
   ansible.builtin.copy:
-    src: tag-deployed
-    dest: "{{ vhosts_helper_dir }}/tag-deployed"
+    src: "{{ item }}"
+    dest: "{{ vhosts_helper_dir }}/{{ item }}"
     owner: root
     group: root
     mode: "0755"
+  loop:
+    - tag-deployed
+    - deploy-scripts
 
 - name: Install the deploy-vhost@.service template unit
   ansible.builtin.copy:

@@ -19,5 +19,5 @@ User=%i
 WorkingDirectory=/srv/vhosts/%i
 EnvironmentFile=-/srv/vhosts/%i/.env
 ExecStartPre=/usr/bin/git merge --ff-only deploy
-ExecStart=/usr/bin/run-parts --exit-on-error --verbose deploy/
+ExecStart=/usr/local/lib/vhost/deploy-scripts
 ExecStartPost=/usr/local/lib/vhost/tag-deployed %i

@@ -260,15 +260,12 @@ git refs), no separators that confuse `git tag | grep ^deployed-to-`.
 
 ## Open questions
 
-- **XDG_RUNTIME_DIR in the deploy unit.** Deploy scripts that want to
-  talk to user-systemd (`systemctl --user`, quadlets) need
-  `XDG_RUNTIME_DIR=/run/user/<uid>` set. The system-level
-  `deploy-vhost@.service` switches user via `User=%i` but doesn't run
-  pam_systemd, so this env var isn't set automatically. Either set it
-  in `deploy/` scripts that need it, or have the deploy unit do a tiny
-  uid lookup in a wrapper (`Environment=XDG_RUNTIME_DIR=/run/user/$(id -u %i)`
-  doesn't work — no shell substitution in unit files). Probably ends up
-  being a one-line `eval` in the scripts.
+_(The XDG_RUNTIME_DIR concern is resolved: the role ships a tiny
+`/usr/local/lib/vhost/deploy-scripts` wrapper that exports
+`XDG_RUNTIME_DIR=/run/user/$(id -u)` and execs `run-parts deploy/`,
+so deploy scripts inherit it and can `systemctl --user`, install
+quadlets, etc. directly. `%U` was the obvious specifier candidate but
+resolves at unit-parse time to the manager's UID, not `User=`'s.)_
 - **The `repos` role's `with_deploy`** puts the post-receive on
   `/srv/repos/<name>.git`, treating the bare repo as the push target.
   Under this pattern, the post-receive belongs at
