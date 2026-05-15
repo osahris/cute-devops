@@ -2,3 +2,11 @@ version = 1
 SPDX-PackageName = "mkbrechtel.devops"
 SPDX-PackageSupplier = "Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>"
 SPDX-PackageDownloadLocation = "https://github.com/mkbrechtel/devops"
+
+# Vendored gitflower subtree + Go module metadata. The gitflower project is
+# subtree-added from /home/mkbrechtel/gitflower (own work) and inherits the
+# collection's EUPL-1.2 license. go.sum is checksum data, no per-file header.
+[[annotations]]
+path = ["apps/gitflower/README.md", "apps/gitflower/CLAUDE.md", "apps/gitflower/go.mod", "apps/gitflower/go.sum"]
+SPDX-FileCopyrightText = "2025-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>"
+SPDX-License-Identifier = "EUPL-1.2"
