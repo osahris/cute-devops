@@ -176,6 +176,8 @@ func newModel(sess *review.ReviewSession, root string, readDelay time.Duration) 
 	ti.CharLimit = 200
 
 	vp := viewport.New(viewport.WithWidth(80), viewport.WithHeight(20))
+	vp.SoftWrap = true       // default — long lines wrap visually
+	vp.SetHorizontalStep(0)  // disable horizontal scroll while soft-wrapping
 
 	treeFiles, _ := gitTreeFiles(sess.Scope.TipSHA)
 
@@ -538,9 +540,24 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	switch key.String() {
+	case "w":
+		m.toggleWrap()
 	case "left", "h":
+		// Hard-wrap: left scrolls horizontally; only when at column 0 do
+		// we go back to section mode. Soft-wrap: left always exits.
+		if !m.viewport.SoftWrap && m.viewport.XOffset() > 0 {
+			m.viewport.ScrollLeft(4)
+			return m, nil
+		}
 		m.mode = modeTree
 		m.refreshViewport()
+	case "right", "l":
+		// Hard-wrap: right scrolls horizontally; otherwise no-op (line mode
+		// already in line-cursor sub-state per the simplified model).
+		if !m.viewport.SoftWrap {
+			m.viewport.ScrollRight(4)
+			return m, nil
+		}
 	case "j", "down":
 		m.lineNext()
 	case "k", "up":
@@ -787,8 +804,9 @@ func (m *model) spaceWalkFile() {
 	m.status = "end of file review"
 }
 
-// hunkAtTopOfView sets hunkIdx to whichever hunk now occupies the top of the
-// viewport, and places the line cursor at that hunk's first reviewable line.
+// hunkAtTopOfView places the cursor on the first reviewable line of whichever
+// hunk now occupies the top of the viewport, so a Space walk always leaves
+// the cursor on the uppermost reviewable line of the new view.
 func (m *model) hunkAtTopOfView() {
 	top := m.viewport.YOffset()
 	bestIdx := m.hunkIdx
@@ -798,14 +816,28 @@ func (m *model) hunkAtTopOfView() {
 			break
 		}
 		if r.topRow > top {
+			bestIdx = i
 			break
 		}
 	}
-	if bestIdx != m.hunkIdx {
-		m.hunkIdx = bestIdx
-		if h := m.currentHunk(); h != nil {
-			m.lineCursor = m.firstNonDelete(h, 0, +1)
-		}
+	m.hunkIdx = bestIdx
+	if h := m.currentHunk(); h != nil {
+		m.lineCursor = m.firstNonDelete(h, 0, +1)
+	}
+}
+
+// toggleWrap switches the diff/file viewport between soft-wrap (default;
+// long lines wrap visually) and hard-wrap (lines extend off-screen; arrow
+// keys scroll horizontally; left-arrow at column 0 exits to section mode).
+func (m *model) toggleWrap() {
+	m.viewport.SoftWrap = !m.viewport.SoftWrap
+	if m.viewport.SoftWrap {
+		m.viewport.SetHorizontalStep(0)
+		m.viewport.SetXOffset(0)
+		m.status = "wrap: soft"
+	} else {
+		m.viewport.SetHorizontalStep(4)
+		m.status = "wrap: hard (←/→ scroll horizontally)"
 	}
 }
 
@@ -872,9 +904,20 @@ func (m *model) updateFile(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	switch key.String() {
+	case "w":
+		m.toggleWrap()
 	case "left", "h":
+		if !m.viewport.SoftWrap && m.viewport.XOffset() > 0 {
+			m.viewport.ScrollLeft(4)
+			return m, nil
+		}
 		m.mode = modeTree
 		m.refreshViewport()
+	case "right", "l":
+		if !m.viewport.SoftWrap {
+			m.viewport.ScrollRight(4)
+			return m, nil
+		}
 	case "j", "down":
 		if m.fileLineCursor+1 < len(m.fileLines) {
 			m.fileLineCursor++
@@ -1300,9 +1343,9 @@ func helpFor(m *model) string {
 	case modeTree:
 		return "j/k item  Tab section  →/l/Enter open  i new issue  e edit issue  q quit"
 	case modeDiff:
-		return "j/k line  Space walk  c/!/Enter comment  a/? question  g/b mark  u unread  e edit  >/< verdict  ←/h tree  s save  q quit"
+		return "j/k line  Space walk  c/!/Enter comment  a/? question  g/b mark  u unread  e edit  w wrap  >/< verdict  ←/h tree  s save  q quit"
 	case modeFile:
-		return "j/k line  Space walk  c/!/Enter comment  a/? question  e edit  ←/h tree  q quit"
+		return "j/k line  Space walk  c/!/Enter comment  a/? question  e edit  w wrap  ←/h tree  q quit"
 	}
 	return ""
 }
