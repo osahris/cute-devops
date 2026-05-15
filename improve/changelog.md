@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Push-to-deploy: a push to a bare repo triggers a systemd deploy.
+  - `repos` role: `repos_with_deploy` / per-repo `with_deploy` installs a
+    `post-receive` hook that starts `deploy@<instance>.service` on a push
+    to the deploy branch.
+  - `setup_deploy` role: `setup_deploy_polkit_group` installs a polkit
+    rule letting that group start `deploy@` units without authentication
+    — the bridge from the unprivileged hook to the systemd unit.
+  - The deploy itself stays a normal `deploy@<instance>` instance.
+  - Implements the new
+    [Push to Deploy 🚀](patterns/operation/deployment/push-to-deploy.md)
+    pattern (promoted from the `issues/` draft).
+
 ### Changed
 - Relicensed from AGPL-3.0-or-later to EUPL-1.2; the
   `restic_client` and `restic_server` roles stay under

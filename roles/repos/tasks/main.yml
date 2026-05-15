@@ -30,4 +30,5 @@
     _repo_owner: "{{ repo.owner | default(repos_default_owner) }}"
     _repo_treehouses: "{{ repo.with_treehouses | default(repos_with_treehouses) }}"
     _repo_claude: "{{ repo.with_claude_hooks | default(repos_with_claude_hooks) }}"
+    _repo_deploy: "{{ repo.with_deploy | default(repos_with_deploy) }}"
     _repo_default_branch: "{{ repo.default_branch | default(repos_default_branch) }}"

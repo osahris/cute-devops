@@ -21,3 +21,7 @@
 - name: "Set up Worktree Treehouses layout in {{ _repo_path }}"
   ansible.builtin.include_tasks: treehouse.yml
   when: _repo_treehouses | bool
+
+- name: "Set up push-to-deploy for {{ _repo_path }}"
+  ansible.builtin.include_tasks: deploy.yml
+  when: _repo_deploy | bool

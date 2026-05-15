@@ -11,3 +11,7 @@ setup_deploy_notify_email_on_success: false
 setup_deploy_notify_email_on_failure: true
 setup_deploy_notify_email_max_output_lines: 100
 setup_deploy_notify_email_rate_limit: 10
+
+# Push-to-deploy: a Unix group allowed to `systemctl start deploy@<id>.service`
+# without authentication (via a polkit rule). Empty disables the grant.
+setup_deploy_polkit_group: ""

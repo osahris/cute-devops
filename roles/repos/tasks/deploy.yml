@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+# Push-to-deploy: install a post-receive hook that starts deploy@<id>.service
+# (from mkbrechtel.devops.setup_deploy) on a push to the deploy branch. The
+# polkit grant that lets the pushers start that unit is host-wide and lives
+# in setup_deploy (setup_deploy_polkit_group); the deploy itself -- checkout,
+# restart -- is a deploy@<id> instance configured with the deploy role.
+- name: "Resolve push-to-deploy settings for {{ _repo_path }}"
+  ansible.builtin.set_fact:
+    _repo_deploy_instance: "{{ (repo.deploy | default({})).instance | default(repo.name | default(_repo_path | basename | regex_replace('\\.git/?$', ''))) }}"
+    _repo_deploy_branch: "{{ (repo.deploy | default({})).branch | default(_repo_default_branch) }}"
+
+- name: "Assert the deploy instance id is systemd-safe for {{ _repo_path }}"
+  ansible.builtin.assert:
+    that:
+      - _repo_deploy_instance is match('^[a-z0-9.-]+$')
+      - _repo_deploy_instance | length <= 128
+    fail_msg: >-
+      deploy.instance must match ^[a-z0-9.-]+$ (max 128 chars);
+      got '{{ _repo_deploy_instance }}'
+
+- name: "Stat the deploy@.service template unit for {{ _repo_path }}"
+  ansible.builtin.stat:
+    path: /etc/systemd/system/deploy@.service
+  register: _repo_deploy_unit_stat
+
+- name: "Require setup_deploy to have run on this host for {{ _repo_path }}"
+  ansible.builtin.assert:
+    that:
+      - _repo_deploy_unit_stat.stat.exists
+    fail_msg: >-
+      with_deploy needs deploy@.service from mkbrechtel.devops.setup_deploy;
+      run that role on this host first (with setup_deploy_polkit_group set so
+      the pushers may start the unit), and configure the deploy@{{ _repo_deploy_instance }}
+      instance (the checkout step) with mkbrechtel.devops.deploy
+
+- name: "Install push-to-deploy post-receive hook in {{ _repo_path }}"
+  ansible.builtin.template:
+    src: deploy/post-receive.j2
+    dest: "{{ _repo_path }}/hooks/post-receive"
+    owner: "{{ _repo_owner }}"
+    group: "{{ _repo_group }}"
+    mode: "0755"

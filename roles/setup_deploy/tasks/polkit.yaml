@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+# Push-to-deploy: let setup_deploy_polkit_group start deploy@<id>.service
+# units without authentication. polkitd picks up rules.d changes via inotify,
+# so no daemon reload is needed.
+- name: Authorise a group to start deploy@ units
+  ansible.builtin.template:
+    src: polkit/deploy.rules.j2
+    dest: /etc/polkit-1/rules.d/50-deploy.rules
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: setup_deploy_polkit_group | length > 0
+
+- name: Remove the deploy polkit rule when no group is set
+  ansible.builtin.file:
+    path: /etc/polkit-1/rules.d/50-deploy.rules
+    state: absent
+  become: true
+  when: setup_deploy_polkit_group | length == 0

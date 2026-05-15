@@ -7,3 +7,5 @@
   ansible.builtin.import_tasks: notify.yaml
 - name: Import systemd tasks
   ansible.builtin.import_tasks: systemd.yaml
+- name: Import polkit tasks
+  ansible.builtin.import_tasks: polkit.yaml

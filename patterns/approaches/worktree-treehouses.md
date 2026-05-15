@@ -228,7 +228,7 @@ Beyond worktree lifecycle, the `.claude/` directory ships permissions, hooks, an
 - [In-Tree Issues 🗂️](./in-tree-issues.md) — pair the worktree ritual with the same merge ritual for issues; both flow through `main`.
 - [Treehouse Branch Shape 🪧](../../issues/treehouse-branch-shape.pattern.md) — *(draft)* an optional `<category>/<name>` discipline for treehouse names.
 - [Village of Villages 🏘️](../../issues/village-of-villages.pattern.md) — *(draft)* multi-repo extension: a thin org directory wrapping several bare repos, each one its own treehouse village.
-- [Push to Deploy 🚀](../../issues/push-to-deploy.pattern.md) — *(draft)* extends the lifecycle with a `git push` to a deploy remote; same primitive, no extra protocol.
+- [Push to Deploy 🚀](../operation/deployment/push-to-deploy.md) — extends the lifecycle with a `git push` to a deploy remote; same primitive, no extra protocol.
 - [Cuteness Pattern 🌸](../meta/cuteness.md) — why two lines of plain git and an `ls treehouses/` are friendlier than a sprawl of clones.
 
 ## References 📚

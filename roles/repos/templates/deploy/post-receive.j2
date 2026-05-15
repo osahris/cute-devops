@@ -1,0 +1,21 @@
+#!/bin/bash
+# This file is managed by the mkbrechtel.devops.repos Ansible role!
+# MANUAL CHANGES WILL BE OVERWRITTEN WITHOUT WARNING!
+#
+# push-to-deploy: this hook runs as the *pushing* user and holds no
+# privilege of its own. On an update to the deploy branch it starts
+# deploy@{{ _repo_deploy_instance }}.service -- the systemd unit from
+# mkbrechtel.devops.setup_deploy that runs the actual deploy. A host-wide
+# polkit rule (setup_deploy_polkit_group) lets the pushers group start
+# deploy@ units; this hook needs nothing else.
+set -eu
+
+deploy_ref="refs/heads/{{ _repo_deploy_branch }}"
+deploy_unit="deploy@{{ _repo_deploy_instance }}.service"
+
+while read -r _oldrev _newrev refname; do
+    [ "${refname}" = "${deploy_ref}" ] || continue
+    echo "push-to-deploy: ${deploy_ref#refs/heads/} updated -> starting ${deploy_unit}" >&2
+    systemctl --no-block start "${deploy_unit}"
+    echo "push-to-deploy: follow it with: journalctl -fu ${deploy_unit}" >&2
+done

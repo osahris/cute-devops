@@ -17,6 +17,14 @@ Main role for the deploy system that provides the core deployment infrastructure
 
 See `defaults/main.yaml` for available variables.
 
+`setup_deploy_polkit_group` — a Unix group allowed to
+`systemctl start deploy@<id>.service` without authentication, via a polkit
+rule (`/etc/polkit-1/rules.d/50-deploy.rules`). This is the bridge that lets
+an unprivileged `post-receive` hook trigger a deploy (see the
+[Push to Deploy 🚀](../../patterns/operation/deployment/push-to-deploy.md)
+pattern and the `repos` role's `with_deploy`). `start` only — stop/restart
+still need admin auth. Empty (the default) installs no rule.
+
 ## Dependencies
 
 None.

@@ -37,14 +37,21 @@ Two complementary flows:
 
 ## Design notes
 
-- `triggered_by_git_hook` (exists) is the push-side trigger.
+- Bare repo management + the push-side trigger is the `repos` role: with
+  `with_deploy` it installs the `post-receive` hook that starts
+  `deploy@<instance>.service`. (This supersedes the empty
+  `triggered_by_git_hook` stub for the push side; that role can be dropped
+  or repurposed.)
+- The hook→unit privilege bridge is host-wide in `setup_deploy`:
+  `setup_deploy_polkit_group` installs a polkit rule letting that group
+  `start` any `deploy@` unit.
 - New: `triggered_by_branch_watcher` (or similar) for the pull side —
   oneshot service + timer that fetches and, on new SHA, starts the deploy
   unit.
-- Bare repo management is its own role (`git_bare_repos`?): creates repos,
-  sets permissions, installs hooks.
-- Deploys are always systemd units so we get logs, status, and restart
-  semantics for free.
+- Deploys are always systemd units (`deploy@.service` from `setup_deploy`)
+  so we get logs, status, and restart semantics for free. The deploy
+  instance (`/etc/deploy/<id>/`, via the `deploy` role) owns the actual
+  checkout + restart — including running it as the service user.
 - Secrets injected via the secrets role at deploy time.
 
 ## Open questions
