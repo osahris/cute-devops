@@ -5,15 +5,15 @@
 // go through *review.ReviewSession methods so a web driver can do the same.
 // Every mutation auto-saves the file.
 //
-// Three top-level modes:
+// Two user-facing modes:
 //
-//	modeTree  – sidebar focused, browses 4 sections:
-//	             Diffs    : changed files (selecting → opens Diff)
-//	             Tree     : files at tip SHA (selecting → opens File review)
-//	             Commits  : commits in scope (selecting → filters Diff to that commit)
-//	             Issues   : free-form issues added during review (i adds one)
-//	modeDiff  – split-diff view; hunk-level or line-level sub-state
-//	modeFile  – full file at tip SHA, line cursor, comments anchored by path:line
+//	Section mode (sidebar focused, one section selected; the section's
+//	             content peeks in the right pane). Six sections, mirroring
+//	             the .review file: Sources, Verdicts, General Issues,
+//	             Changes, Commits, File Review.
+//	Line mode    (cursor on exactly one line in the right pane; comments,
+//	             questions, likes, dislikes anchor to that line). Internally
+//	             modeDiff and modeFile differ only in content source.
 package tui
 
 import (
@@ -124,20 +124,15 @@ type model struct {
 	sect    section
 	sectIdx [numSections]int // per-section item index
 
-	// Diff mode state.
+	// Diff mode state. Cursor is always on exactly one line.
 	fileIdx    int
 	hunkIdx    int
-	diffLine   bool // line-level sub-mode of diff (was modeLines)
-	lineCursor int
-	selStart   int
-	selEnd     int
+	lineCursor int // index into currentHunk().Lines
 
-	// File review mode state.
+	// File review mode state. Cursor is always on exactly one line.
 	filePath       string   // currently-open file in modeFile
 	fileLines      []string // content of filePath at tip SHA
 	fileLineCursor int
-	fileSelStart   int
-	fileSelEnd     int
 
 	// Edit overlay.
 	edit       editKind
@@ -496,6 +491,10 @@ func (m *model) openSelectedItem() {
 	case sectionChanges:
 		m.fileIdx = m.sectIdx[m.sect]
 		m.hunkIdx = 0
+		m.lineCursor = 0
+		if h := m.currentHunk(); h != nil {
+			m.lineCursor = m.firstNonDelete(h, 0, +1)
+		}
 		m.mode = modeDiff
 		m.refreshViewport()
 	case sectionFileReview:
@@ -505,8 +504,6 @@ func (m *model) openSelectedItem() {
 			m.filePath = frs[idx].Path
 			m.fileLines, _ = gitFileLines(m.sess.Scope.TipSHA, m.filePath)
 			m.fileLineCursor = 0
-			m.fileSelStart = 0
-			m.fileSelEnd = 0
 			m.mode = modeFile
 			m.refreshViewport()
 		}
@@ -542,47 +539,24 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	switch key.String() {
 	case "left", "h":
-		if m.diffLine {
-			m.diffLine = false
-			m.refreshViewport()
-		} else {
-			m.mode = modeTree
-			m.refreshViewport()
-		}
-	case "right", "l":
-		if !m.diffLine {
-			m.enterLineSubMode()
-		}
+		m.mode = modeTree
+		m.refreshViewport()
 	case "j", "down":
-		if m.diffLine {
-			m.lineNext()
-		} else {
-			m.advanceHunk()
-		}
+		m.lineNext()
 	case "k", "up":
-		if m.diffLine {
-			m.linePrev()
-		} else {
-			m.prevHunk()
-		}
-	case "alt+down":
-		if m.diffLine {
-			m.extendSel(+1)
-		}
-	case "alt+up":
-		if m.diffLine {
-			m.extendSel(-1)
-		}
+		m.linePrev()
 	case "n", "tab":
 		m.nextFile()
 	case "p", "shift+tab":
 		m.prevFile()
 	case "home":
-		m.hunkIdx = 0
+		m.lineCursor = 0
 		m.refreshViewport()
 	case "end":
-		m.hunkIdx = max(0, len(m.currentFile().Hunks)-1)
-		m.refreshViewport()
+		if h := m.currentHunk(); h != nil {
+			m.lineCursor = len(h.Lines) - 1
+			m.refreshViewport()
+		}
 	case "u":
 		a := m.currentAnchor()
 		m.sess.MarkUnread(a)
@@ -615,18 +589,6 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *model) enterLineSubMode() {
-	h := m.currentHunk()
-	if h == nil || len(h.Lines) == 0 {
-		m.status = "no lines"
-		return
-	}
-	m.diffLine = true
-	m.lineCursor = m.firstNonDelete(h, 0, +1)
-	m.selStart = m.lineCursor
-	m.selEnd = m.lineCursor
-	m.refreshViewport()
-}
 
 func (m *model) lineNext() {
 	h := m.currentHunk()
@@ -636,8 +598,14 @@ func (m *model) lineNext() {
 	next := m.firstNonDelete(h, m.lineCursor+1, +1)
 	if next != m.lineCursor {
 		m.lineCursor = next
-		m.selStart = next
-		m.selEnd = next
+		m.refreshViewport()
+		return
+	}
+	// At end of hunk: advance to first line of next hunk.
+	f := m.currentFile()
+	if m.hunkIdx+1 < len(f.Hunks) {
+		m.hunkIdx++
+		m.lineCursor = m.firstNonDelete(&f.Hunks[m.hunkIdx], 0, +1)
 		m.refreshViewport()
 	}
 }
@@ -650,24 +618,16 @@ func (m *model) linePrev() {
 	prev := m.firstNonDelete(h, m.lineCursor-1, -1)
 	if prev != m.lineCursor {
 		m.lineCursor = prev
-		m.selStart = prev
-		m.selEnd = prev
+		m.refreshViewport()
+		return
+	}
+	// At start of hunk: jump to last line of previous hunk.
+	if m.hunkIdx > 0 {
+		m.hunkIdx--
+		ph := &m.currentFile().Hunks[m.hunkIdx]
+		m.lineCursor = m.firstNonDelete(ph, len(ph.Lines)-1, -1)
 		m.refreshViewport()
 	}
-}
-
-func (m *model) extendSel(step int) {
-	h := m.currentHunk()
-	if h == nil {
-		return
-	}
-	next := m.firstNonDelete(h, m.lineCursor+step, step)
-	if next == m.lineCursor {
-		return
-	}
-	m.lineCursor = next
-	m.selStart, m.selEnd = minmax(m.selStart, m.lineCursor)
-	m.refreshViewport()
 }
 
 func (m *model) firstNonDelete(h *review.Hunk, start, step int) int {
@@ -706,9 +666,6 @@ func (m *model) currentHunk() *review.Hunk {
 func (m *model) currentAnchor() review.Anchor {
 	switch m.mode {
 	case modeFile:
-		if m.fileSelEnd > m.fileSelStart {
-			return review.Anchor(fmt.Sprintf("%s@%s:%d-%d", m.filePath, m.sess.Scope.TipSHA[:12], m.fileSelStart+1, m.fileSelEnd+1))
-		}
 		return review.Anchor(fmt.Sprintf("%s@%s:%d", m.filePath, m.sess.Scope.TipSHA[:12], m.fileLineCursor+1))
 	case modeDiff:
 		f := m.currentFile()
@@ -716,41 +673,30 @@ func (m *model) currentAnchor() review.Anchor {
 		if h == nil {
 			return review.Anchor(f.Path)
 		}
-		if m.diffLine {
-			start, end := m.selectionNewLines(h)
-			if start > 0 {
-				if end > start {
-					return review.Anchor(fmt.Sprintf("%s:%d-%d", f.Path, start, end))
-				}
-				return review.Anchor(fmt.Sprintf("%s:%d", f.Path, start))
-			}
+		if line := m.cursorNewLine(h); line > 0 {
+			return review.Anchor(fmt.Sprintf("%s:%d", f.Path, line))
 		}
 		return review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
 	}
 	return review.Anchor("")
 }
 
-func (m *model) selectionNewLines(h *review.Hunk) (start, end int) {
+// cursorNewLine returns the new-side line number that lineCursor maps to in
+// the given hunk, or 0 if cursor is on a delete-only line.
+func (m *model) cursorNewLine(h *review.Hunk) int {
 	newLine := h.NewStart
 	for i, ln := range h.Lines {
-		if i < m.selStart {
-			if ln.Kind != review.LineDelete {
-				newLine++
+		if i == m.lineCursor {
+			if ln.Kind == review.LineDelete {
+				return 0
 			}
-			continue
-		}
-		if i > m.selEnd {
-			break
+			return newLine
 		}
 		if ln.Kind != review.LineDelete {
-			if start == 0 {
-				start = newLine
-			}
-			end = newLine
 			newLine++
 		}
 	}
-	return
+	return 0
 }
 
 // spaceWalk implements the "page-walk with overlap → last line → next file"
@@ -776,23 +722,27 @@ func (m *model) spaceWalk() {
 		m.hunkAtTopOfView()
 		return
 	}
-	// At bottom: ensure cursor is on the last hunk before advancing.
+	// At bottom: ensure cursor is on the last line of the last hunk first.
 	f := m.currentFile()
 	last := len(f.Hunks) - 1
-	if m.hunkIdx < last {
-		m.hunkIdx = last
-		if m.diffLine {
-			m.lineCursor = len(f.Hunks[last].Lines) - 1
-			m.selStart, m.selEnd = m.lineCursor, m.lineCursor
+	if last >= 0 {
+		lastH := &f.Hunks[last]
+		lastLine := m.firstNonDelete(lastH, len(lastH.Lines)-1, -1)
+		if m.hunkIdx < last || m.lineCursor < lastLine {
+			m.hunkIdx = last
+			m.lineCursor = lastLine
+			m.refreshViewport()
+			return
 		}
-		m.refreshViewport()
-		return
 	}
-	// Already on the last hunk and at the bottom; advance to next file.
+	// Already on the last line; advance to next file.
 	if m.fileIdx+1 < len(m.files) {
 		m.fileIdx++
 		m.hunkIdx = 0
-		m.diffLine = false
+		m.lineCursor = 0
+		if h := m.currentHunk(); h != nil {
+			m.lineCursor = m.firstNonDelete(h, 0, +1)
+		}
 		m.refreshViewport()
 		return
 	}
@@ -812,7 +762,6 @@ func (m *model) spaceWalkFile() {
 		// Cursor follows to roughly the top of the new view.
 		if newTop < len(m.fileLines) {
 			m.fileLineCursor = newTop
-			m.fileSelStart, m.fileSelEnd = newTop, newTop
 		}
 		return
 	}
@@ -820,7 +769,6 @@ func (m *model) spaceWalkFile() {
 	last := len(m.fileLines) - 1
 	if last >= 0 && m.fileLineCursor < last {
 		m.fileLineCursor = last
-		m.fileSelStart, m.fileSelEnd = last, last
 		m.refreshViewport()
 		return
 	}
@@ -832,7 +780,6 @@ func (m *model) spaceWalkFile() {
 			m.filePath = next.Path
 			m.fileLines, _ = gitFileLines(m.sess.Scope.TipSHA, m.filePath)
 			m.fileLineCursor = 0
-			m.fileSelStart, m.fileSelEnd = 0, 0
 			m.refreshViewport()
 			return
 		}
@@ -841,7 +788,7 @@ func (m *model) spaceWalkFile() {
 }
 
 // hunkAtTopOfView sets hunkIdx to whichever hunk now occupies the top of the
-// viewport, so the cursor visually tracks the scroll position.
+// viewport, and places the line cursor at that hunk's first reviewable line.
 func (m *model) hunkAtTopOfView() {
 	top := m.viewport.YOffset()
 	bestIdx := m.hunkIdx
@@ -856,6 +803,9 @@ func (m *model) hunkAtTopOfView() {
 	}
 	if bestIdx != m.hunkIdx {
 		m.hunkIdx = bestIdx
+		if h := m.currentHunk(); h != nil {
+			m.lineCursor = m.firstNonDelete(h, 0, +1)
+		}
 	}
 }
 
@@ -928,36 +878,18 @@ func (m *model) updateFile(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case "j", "down":
 		if m.fileLineCursor+1 < len(m.fileLines) {
 			m.fileLineCursor++
-			m.fileSelStart = m.fileLineCursor
-			m.fileSelEnd = m.fileLineCursor
 			m.refreshViewport()
 		}
 	case "k", "up":
 		if m.fileLineCursor > 0 {
 			m.fileLineCursor--
-			m.fileSelStart = m.fileLineCursor
-			m.fileSelEnd = m.fileLineCursor
-			m.refreshViewport()
-		}
-	case "alt+down":
-		if m.fileLineCursor+1 < len(m.fileLines) {
-			m.fileLineCursor++
-			m.fileSelStart, m.fileSelEnd = minmax(m.fileSelStart, m.fileLineCursor)
-			m.refreshViewport()
-		}
-	case "alt+up":
-		if m.fileLineCursor > 0 {
-			m.fileLineCursor--
-			m.fileSelStart, m.fileSelEnd = minmax(m.fileLineCursor, m.fileSelEnd)
 			m.refreshViewport()
 		}
 	case "home":
 		m.fileLineCursor = 0
-		m.fileSelStart, m.fileSelEnd = 0, 0
 		m.refreshViewport()
 	case "end":
 		m.fileLineCursor = max(0, len(m.fileLines)-1)
-		m.fileSelStart, m.fileSelEnd = m.fileLineCursor, m.fileLineCursor
 		m.refreshViewport()
 	case " ", "space":
 		m.spaceWalkFile()
@@ -1368,12 +1300,9 @@ func helpFor(m *model) string {
 	case modeTree:
 		return "j/k item  Tab section  →/l/Enter open  i new issue  e edit issue  q quit"
 	case modeDiff:
-		if m.diffLine {
-			return "j/k line  alt+j/k extend  c/!/Enter comment  a/? question  g/b mark  e edit comment  ←/h back  q quit"
-		}
-		return "j/Space next  k prev  →/l lines  ←/h tree  c comment  a question  g/b mark  u unread  e edit  >/< verdict  s save  q quit"
+		return "j/k line  Space walk  c/!/Enter comment  a/? question  g/b mark  u unread  e edit  >/< verdict  ←/h tree  s save  q quit"
 	case modeFile:
-		return "j/k line  alt+j/k extend  c/!/Enter comment  a/? question  e edit comment  ←/h tree  q quit"
+		return "j/k line  Space walk  c/!/Enter comment  a/? question  e edit  ←/h tree  q quit"
 	}
 	return ""
 }
@@ -1470,9 +1399,6 @@ func (m *model) mainHeading() string {
 		if hc := len(f.Hunks); hc > 0 {
 			h = fmt.Sprintf("   hunk %d/%d", m.hunkIdx+1, hc)
 		}
-		if m.diffLine {
-			return f.Path + h + "   [line]"
-		}
 		return f.Path + h
 	case modeFile:
 		return m.filePath + "  @" + truncate(m.sess.Scope.TipSHA, 12)
@@ -1525,14 +1451,10 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, cursorRow int) {
 		}
 		row++
 
-		// Determine editor splice point for this hunk.
+		// Editor splices below the line the cursor is on.
 		editorLineIdx := -1
 		if editing && hi == m.hunkIdx {
-			if m.diffLine {
-				editorLineIdx = m.selEnd
-			} else {
-				editorLineIdx = len(h.Lines) - 1
-			}
+			editorLineIdx = m.lineCursor
 		}
 
 		newLine := h.NewStart
@@ -1546,13 +1468,9 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, cursorRow int) {
 			default:
 				styled = styleCtx.Render("  " + ln.Text)
 			}
-			if hi == m.hunkIdx && m.diffLine {
-				if li == m.lineCursor {
-					styled = styleLineCur.Render(styled)
-					cursorRow = row
-				} else if li >= m.selStart && li <= m.selEnd {
-					styled = styleSel.Render(styled)
-				}
+			if hi == m.hunkIdx && li == m.lineCursor {
+				styled = styleLineCur.Render(styled)
+				cursorRow = row
 			}
 			sb.WriteString(styled + "\n")
 			row++
@@ -1631,13 +1549,11 @@ func renderFileView(m *model) (body string, cursorRow int) {
 				styled = styleLineCur.Render(styled)
 				cursorRow = sb.Len()
 				_ = cursorRow
-			} else if i >= m.fileSelStart && i <= m.fileSelEnd {
-				styled = styleSel.Render(styled)
 			}
 		}
 		sb.WriteString(styled + "\n")
 
-		if editing && m.mode == modeFile && i == m.fileSelEnd {
+		if editing && m.mode == modeFile && i == m.fileLineCursor {
 			sb.WriteString(renderInlineEditor(m))
 		}
 		// Inline comments for this line.
@@ -1904,9 +1820,3 @@ func max(a, b int) int {
 	return b
 }
 
-func minmax(a, b int) (int, int) {
-	if a < b {
-		return a, b
-	}
-	return b, a
-}
