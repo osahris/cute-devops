@@ -1093,17 +1093,6 @@ func (m *model) snapCursorIntoView() {
 	if len(m.lineRanges) == 0 {
 		return
 	}
-	// If the viewport is scrolled all the way to the bottom, jump to
-	// the EOF marker — otherwise the cursor would stick on whatever
-	// hunk line happens to occupy the top row and further PgDn presses
-	// feel like nothing happened.
-	if m.viewport.AtBottom() {
-		if eof := m.eofRange(); eof != nil {
-			m.placeCursor(*eof)
-			m.viewport.SetYOffset(eof.topRow)
-			return
-		}
-	}
 	top := m.viewport.YOffset()
 	// Prefer the first reviewable line whose topRow is at or below the
 	// viewport top — that way the cursor's first row IS the top row.
@@ -1116,15 +1105,13 @@ func (m *model) snapCursorIntoView() {
 		if !lr.isEOF && lr.kind == review.LineDelete {
 			continue
 		}
+		// Try to realign so the picked line sits at row 0. If the
+		// viewport clamps the request (we're already past the last
+		// clean boundary near content end), leave the offset alone —
+		// the user can still see the line, and the "no progress on
+		// PgDn" path in scrollViewport will step them to EOF when
+		// they ask for one more page.
 		m.viewport.SetYOffset(lr.topRow)
-		if m.viewport.YOffset() != lr.topRow {
-			// Clamped — we're past the last clean line boundary, so
-			// land on EOF instead.
-			if eof := m.eofRange(); eof != nil {
-				m.placeCursor(*eof)
-			}
-			return
-		}
 		m.placeCursor(lr)
 		return
 	}
@@ -1176,6 +1163,7 @@ func (m *model) placeCursor(lr lineRange) {
 // Every code path that scrolls the diff pane (mouse wheel, PgUp/PgDn,
 // arrow scroll-fallback in either tree or diff mode) routes through here.
 func (m *model) scrollViewport(msg tea.Msg) tea.Cmd {
+	preY := m.viewport.YOffset()
 	var cmd tea.Cmd
 	m.viewport, cmd = m.viewport.Update(msg)
 	m.updateDisplayed()
@@ -1183,6 +1171,18 @@ func (m *model) scrollViewport(msg tea.Msg) tea.Cmd {
 	if m.mode == modeDiff || (m.mode == modeTree && m.sect == sectionChanges) {
 		oldHunk, oldLine, oldEOF := m.hunkIdx, m.lineCursor, m.atEOF
 		m.snapCursorIntoView()
+		// User paged past the last clean line and the viewport is
+		// already at the bottom (no further scroll possible): NOW step
+		// onto the EOF marker. We don't auto-jump to EOF the moment we
+		// arrive at the last page — the cursor first parks on the
+		// natural page-break line so the reader can see what's left.
+		if !m.atEOF &&
+			oldHunk == m.hunkIdx && oldLine == m.lineCursor &&
+			m.viewport.YOffset() == preY && m.viewport.AtBottom() {
+			if eof := m.eofRange(); eof != nil {
+				m.placeCursor(*eof)
+			}
+		}
 		// Keep the sidebar's selection in sync with the cursor's hunk so
 		// the user can see in the section list which file/hunk they're
 		// currently scrolled to. (For now we only have a per-file Changes
