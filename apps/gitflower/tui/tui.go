@@ -283,8 +283,12 @@ func newModel(sess *review.ReviewSession, root string, readRate float64) *model 
 	// sidebar's Changes list filters them out so they only show up via
 	// the line-mode walk.
 	for _, c := range sess.Scope.Commits {
-		patch, ok := sess.Scope.CommitPatches[c.SHA]
-		if !ok || strings.TrimSpace(patch) == "" {
+		// CommitPatch fetches and caches on demand — ScopeFor leaves
+		// CommitPatches empty, so without this call there'd be no
+		// virtual files for any commit and Enter/right on a commit
+		// row would have nothing to drill into.
+		patch := sess.Scope.CommitPatch(c.SHA)
+		if strings.TrimSpace(patch) == "" {
 			continue
 		}
 		ch := review.ParseDiff(patch)
