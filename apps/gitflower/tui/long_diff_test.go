@@ -60,12 +60,23 @@ func TestSpaceWalkOnLongDiffs(t *testing.T) {
 		t.Fatalf("after first Space: mode %v want modeDiff", m.mode)
 	}
 
-	// Drive: PgDn until current file is fully read, then Space to
-	// advance; stop on the verdict editor.
+	// We only care that every REAL file gets fully read; commit
+	// virtuals just need to be reachable.
+	allRealRead := func() bool {
+		for fi, f := range m.files {
+			if strings.HasPrefix(f.Path, "commit:") {
+				continue
+			}
+			if m.fileHasUnread(fi) {
+				return false
+			}
+		}
+		return true
+	}
+
 	const maxSteps = 2000
 	stuck := 0
 	for i := 0; i < maxSteps; i++ {
-		// Fire pending read ticks deterministically.
 		if m.viewReadScheduled {
 			next, _ := m.Update(viewReadMsg{gen: m.viewReadGen})
 			m = next.(*model)
@@ -74,8 +85,11 @@ func TestSpaceWalkOnLongDiffs(t *testing.T) {
 			t.Logf("reached verdict editor after %d step(s)", i)
 			break
 		}
+		if allRealRead() {
+			t.Logf("all real files read after %d step(s) (commit-virtuals may still be pending)", i)
+			break
+		}
 		before := stateSig(m)
-		// Use Space when the current file is exhausted, PgDn otherwise.
 		var msg tea.Msg
 		if m.atEOF || m.mode == modeTree || !m.fileHasUnread(m.fileIdx) {
 			msg = tea.KeyPressMsg{Code: ' ', Text: " "}

@@ -215,9 +215,18 @@ func (m *model) mainHeading() string {
 		}
 		path := f.Path
 		if strings.HasPrefix(path, "commit:") {
-			rest := strings.TrimPrefix(path, "commit:")
-			if i := strings.Index(rest, ":"); i > 0 {
-				path = "commit " + rest[:i] + "  " + rest[i+1:]
+			short := strings.TrimPrefix(path, "commit:")
+			subject := ""
+			for _, c := range m.sess.Scope.Commits {
+				if c.Short == short {
+					subject = c.Subject
+					break
+				}
+			}
+			if subject != "" {
+				path = "commit " + short + "  " + subject
+			} else {
+				path = "commit " + short
 			}
 		}
 		return path + h

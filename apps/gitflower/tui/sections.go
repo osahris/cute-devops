@@ -658,20 +658,21 @@ func (m *model) openSelectedItem() {
 			return
 		}
 		short := m.sess.Scope.Commits[idx].Short
-		prefix := "commit:" + short + ":"
+		want := "commit:" + short
 		for fi, f := range m.files {
-			if strings.HasPrefix(f.Path, prefix) {
-				m.fileIdx = fi
-				m.hunkIdx = 0
-				m.lineCursor = 0
-				m.atEOF = false
-				if h := m.currentHunk(); h != nil {
-					m.lineCursor = m.firstNonDelete(h, 0, +1)
-				}
-				m.mode = modeDiff
-				m.refreshViewport()
-				return
+			if f.Path != want {
+				continue
 			}
+			m.fileIdx = fi
+			m.hunkIdx = 0
+			m.lineCursor = 0
+			m.atEOF = false
+			if h := m.currentHunk(); h != nil {
+				m.lineCursor = m.firstNonDelete(h, 0, +1)
+			}
+			m.mode = modeDiff
+			m.refreshViewport()
+			return
 		}
 		m.status = "no diff content for commit " + short
 	case sectionIssues:

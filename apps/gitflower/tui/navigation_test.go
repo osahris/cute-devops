@@ -219,14 +219,20 @@ func TestNavCommitsEnterDrillsIntoCommitDiff(t *testing.T) {
 	if m.mode != modeDiff {
 		t.Fatalf("Enter on commit: mode=%v want modeDiff", m.mode)
 	}
-	if !strings.HasPrefix(m.currentFile().Path, "commit:abc1234:") {
+	if m.currentFile().Path != "commit:abc1234" {
 		t.Errorf("drilled into wrong virtual file: %s", m.currentFile().Path)
 	}
-	// The first commit-virtual file should be the synthetic message
-	// file, so the reviewer reads the commit message before the diff.
-	if !strings.Contains(m.currentFile().Path, "(message)") {
-		t.Errorf("expected to land on the commit-message virtual file first, got %s",
-			m.currentFile().Path)
+	// First hunk in the commit virtual file is the synthetic message
+	// preamble — assert the reviewer lands there (hunk 0) and the
+	// hunk's first line is the mbox "From ..." header.
+	if m.hunkIdx != 0 {
+		t.Errorf("expected to land on hunk 0 (message), got %d", m.hunkIdx)
+	}
+	if h := m.currentHunk(); h != nil && len(h.Lines) > 0 {
+		first := h.Lines[0].Text
+		if !strings.HasPrefix(first, "From ") {
+			t.Errorf("first hunk's first line should be the mbox header, got %q", first)
+		}
 	}
 }
 
@@ -240,7 +246,7 @@ func TestNavCommitsRightDrillsIntoCommitDiff(t *testing.T) {
 	if m.mode != modeDiff {
 		t.Fatalf("Right on commit: mode=%v want modeDiff", m.mode)
 	}
-	if !strings.HasPrefix(m.currentFile().Path, "commit:def5678:") {
+	if m.currentFile().Path != "commit:def5678" {
 		t.Errorf("drilled into wrong commit: %s", m.currentFile().Path)
 	}
 }
@@ -255,8 +261,14 @@ func TestNavCommitsLDrillsIntoCommitDiff(t *testing.T) {
 	if m.mode != modeDiff {
 		t.Fatalf("l on commit: mode=%v want modeDiff", m.mode)
 	}
-	if !strings.HasPrefix(m.currentFile().Path, "commit:abc1234:") {
+	if m.currentFile().Path != "commit:abc1234" {
 		t.Errorf("drilled into wrong commit: %s", m.currentFile().Path)
+	}
+	// The commit virtual file should contain both the message hunk
+	// and at least one diff hunk from the commit — assert there's
+	// more than one hunk.
+	if hc := len(m.currentFile().Hunks); hc < 2 {
+		t.Errorf("expected commit virtual file to contain message + diff hunks, got %d hunks", hc)
 	}
 }
 

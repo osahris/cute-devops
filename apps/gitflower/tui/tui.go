@@ -272,29 +272,39 @@ func newModel(sess *review.ReviewSession, root string, readRate float64) *model 
 	files := review.ParseDiff(sess.Scope.RawDiff)
 
 	// Append each commit's patch as a virtual file so Space-walk
-	// naturally traverses commits the same way it traverses files. The
-	// virtual path is `commit:<short>:<path>` so hunks anchored to it
-	// get their own read state and never collide with real files; the
-	// sidebar's Changes list filters them out so they only show up via
-	// the line-mode walk.
+	// naturally traverses commits the same way it traverses files.
+	// Each commit becomes ONE virtual file `commit:<short>` whose
+	// hunks are: a leading message-and-headers hunk (so the reviewer
+	// reads who/why first), then every hunk from the commit's diff
+	// with its original file path inlined into the hunk header.
+	// Drilling into the commit lands the reviewer in this single
+	// scrollable buffer that contains everything about the commit;
+	// per-line read tracking applies uniformly.
 	for _, c := range sess.Scope.Commits {
 		patch := sess.Scope.CommitPatch(c.SHA)
 		if strings.TrimSpace(patch) == "" {
 			continue
 		}
-		// Prepend a synthetic file holding the commit's mbox-style
-		// header + message body so the reviewer reads the why before
-		// the diff. We model it as a brand-new file added by the
-		// commit, so its lines participate in the normal per-line
-		// read-tracking just like code lines.
+		combined := review.File{Path: "commit:" + c.Short}
+		// Leading message hunk built from the format-patch preamble
+		// (author / date / subject + commit body).
 		if preamble := commitMessageDiff(c.Short, patch); preamble != "" {
-			files = append(files, review.ParseDiff(preamble)...)
+			if pf := review.ParseDiff(preamble); len(pf) > 0 {
+				combined.Hunks = append(combined.Hunks, pf[0].Hunks...)
+			}
 		}
-		ch := review.ParseDiff(patch)
-		for i := range ch {
-			ch[i].Path = "commit:" + c.Short + ":" + ch[i].Path
+		// Then every file's hunks, with the file path prepended to
+		// the hunk header so the reader can see which file each hunk
+		// belongs to as they scroll.
+		for _, pf := range review.ParseDiff(patch) {
+			for _, h := range pf.Hunks {
+				h.Header = "[" + pf.Path + "] " + h.Header
+				combined.Hunks = append(combined.Hunks, h)
+			}
 		}
-		files = append(files, ch...)
+		if len(combined.Hunks) > 0 {
+			files = append(files, combined)
+		}
 	}
 
 	ta := textarea.New()
