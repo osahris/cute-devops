@@ -124,68 +124,6 @@ func TestSpaceWalkOnLongDiffs(t *testing.T) {
 	}
 }
 
-// TestSpaceOnlyWalkOnLongDiffs is the strict version: only Space is
-// pressed (no PgDn). With the "page-the-unread-on-repeat" behaviour
-// inside spaceWalkInFile, even tall hunks must get fully read.
-func TestSpaceOnlyWalkOnLongDiffs(t *testing.T) {
-	scope := review.Scope{
-		Branch:  "feature",
-		Base:    "main",
-		TipSHA:  "abc1234567890",
-		BaseSHA: "0000111122223333",
-		Diff:    "main..feature",
-		Title:   "long",
-		Commits: []review.Commit{{SHA: "abc1234567890", Short: "abc1234", Subject: "long"}},
-		Files:   []string{"big_add.txt", "big_remove.txt"},
-		RawDiff: buildAddPatch("big_add.txt", 500) + "\n" + buildRemovePatch("big_remove.txt", 400),
-		FilePatches: map[string]string{
-			"big_add.txt":    buildAddPatch("big_add.txt", 500),
-			"big_remove.txt": buildRemovePatch("big_remove.txt", 400),
-		},
-		CommitPatches: map[string]string{"abc1234567890": "From abc1234\n"},
-	}
-	tmp := t.TempDir()
-	sess := review.New(scope, "tester@example.com", filepath.Join(tmp, "long.review"))
-	m := newModel(sess, tmp, 1000.0)
-	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 25})
-
-	const maxPresses = 2000
-	stuck := 0
-	for i := 0; i < maxPresses; i++ {
-		for anchor := range m.pendingReads {
-			next, _ := m.Update(delayedReadMsg{anchor: anchor})
-			m = next.(*model)
-		}
-		if m.edit == editSummary {
-			t.Logf("Space-only walk reached verdict editor after %d press(es)", i)
-			break
-		}
-		before := stateSig(m)
-		m = key(t, m, ' ', " ")
-		if stateSig(m) == before {
-			stuck++
-			if stuck > 4 {
-				t.Fatalf("Space-only stuck after %d press(es) at %s", i, before)
-			}
-		} else {
-			stuck = 0
-		}
-	}
-
-	// Tally: every real file's hunks must be read.
-	for _, f := range m.files {
-		if strings.HasPrefix(f.Path, "commit:") {
-			continue
-		}
-		for _, h := range f.Hunks {
-			a := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
-			if !m.sess.IsRead(a) {
-				t.Errorf("unread after Space-only walk: %s @ %d,%d", f.Path, h.NewStart, h.NewLines)
-			}
-		}
-	}
-}
-
 // TestSpaceCannotAdvancePastUnread asserts the locked-in contract:
 // Space inside an unread hunk only pages within it; it never spills
 // onto the next hunk or EOF until the read tick fires. The reviewer

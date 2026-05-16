@@ -129,69 +129,6 @@ func TestSpaceWalkOnThisRepo(t *testing.T) {
 	}
 }
 
-// TestSpaceOnlyWalkOnThisRepo simulates a reviewer who only presses
-// Space (the navigation key) and never PgDn. It documents the
-// expectation: Space-only should always make progress — either move
-// the cursor, scroll the viewport, advance to EOF, or change files.
-// Five presses with no observable change = walk is stuck.
-func TestSpaceOnlyWalkOnThisRepo(t *testing.T) {
-	if os.Getenv("CI") == "" && testing.Short() {
-		t.Skip("set CI=1 or run without -short")
-	}
-	root := findRepoRoot(t)
-	if root == "" {
-		t.Skip("not inside a git repo")
-	}
-	cwd, _ := os.Getwd()
-	defer os.Chdir(cwd)
-	if err := os.Chdir(root); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	scope, err := review.ScopeFor("HEAD", "main")
-	if err != nil || len(scope.Files) == 0 {
-		t.Skipf("no diff vs main: %v", err)
-	}
-
-	tmp := t.TempDir()
-	sess := review.New(*scope, "reviewer@example.com", filepath.Join(tmp, "test.review"))
-	m := newModel(sess, root, 1000.0)
-	m = step(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
-
-	const maxPresses = 5000
-	stuck := 0
-	for i := 0; i < maxPresses; i++ {
-		for anchor := range m.pendingReads {
-			next, _ := m.Update(delayedReadMsg{anchor: anchor})
-			m = next.(*model)
-		}
-		if m.edit == editSummary {
-			t.Logf("Space-only walk reached verdict editor after %d press(es)", i)
-			break
-		}
-		before := stateSig(m)
-		m = key(t, m, ' ', " ")
-		if stateSig(m) == before {
-			stuck++
-			if stuck > 4 {
-				path := ""
-				if f := m.currentFile(); f != nil {
-					path = f.Path
-				}
-				h := m.currentHunk()
-				hunkInfo := "nil"
-				if h != nil {
-					a := review.HunkAnchor(path, h.NewStart, h.NewLines)
-					hunkInfo = fmt.Sprintf("anchor=%q isRead=%v lines=%d", a, m.sess.IsRead(a), len(h.Lines))
-				}
-				t.Fatalf("Space-only walk stuck after %d press(es)\nstate: %s\npath: %s\nhunk: %s",
-					i, before, path, hunkInfo)
-			}
-		} else {
-			stuck = 0
-		}
-	}
-}
-
 func findRepoRoot(t *testing.T) string {
 	t.Helper()
 	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()

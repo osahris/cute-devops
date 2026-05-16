@@ -929,52 +929,6 @@ func (m *model) cursorNewLine(h *review.Hunk) int {
 	return 0
 }
 
-// pageDownInHunk scrolls forward, but never past the bottom row of
-// hunk `hi`. Used by spaceWalkInFile so Space-within-a-multi-page-
-// unread hunk advances through it without leaking onto the next
-// hunk / EOF marker before the current one is marked read.
-func (m *model) pageDownInHunk(hi int) {
-	if hi < 0 || hi >= len(m.hunkRanges) {
-		return
-	}
-	hr := m.hunkRanges[hi]
-	top := m.viewport.YOffset()
-	height := m.viewport.Height()
-	bot := top + height - 1
-	// Already showing the hunk's last row — no more to page within.
-	// Stay put; the read tick will eventually fire (or the user can
-	// Alt+Space to skip).
-	if hr.botRow <= bot {
-		return
-	}
-	step := height - pageOverlap
-	if step < 1 {
-		step = 1
-	}
-	newTop := top + step
-	// Don't scroll so far that the hunk's last row leaves the view —
-	// otherwise we'd be advancing past the hunk before it's marked.
-	maxTop := hr.botRow - height + 1
-	if newTop > maxTop {
-		newTop = maxTop
-	}
-	if newTop < 0 {
-		newTop = 0
-	}
-	if newTop == top {
-		return
-	}
-	m.viewport.SetYOffset(newTop)
-	// Re-render so the line cursor highlight (if any) follows the new
-	// view. We deliberately do NOT call snapCursorIntoView here: snap
-	// would clamp to EOF for an all-delete hunk (no reviewable lines)
-	// and the outer spaceWalk would then think we'd left the hunk
-	// before its read tick had a chance to fire.
-	m.refreshViewport()
-	m.viewport.SetYOffset(newTop)
-	m.updateDisplayed()
-}
-
 // skipWalk marks the current unread hunk as intentionally skipped and
 // then jumps to the next unread one (or EOF / next file, just like
 // spaceWalk). Bound to Alt+Space — for content the reviewer doesn't
@@ -1098,20 +1052,12 @@ func (m *model) spaceWalkInFile() {
 		return
 	}
 
-	// If the next unread hunk is the one we're already parked on,
-	// Space pages WITHIN that hunk — it never advances past it. The
-	// reader has to either let the read tick fire (which means
-	// actually looking at the content) or press Alt+Space to skip.
-	// That's what locks the "you must read this before moving on"
-	// contract.
-	if m.hunkIdx == nextHunkIdx {
-		m.pageDownInHunk(nextHunkIdx)
-		return
-	}
-
-	// Place the cursor on the first reviewable line of the unread hunk,
-	// then back the viewport up by `pageOverlap` rendered rows so the
-	// reader has a strip of just-read context above the new content.
+	// Always jump to "5 rendered rows before the first reviewable line
+	// of the next unread hunk". If that's the position we already
+	// occupy (the unread hunk is the one we're on), the jump lands on
+	// the same row → effectively a no-op. The reader uses PgDn to
+	// actually page through the hunk, or Alt+Space to skip it; Space
+	// is purely a navigation key.
 	h := &f.Hunks[nextHunkIdx]
 	m.hunkIdx = nextHunkIdx
 	m.lineCursor = m.firstNonDelete(h, 0, +1)
