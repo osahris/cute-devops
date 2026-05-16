@@ -442,16 +442,24 @@ func (m *model) drainCmds() tea.Cmd {
 }
 
 // sidebarMinTotalWidth is the minimum terminal width at which the
-// section sidebar is shown. Below this the screen is too narrow to
-// usefully split, so we give the diff/file/peek the whole screen.
+// section sidebar gets its own column next to the peek pane. Below
+// this we still want the section view in section mode — just
+// full-screen instead of as a sidebar.
 const sidebarMinTotalWidth = 150
 
-// sidebarVisible decides whether to show the section sidebar.
-// Conditions: we're in section mode AND the window is wide enough.
-// In line modes the sidebar is always hidden — the reviewer is
-// reading content, the section list isn't useful.
+// sidebarVisible reports whether to render the section sidebar
+// alongside the right-pane peek (wide layout). When false, the right
+// pane gets the whole screen — and in section mode that pane swaps
+// to the sidebar's content (see fullScreenSections).
 func (m *model) sidebarVisible() bool {
 	return m.mode == modeTree && m.width >= sidebarMinTotalWidth
+}
+
+// fullScreenSections reports whether we're in narrow-section-mode:
+// section mode but the window is too narrow for a sidebar/peek
+// split. The main pane then renders the section list itself.
+func (m *model) fullScreenSections() bool {
+	return m.mode == modeTree && m.width < sidebarMinTotalWidth
 }
 
 func (m *model) resize() {
@@ -2548,11 +2556,14 @@ func (m *model) View() tea.View {
 	}
 
 	var body string
-	main := m.viewMain()
-	if m.sidebarVisible() {
-		body = lipgloss.JoinHorizontal(lipgloss.Top, m.viewSidebar(), main)
-	} else {
-		body = main
+	switch {
+	case m.sidebarVisible():
+		body = lipgloss.JoinHorizontal(lipgloss.Top, m.viewSidebar(), m.viewMain())
+	case m.fullScreenSections():
+		// Narrow section mode: the section list IS the main view.
+		body = m.viewSidebar()
+	default:
+		body = m.viewMain()
 	}
 
 	left := fmt.Sprintf(" %s | verdict: %s ", m.modeName(), m.sess.Verdict)
@@ -2602,7 +2613,14 @@ func helpFor(m *model) string {
 }
 
 func (m *model) viewSidebar() string {
-	w := sidebarWidth(m.width)
+	// In wide layout the sidebar gets its own column; in narrow
+	// (full-screen) section mode it takes the whole screen.
+	var w int
+	if m.fullScreenSections() {
+		w = m.width
+	} else {
+		w = sidebarWidth(m.width)
+	}
 
 	// Render every section + every item without any item cap. Track the
 	// row index where the cursor lands so we can window-scroll when the
