@@ -371,7 +371,12 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, lines []lineRang
 			}
 			isCursor := !m.atEOF && hi == m.hunkIdx && li == m.lineCursor
 			lineTop := row
-			parts := wrapDiffText(ln.Text, wrapW)
+			// Message lines wrap at the full viewport width (no gutter).
+			lineWrapW := wrapW
+			if isMessage {
+				lineWrapW = vpW
+			}
+			parts := wrapDiffText(ln.Text, lineWrapW)
 			// Wrapping a pre-styled string in styleLineCur won't work:
 			// each nested style ends with `\x1b[0m`, which resets the
 			// background too — leaving only the gutter highlighted.
@@ -383,10 +388,16 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, lines []lineRang
 			}
 			for j, part := range parts {
 				var head, bodyPart string
-				if j == 0 {
+				switch {
+				case isMessage:
+					// Commit message: no gutter at all, full-width
+					// left-aligned prose.
+					head = ""
+					bodyPart = lineStyle.Render(part)
+				case j == 0:
 					head = gutterStyle.Render(oldStr + " " + newStr + "  ")
 					bodyPart = lineStyle.Render(sign + part)
-				} else {
+				default:
 					head = gutterStyle.Render(strings.Repeat(" ", gutterW+2))
 					bodyPart = lineStyle.Render(part)
 				}
