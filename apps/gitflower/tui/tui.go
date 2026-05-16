@@ -899,20 +899,23 @@ func (m *model) spaceWalk() {
 					top := m.viewport.YOffset()
 					bot := top + m.viewport.Height() - 1
 					if r.botRow > bot {
-						// Page down so the 5th-from-bottom row of the
-						// current view becomes the new top — that gives
-						// the reader 4 lines of overlap context. The
-						// cursor lands on that new top line (the most
-						// recent thing they were reading), making it
-						// visually obvious where we just jumped to.
+						// Page down so the 5th-from-bottom row becomes
+						// (roughly) the new top — that gives ~4 lines of
+						// overlap context. snapCursorIntoView then picks
+						// the first reviewable line at-or-below the new
+						// top and re-aligns the viewport so that line
+						// sits at row 0, so the cursor is always on the
+						// uppermost visible row (never on row 1 or 2
+						// behind a header / blank / continuation).
 						step := m.viewport.Height() - 5
 						if step < 1 {
 							step = 1
 						}
 						m.viewport.SetYOffset(top + step)
 						m.snapCursorIntoView()
+						off := m.viewport.YOffset()
 						m.refreshViewport()
-						m.viewport.SetYOffset(top + step)
+						m.viewport.SetYOffset(off)
 						m.updateDisplayed()
 						return
 					}
@@ -1080,6 +1083,12 @@ func (m *model) recordVisitedLine() {
 	_ = m.sess.Save()
 }
 
+// snapCursorIntoView picks a reviewable line for the cursor based on
+// the current viewport position. If picked successfully, it also nudges
+// the viewport so the chosen line sits at row 0 — otherwise hunk
+// headers, blank inter-hunk rows, or inline comment rows would occupy
+// the top of the view and the cursor would visually appear on row 1, 2,
+// or 3 instead of row 0.
 func (m *model) snapCursorIntoView() {
 	if len(m.lineRanges) == 0 {
 		return
@@ -1091,14 +1100,36 @@ func (m *model) snapCursorIntoView() {
 	if m.viewport.AtBottom() {
 		if eof := m.eofRange(); eof != nil {
 			m.placeCursor(*eof)
+			m.viewport.SetYOffset(eof.topRow)
 			return
 		}
 	}
 	top := m.viewport.YOffset()
-	// Pick the first reviewable element whose top is at or below the
-	// viewport top. lineRanges already accounts for wrap and inline
-	// comments, so this works regardless of how many rendered rows each
-	// logical line spans.
+	// Prefer the first reviewable line whose topRow is at or below the
+	// viewport top — that way the cursor's first row IS the top row.
+	// If asking the viewport to scroll there gets clamped (we're already
+	// near content end), fall through and re-snap to EOF.
+	for _, lr := range m.lineRanges {
+		if lr.topRow < top {
+			continue
+		}
+		if !lr.isEOF && lr.kind == review.LineDelete {
+			continue
+		}
+		m.viewport.SetYOffset(lr.topRow)
+		if m.viewport.YOffset() != lr.topRow {
+			// Clamped — we're past the last clean line boundary, so
+			// land on EOF instead.
+			if eof := m.eofRange(); eof != nil {
+				m.placeCursor(*eof)
+			}
+			return
+		}
+		m.placeCursor(lr)
+		return
+	}
+	// Nothing starts at-or-below top; pick the line whose wrap-span
+	// covers top, so the cursor highlight is at least partially visible.
 	for _, lr := range m.lineRanges {
 		if lr.botRow < top {
 			continue

@@ -202,11 +202,10 @@ func TestPageScrollKeepsCursorVisible(t *testing.T) {
 	}
 	t.Logf("file %s totalRows=%d height=%d", m.files[longest].Path, totalRows, m.viewport.Height())
 
-	assertCursorOnScreen := func(label string) {
+	assertCursorOnTop := func(label string) {
 		t.Helper()
 		top := m.viewport.YOffset()
 		bot := top + m.viewport.Height() - 1
-		// Find the cursor's rendered range.
 		var lr *lineRange
 		if m.atEOF {
 			lr = m.eofRange()
@@ -227,12 +226,19 @@ func TestPageScrollKeepsCursorVisible(t *testing.T) {
 			t.Errorf("%s: cursor off-screen — cursor rows [%d..%d], viewport [%d..%d]",
 				label, lr.topRow, lr.botRow, top, bot)
 		}
+		// Cursor should sit on the topmost row of the viewport — except
+		// at EOF, where the marker naturally sits at the bottom of the
+		// view because there's nothing further to scroll into.
+		if !m.atEOF && lr.topRow != top {
+			t.Errorf("%s: cursor not aligned to top — cursor topRow=%d viewport top=%d",
+				label, lr.topRow, top)
+		}
 	}
 
 	hitEOFAt := -1
 	for i := 0; i < 400; i++ {
 		m = step(t, m, tea.KeyPressMsg{Code: tea.KeyPgDown})
-		assertCursorOnScreen(fmt.Sprintf("pgdown #%d (yOffset=%d)", i, m.viewport.YOffset()))
+		assertCursorOnTop(fmt.Sprintf("pgdown #%d (yOffset=%d)", i, m.viewport.YOffset()))
 		if hitEOFAt < 0 && m.atEOF {
 			hitEOFAt = i
 		}
@@ -243,7 +249,7 @@ func TestPageScrollKeepsCursorVisible(t *testing.T) {
 	}
 	for i := 0; i < 400; i++ {
 		m = step(t, m, tea.KeyPressMsg{Code: tea.KeyPgUp})
-		assertCursorOnScreen(fmt.Sprintf("pgup #%d (yOffset=%d atEOF=%v)", i, m.viewport.YOffset(), m.atEOF))
+		assertCursorOnTop(fmt.Sprintf("pgup #%d (yOffset=%d atEOF=%v)", i, m.viewport.YOffset(), m.atEOF))
 		if m.viewport.YOffset() == 0 {
 			break
 		}
@@ -259,7 +265,7 @@ func TestPageScrollKeepsCursorVisible(t *testing.T) {
 	m.refreshViewport()
 	for i := 0; i < 100; i++ {
 		m = step(t, m, tea.KeyPressMsg{Code: tea.KeyPgDown})
-		assertCursorOnScreen(fmt.Sprintf("section pgdown #%d (yOffset=%d)", i, m.viewport.YOffset()))
+		assertCursorOnTop(fmt.Sprintf("section pgdown #%d (yOffset=%d)", i, m.viewport.YOffset()))
 		if m.atEOF {
 			break
 		}
