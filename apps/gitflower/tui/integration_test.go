@@ -182,11 +182,11 @@ func TestSpaceWalkPagesThroughLongHunk(t *testing.T) {
 	// displayed and the read marker fires.
 	maxPresses := 20
 	for i := 0; i < maxPresses; i++ {
-		for anchor := range m.pendingReads {
-			next, _ := m.Update(delayedReadMsg{anchor: anchor})
+		for anchor := range m.pendingLines {
+			next, _ := m.Update(delayedReadMsg{line: anchor})
 			m = next.(*model)
 		}
-		if m.sess.IsRead(m.hunkRanges[0].anchor) {
+		if r, total := m.fileLineCounts(0); r == total && total > 0 {
 			break
 		}
 		prevY := m.viewport.YOffset()
@@ -195,8 +195,8 @@ func TestSpaceWalkPagesThroughLongHunk(t *testing.T) {
 			t.Fatalf("PgDn stuck: YOffset=%d, not at bottom", prevY)
 		}
 	}
-	if !m.sess.IsRead(m.hunkRanges[0].anchor) {
-		t.Errorf("after %d PgDns the hunk still isn't marked read", maxPresses)
+	if r, total := m.fileLineCounts(0); r != total {
+		t.Errorf("after %d PgDns only %d/%d lines read", maxPresses, r, total)
 	}
 }
 
@@ -252,8 +252,8 @@ func TestModeTransitionMatrix(t *testing.T) {
 	prev := stateSig(m)
 	for i := 0; i < 6; i++ {
 		// Fire pending reads to keep walk moving.
-		for anchor := range m.pendingReads {
-			next, _ := m.Update(delayedReadMsg{anchor: anchor})
+		for anchor := range m.pendingLines {
+			next, _ := m.Update(delayedReadMsg{line: anchor})
 			m = next.(*model)
 		}
 		m = key(t, m, ' ', " ")

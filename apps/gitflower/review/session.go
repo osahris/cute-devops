@@ -55,6 +55,13 @@ func HunkAnchor(path string, newStart, newLines int) Anchor {
 	return Anchor(fmt.Sprintf("%s:%d,%d", path, newStart, newLines))
 }
 
+// LineAnchor builds an Anchor for a single new-side line. Used by the
+// per-line read tracker — hunks are purely visual separators in the
+// reading model; what counts as "read" is individual lines.
+func LineAnchor(path string, newLine int) Anchor {
+	return Anchor(fmt.Sprintf("%s:%d", path, newLine))
+}
+
 // Kind discriminates regular comments from questions.
 type Kind string
 

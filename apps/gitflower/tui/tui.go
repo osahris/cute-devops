@@ -131,6 +131,16 @@ type hunkRange struct {
 	topRow, botRow int
 }
 
+// lineKey is the in-memory identity of a single diff line. We use
+// (fileIdx, hunkIdx, lineIdx) instead of a string anchor because the
+// reading model doesn't care about persistence — saves go through the
+// review.Session API and only persist whole-file aggregates.
+type lineKey struct {
+	fileIdx int
+	hunkIdx int
+	lineIdx int
+}
+
 // lineRange records the rendered-row span of a single reviewable element
 // in the current viewport: either a non-delete diff line, or the synthetic
 // "<end of file>" marker that follows the last hunk. We need this for
@@ -186,14 +196,28 @@ type model struct {
 	hunkRanges []hunkRange
 	lineRanges []lineRange
 	atEOF      bool // cursor is on the synthetic <end of file> marker
-	displayed  map[review.Anchor]map[int]bool
+
+	// Per-line read state. Hunks are visual separators only; reading
+	// happens line by line. Keys are global file-line identifiers
+	// (fileIdx, hunkIdx, lineIdx); values are true once the line has
+	// been visible long enough to count as read.
+	lineRead    map[lineKey]bool
+	lineSkipped map[lineKey]bool
+	// pendingLines holds the lineKeys for which a tea.Tick has been
+	// queued. We need this so the tick-fire handler can confirm the
+	// line is still on screen before committing the read.
+	pendingLines map[lineKey]bool
 
 	// Delayed read marking.
-	readRate     float64 // lines/second; per-hunk delay = lines / readRate
-	pendingReads map[review.Anchor]bool // anchor has a scheduled read tick
+	readRate float64 // lines/second; per-line delay = 1 / readRate
 
 	// Autosave: when true an autoSaveMsg tick is in flight.
 	saveScheduled bool
+
+	// Coalesced colour-refresh: set true while a colourRefreshMsg is
+	// queued so we don't pile up 200 refresh ticks during a flurry of
+	// per-line read marks.
+	colourRefreshScheduled bool
 
 	// queuedCmds accumulate Cmds produced by non-Cmd-returning helpers
 	// (refreshViewport, updateDisplayed); Update batches and drains them.
@@ -252,9 +276,10 @@ func newModel(sess *review.ReviewSession, root string, readRate float64) *model 
 		textarea:     ta,
 		title:        ti,
 		viewport:     vp,
-		displayed:    map[review.Anchor]map[int]bool{},
 		readRate:     readRate,
-		pendingReads: map[review.Anchor]bool{},
+		lineRead:     map[lineKey]bool{},
+		lineSkipped:  map[lineKey]bool{},
+		pendingLines: map[lineKey]bool{},
 	}
 	return m
 }
@@ -265,47 +290,20 @@ func newModel(sess *review.ReviewSession, root string, readRate float64) *model 
 
 func (m *model) Init() tea.Cmd { return nil }
 
-// currentReadDelay returns how long the reviewer should spend on the
-// current viewport before its content counts as read: scaled by the
-// configured lines-per-second rate and the reviewable line count
-// currently visible (intersected with the viewport, not the hunk's
-// total). So paging through a long hunk earns reading time per page,
-// not all at once. Clamped to minReadDelay so a tick always fires.
-func (m *model) currentReadDelay() time.Duration {
-	top := m.viewport.YOffset()
-	bot := top + m.viewport.Height() - 1
-	lines := 0
-	for _, lr := range m.lineRanges {
-		if lr.isEOF || lr.kind == review.LineDelete {
-			continue
-		}
-		if lr.botRow < top || lr.topRow > bot {
-			continue
-		}
-		lines++
-	}
-	if lines < 1 {
-		lines = 1
-	}
-	rate := m.readRate
-	if rate <= 0 {
-		rate = DefaultReadRate
-	}
-	d := time.Duration(float64(time.Second) * float64(lines) / rate)
-	if d < minReadDelay {
-		d = minReadDelay
-	}
-	return d
-}
 
-// delayedReadMsg fires `readDelay` after a hunk first became fully visible.
-// If the hunk is still pending (not user-unread) AND currently in the
-// viewport, we mark it read.
-type delayedReadMsg struct{ anchor review.Anchor }
+// delayedReadMsg fires `readDelay` after a reviewable diff line first
+// became visible. The handler verifies the line is still on screen
+// before marking it read.
+type delayedReadMsg struct{ line lineKey }
 
 // autoSaveMsg fires AutoSaveInterval after dirty state was detected.
 // Coalesces many rapid mutations into a single Save call.
 type autoSaveMsg struct{}
+
+// colourRefreshMsg coalesces visual updates after a flurry of read-tick
+// fires. Without it, marking 200 lines read in quick succession would
+// trigger 200 full re-renders.
+type colourRefreshMsg struct{}
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -315,26 +313,27 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshViewport()
 		return m, m.drainCmds()
 	case delayedReadMsg:
-		// Delay elapsed for a previously-fully-displayed hunk. Before
-		// we commit the read marker, verify the hunk is STILL at least
-		// partially in the viewport — otherwise the reviewer paged
-		// past too quickly. If they moved on, clear the accumulator so
-		// they have to re-display the hunk before another tick can
-		// fire. When we DO mark read, re-render so the diff colours
-		// update from "unread bright" to "read dim" immediately.
-		if m.pendingReads[msg.anchor] {
-			if m.isHunkPartiallyVisible(msg.anchor) {
-				m.sess.MarkRead(msg.anchor)
+		// Delay elapsed for a reviewable line that was on screen when
+		// the tick was scheduled. Only commit the read if the line is
+		// still visible — otherwise the reviewer paged past too fast
+		// and we'd be rewarding a fast-scroll without actually reading.
+		// When we do commit, re-render so the colour shifts from
+		// bright (unread) to dim (read) immediately.
+		if m.pendingLines[msg.line] {
+			delete(m.pendingLines, msg.line)
+			if m.isLineVisible(msg.line) && !m.lineRead[msg.line] {
+				m.lineRead[msg.line] = true
 				m.scheduleAutoSave()
-				off := m.viewport.YOffset()
-				m.refreshViewport()
-				m.viewport.SetYOffset(off)
-				m.updateDisplayed()
-			} else {
-				delete(m.displayed, msg.anchor)
+				m.scheduleColourRefresh()
 			}
 		}
-		delete(m.pendingReads, msg.anchor)
+		return m, m.drainCmds()
+	case colourRefreshMsg:
+		m.colourRefreshScheduled = false
+		off := m.viewport.YOffset()
+		m.refreshViewport()
+		m.viewport.SetYOffset(off)
+		m.updateDisplayed()
 		return m, m.drainCmds()
 	case autoSaveMsg:
 		m.saveScheduled = false
@@ -484,16 +483,22 @@ func (m *model) sectionItems(s section) []string {
 		}
 		return out
 	case sectionChanges:
-		// Show only the real files in the Changes sidebar; the commit
-		// virtual files (path prefix "commit:<short>:") are walked
-		// in line mode via Space-walk but aren't first-class sidebar
-		// items.
-		var out []string
-		for _, f := range m.files {
-			if strings.HasPrefix(f.Path, "commit:") {
-				continue
+		// Show every entry in m.files (including the commit-virtual
+		// files) with its per-line review progress: "<path>  R/T"
+		// where R = lines marked read and T = total reviewable lines.
+		// Keeping the index 1:1 with m.files avoids translating
+		// sidebar position ↔ fileIdx everywhere else.
+		out := make([]string, len(m.files))
+		for fi, f := range m.files {
+			r, t := m.fileLineCounts(fi)
+			label := f.Path
+			if strings.HasPrefix(label, "commit:") {
+				rest := strings.TrimPrefix(label, "commit:")
+				if i := strings.Index(rest, ":"); i > 0 {
+					label = "commit " + rest[:i] + "  " + rest[i+1:]
+				}
 			}
-			out = append(out, f.Path)
+			out[fi] = fmt.Sprintf("%s  %d/%d", label, r, t)
 		}
 		return out
 	case sectionCommits:
@@ -761,11 +766,18 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.refreshViewport()
 		}
 	case "u":
-		a := m.currentAnchor()
-		m.sess.MarkUnread(a)
-		delete(m.displayed, a)
-		delete(m.pendingReads, a) // cancel pending delayed-read for this anchor
-		m.save("marked unread")
+		// Mark the current line unread: drop its read state so the
+		// walk visits it again, and cancel any pending tick.
+		lk := m.currentLineKey()
+		delete(m.lineRead, lk)
+		delete(m.lineSkipped, lk)
+		delete(m.pendingLines, lk)
+		off := m.viewport.YOffset()
+		m.refreshViewport()
+		m.viewport.SetYOffset(off)
+		m.updateDisplayed()
+		m.scheduleAutoSave()
+		m.status = "marked unread"
 	case " ", "space":
 		m.spaceWalk()
 	case "alt+space":
@@ -929,19 +941,30 @@ func (m *model) cursorNewLine(h *review.Hunk) int {
 	return 0
 }
 
-// skipWalk marks the current unread hunk as intentionally skipped and
-// then jumps to the next unread one (or EOF / next file, just like
-// spaceWalk). Bound to Alt+Space — for content the reviewer doesn't
-// want to read but still wants to record having decided to skip.
+// currentLineKey returns the lineKey under the cursor (modeDiff only).
+func (m *model) currentLineKey() lineKey {
+	return lineKey{fileIdx: m.fileIdx, hunkIdx: m.hunkIdx, lineIdx: m.lineCursor}
+}
+
+// skipWalk marks every unread reviewable line in the current file
+// from the cursor forward (within the current hunk) as Skipped, then
+// jumps to the next unread line / file. Alt+Space — for templates and
+// other content the reviewer wants to acknowledge-and-skip in bulk.
 func (m *model) skipWalk() {
 	if !m.atEOF && m.mode == modeDiff {
 		if f := m.currentFile(); f != nil && m.hunkIdx >= 0 && m.hunkIdx < len(f.Hunks) {
 			h := &f.Hunks[m.hunkIdx]
-			a := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
-			if !m.sess.IsRead(a) && !m.sess.IsSkipped(a) {
-				m.sess.MarkSkipped(a)
-				m.scheduleAutoSave()
+			for li := m.lineCursor; li < len(h.Lines); li++ {
+				if h.Lines[li].Kind != review.LineAdd && h.Lines[li].Kind != review.LineDelete {
+					continue
+				}
+				lk := lineKey{fileIdx: m.fileIdx, hunkIdx: m.hunkIdx, lineIdx: li}
+				if m.lineRead[lk] || m.lineSkipped[lk] {
+					continue
+				}
+				m.lineSkipped[lk] = true
 			}
+			m.scheduleAutoSave()
 		}
 	}
 	m.spaceWalk()
@@ -1009,38 +1032,21 @@ func (m *model) spaceWalk() {
 	m.spaceWalkInFile()
 }
 
-// spaceWalkInFile jumps the cursor to "5 rendered rows before the first
-// reviewable line of the next unread hunk in the current file". If
-// nothing in the current file is unread, the cursor parks on the EOF
-// marker — the next Space then hops to the next file with unread.
+// spaceWalkInFile jumps the cursor to "5 rendered rows before the next
+// unread reviewable line in the current file". If nothing in the file
+// is unread, the cursor parks on the EOF marker; the next Space then
+// hops to the next file that still has unread lines.
 func (m *model) spaceWalkInFile() {
 	f := m.currentFile()
 	if f == nil {
 		return
 	}
 
-	// Find the next unread (and non-skipped) hunk at or after the
-	// current cursor. We don't skip the current hunk: if it's still
-	// pending, the cursor belongs at its first reviewable line so the
-	// reader sees what they're about to scroll into.
-	nextHunkIdx := -1
-	for hi := max(0, m.hunkIdx); hi < len(f.Hunks); hi++ {
-		h := &f.Hunks[hi]
-		a := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
-		if m.sess.IsRead(a) || m.sess.IsSkipped(a) {
-			continue
-		}
-		nextHunkIdx = hi
-		break
-	}
-
-	if nextHunkIdx < 0 {
-		// Nothing unread left here — park on EOF so the user gets the
-		// unambiguous "done with this file" signal.
+	nextHi, nextLi := m.nextUnreadLineInFile(m.fileIdx, m.hunkIdx, m.lineCursor)
+	if nextHi < 0 {
+		// Nothing unread left in this file — park on EOF.
 		m.atEOF = true
 		m.refreshViewport()
-		// Center the EOF marker if we can; otherwise the natural
-		// last-page placement is fine.
 		if eof := m.eofRange(); eof != nil {
 			target := eof.topRow - (m.viewport.Height() - pageOverlap)
 			if target < 0 {
@@ -1052,23 +1058,20 @@ func (m *model) spaceWalkInFile() {
 		return
 	}
 
-	// Already parked on the next unread hunk: leave cursor and
-	// viewport completely alone. Re-jumping would reset PgDn progress
-	// and re-render, which both wastes work and (worse) could let the
-	// reader perceive Space as "messing with the read timer". The
-	// reader uses PgDn to page through the unread; Alt+Space to skip.
-	if m.hunkIdx == nextHunkIdx {
+	// Already parked on the next unread line: true no-op. Leaving
+	// cursor and viewport alone means PgDn progress is preserved and
+	// no extra render disturbs the read tick that's already counting.
+	if nextHi == m.hunkIdx && nextLi == m.lineCursor {
 		return
 	}
 
-	// Otherwise jump: cursor on the first reviewable line of the
-	// unread hunk, viewport backed up by `pageOverlap` rows.
-	h := &f.Hunks[nextHunkIdx]
-	m.hunkIdx = nextHunkIdx
-	m.lineCursor = m.firstNonDelete(h, 0, +1)
+	// Jump to the unread line, back the viewport up by `pageOverlap`
+	// rows so the reader has a strip of just-read context above it.
+	m.hunkIdx = nextHi
+	m.lineCursor = nextLi
 	m.refreshViewport()
 	for _, lr := range m.lineRanges {
-		if lr.isEOF || lr.hunkIdx != nextHunkIdx || lr.lineIdx != m.lineCursor {
+		if lr.isEOF || lr.hunkIdx != nextHi || lr.lineIdx != nextLi {
 			continue
 		}
 		top := lr.topRow - pageOverlap
@@ -1081,21 +1084,68 @@ func (m *model) spaceWalkInFile() {
 	}
 }
 
-// fileHasUnread reports whether any hunk in m.files[fi] is still
-// unread AND not skipped. A skipped hunk counts as "done" for walk
-// advancement so Alt+Space (skip-to-next-unread) actually advances.
-func (m *model) fileHasUnread(fi int) bool {
+// nextUnreadLineInFile finds the first reviewable (add or delete) line
+// at or after (startHi, startLi) in file fi that's neither read nor
+// skipped. Returns (-1, -1) if nothing is left.
+func (m *model) nextUnreadLineInFile(fi, startHi, startLi int) (int, int) {
 	if fi < 0 || fi >= len(m.files) {
-		return false
+		return -1, -1
 	}
 	f := &m.files[fi]
-	for _, h := range f.Hunks {
-		a := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
-		if !m.sess.IsRead(a) && !m.sess.IsSkipped(a) {
-			return true
+	if startHi < 0 {
+		startHi = 0
+		startLi = 0
+	}
+	for hi := startHi; hi < len(f.Hunks); hi++ {
+		h := &f.Hunks[hi]
+		first := 0
+		if hi == startHi {
+			first = startLi
+			if first < 0 {
+				first = 0
+			}
+		}
+		for li := first; li < len(h.Lines); li++ {
+			if h.Lines[li].Kind != review.LineAdd && h.Lines[li].Kind != review.LineDelete {
+				continue
+			}
+			lk := lineKey{fileIdx: fi, hunkIdx: hi, lineIdx: li}
+			if m.lineRead[lk] || m.lineSkipped[lk] {
+				continue
+			}
+			return hi, li
 		}
 	}
-	return false
+	return -1, -1
+}
+
+// fileHasUnread reports whether any reviewable line in m.files[fi] is
+// still unread AND not skipped.
+func (m *model) fileHasUnread(fi int) bool {
+	hi, _ := m.nextUnreadLineInFile(fi, 0, 0)
+	return hi >= 0
+}
+
+// fileLineCounts returns the (read, total) reviewable-line tally for
+// file fi. Used by the sidebar to show review progress per file.
+func (m *model) fileLineCounts(fi int) (read, total int) {
+	if fi < 0 || fi >= len(m.files) {
+		return 0, 0
+	}
+	f := &m.files[fi]
+	for hi, h := range f.Hunks {
+		for li, ln := range h.Lines {
+			if ln.Kind != review.LineAdd && ln.Kind != review.LineDelete {
+				continue
+			}
+			total++
+			lk := lineKey{fileIdx: fi, hunkIdx: hi, lineIdx: li}
+			if m.lineRead[lk] {
+				read++
+			}
+		}
+	}
+	return read, total
 }
 
 // scheduleAutoSave queues an autoSaveMsg tick so dirty state gets flushed
@@ -1108,6 +1158,19 @@ func (m *model) scheduleAutoSave() {
 	m.saveScheduled = true
 	m.queuedCmds = append(m.queuedCmds, tea.Tick(AutoSaveInterval, func(time.Time) tea.Msg {
 		return autoSaveMsg{}
+	}))
+}
+
+// scheduleColourRefresh queues a single colourRefreshMsg to redraw the
+// diff so newly-read lines flip to their dim colour. Coalesced so a
+// burst of read ticks only triggers one full re-render.
+func (m *model) scheduleColourRefresh() {
+	if m.colourRefreshScheduled {
+		return
+	}
+	m.colourRefreshScheduled = true
+	m.queuedCmds = append(m.queuedCmds, tea.Tick(50*time.Millisecond, func(time.Time) tea.Msg {
+		return colourRefreshMsg{}
 	}))
 }
 
@@ -1465,19 +1528,8 @@ func (m *model) toggleWrap() {
 }
 
 func (m *model) advanceHunk() {
-	cur := m.currentHunk()
-	if cur != nil {
-		a := review.HunkAnchor(m.currentFile().Path, cur.NewStart, cur.NewLines)
-		if !m.isHunkFullyDisplayed(a) {
-			step := m.viewport.Height() / 2
-			if step < 1 {
-				step = 1
-			}
-			m.viewport.SetYOffset(m.viewport.YOffset() + step)
-			m.updateDisplayed()
-			return
-		}
-	}
+	// Hunks are visual separators; "fully displayed" is no longer a
+	// meaningful read-state signal. Just advance the hunk index.
 	f := m.currentFile()
 	if m.hunkIdx+1 < len(f.Hunks) {
 		m.hunkIdx++
@@ -1799,80 +1851,79 @@ func (m *model) applyMarker(mk review.Marker) {
 // partial-read tracking
 // ---------------------------------------------------------------------
 
-// isHunkPartiallyVisible reports whether any rendered row of the hunk
-// is inside the current viewport right now.
-func (m *model) isHunkPartiallyVisible(a review.Anchor) bool {
+// isLineVisible reports whether the rendered rows of `lk` overlap with
+// the current viewport — even partially. lineRanges only describe the
+// currently-rendered file, so a line from a different file is by
+// definition not visible.
+func (m *model) isLineVisible(lk lineKey) bool {
+	if lk.fileIdx != m.fileIdx {
+		return false
+	}
 	top := m.viewport.YOffset()
 	bot := top + m.viewport.Height() - 1
-	for _, r := range m.hunkRanges {
-		if r.anchor != a {
+	for _, lr := range m.lineRanges {
+		if lr.isEOF {
 			continue
 		}
-		return r.botRow >= top && r.topRow <= bot
+		if lr.hunkIdx != lk.hunkIdx || lr.lineIdx != lk.lineIdx {
+			continue
+		}
+		return lr.botRow >= top && lr.topRow <= bot
 	}
 	return false
 }
 
-func (m *model) isHunkFullyDisplayed(a review.Anchor) bool {
-	for _, r := range m.hunkRanges {
-		if r.anchor != a {
-			continue
-		}
-		set := m.displayed[a]
-		for row := r.topRow; row <= r.botRow; row++ {
-			if !set[row] {
-				return false
-			}
-		}
-		return true
-	}
-	return false
-}
-
+// updateDisplayed schedules a per-line read tick for every reviewable
+// line currently inside the viewport that isn't already read, skipped,
+// or pending. The tick fires after a per-line reading time
+// (1/readRate) and only commits the read if the line is still visible.
 func (m *model) updateDisplayed() {
 	top := m.viewport.YOffset()
 	bot := top + m.viewport.Height() - 1
-	for _, r := range m.hunkRanges {
-		set := m.displayed[r.anchor]
-		if set == nil {
-			set = map[int]bool{}
-			m.displayed[r.anchor] = set
-		}
-		if m.sess.IsRead(r.anchor) {
+	delay := m.perLineReadDelay()
+	for _, lr := range m.lineRanges {
+		if lr.isEOF {
 			continue
 		}
-		vTop, vBot := r.topRow, r.botRow
-		if top > vTop {
-			vTop = top
-		}
-		if bot < vBot {
-			vBot = bot
-		}
-		if vTop > vBot {
+		if lr.kind != review.LineAdd && lr.kind != review.LineDelete {
 			continue
 		}
-		for row := vTop; row <= vBot; row++ {
-			set[row] = true
+		if lr.botRow < top || lr.topRow > bot {
+			continue
 		}
-		full := true
-		for row := r.topRow; row <= r.botRow; row++ {
-			if !set[row] {
-				full = false
-				break
+		// A reviewable line is fully on screen when both its top AND
+		// bottom rendered rows are in the viewport. For tall wrapped
+		// lines that won't fit, fall back to "any overlap" — otherwise
+		// long lines would never schedule a tick.
+		if lr.botRow-lr.topRow+1 <= m.viewport.Height() {
+			if lr.topRow < top || lr.botRow > bot {
+				continue
 			}
 		}
-		if full && !m.pendingReads[r.anchor] {
-			// Schedule a delayed read sized to the hunk's reviewable
-			// line count: delay = lines / readRate. Bigger hunks earn
-			// more time before they're considered "read"; tiny ones
-			// fire almost immediately.
-			m.pendingReads[r.anchor] = true
-			anchor := r.anchor
-			m.queuedCmds = append(m.queuedCmds, tea.Tick(m.currentReadDelay(), func(time.Time) tea.Msg {
-				return delayedReadMsg{anchor: anchor}
-			}))
+		lk := lineKey{fileIdx: m.fileIdx, hunkIdx: lr.hunkIdx, lineIdx: lr.lineIdx}
+		if m.lineRead[lk] || m.lineSkipped[lk] || m.pendingLines[lk] {
+			continue
 		}
+		m.pendingLines[lk] = true
+		key := lk
+		m.queuedCmds = append(m.queuedCmds, tea.Tick(delay, func(time.Time) tea.Msg {
+			return delayedReadMsg{line: key}
+		}))
 	}
+}
+
+// perLineReadDelay returns the reading time budget for a single
+// reviewable line — the inverse of readRate, floored at minReadDelay.
+func (m *model) perLineReadDelay() time.Duration {
+	rate := m.readRate
+	if rate <= 0 {
+		rate = DefaultReadRate
+	}
+	d := time.Duration(float64(time.Second) / rate)
+	if d < minReadDelay {
+		d = minReadDelay
+	}
+	return d
 }
 
 
@@ -2225,10 +2276,9 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, lines []lineRang
 	for hi, h := range f.Hunks {
 		topRow := row
 		anchor := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
-		readMark := styleUnread.Render("● ")
-		if m.sess.IsRead(anchor) {
-			readMark = styleRead.Render("✓ ")
-		}
+		// Hunks are purely visual separators now: render the @@ title
+		// with no read marker. Marker (good/bad) still applies because
+		// reactions are inherently hunk-level.
 		var mk string
 		switch m.sess.Marker(anchor) {
 		case review.MarkerGood:
@@ -2238,10 +2288,8 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, lines []lineRang
 		default:
 			mk = "  "
 		}
-		// Header is plain (no cursor highlight on the @@-line) — the
-		// active cursor lives on a content line below.
 		gutterPad := strings.Repeat(" ", gutterW)
-		sb.WriteString(gutterPad + styleHunk.Render(readMark+mk+h.Header) + "\n")
+		sb.WriteString(gutterPad + styleHunk.Render(mk+h.Header) + "\n")
 		row++
 
 		// Editor splices below the line the cursor is on.
@@ -2267,8 +2315,10 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, lines []lineRang
 			}
 			var sign string
 			var styleLn lipgloss.Style
-			read := m.sess.IsRead(anchor)
-			skipped := m.sess.IsSkipped(anchor)
+			lk := lineKey{fileIdx: m.fileIdx, hunkIdx: hi, lineIdx: li}
+			read := m.lineRead[lk]
+			skipped := m.lineSkipped[lk]
+			_ = anchor
 			switch ln.Kind {
 			case review.LineAdd:
 				sign = "+ "

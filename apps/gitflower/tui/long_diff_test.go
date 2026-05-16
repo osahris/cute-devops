@@ -66,8 +66,8 @@ func TestSpaceWalkOnLongDiffs(t *testing.T) {
 	stuck := 0
 	for i := 0; i < maxSteps; i++ {
 		// Fire pending read ticks deterministically.
-		for anchor := range m.pendingReads {
-			next, _ := m.Update(delayedReadMsg{anchor: anchor})
+		for anchor := range m.pendingLines {
+			next, _ := m.Update(delayedReadMsg{line: anchor})
 			m = next.(*model)
 		}
 		if m.edit == editSummary {
@@ -93,34 +93,15 @@ func TestSpaceWalkOnLongDiffs(t *testing.T) {
 		}
 	}
 
-	// Tally: every hunk in every (real) file must be marked read.
-	type miss struct {
-		path string
-		read int
-		all  int
-	}
-	var misses []miss
-	for _, f := range m.files {
+	// Tally: every reviewable line in every (real) file must be read.
+	for fi, f := range m.files {
 		if strings.HasPrefix(f.Path, "commit:") {
 			continue
 		}
-		read := 0
-		for _, h := range f.Hunks {
-			a := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
-			if m.sess.IsRead(a) {
-				read++
-			}
+		r, total := m.fileLineCounts(fi)
+		if r != total {
+			t.Errorf("walk left lines unread in %s: %d/%d read", f.Path, r, total)
 		}
-		if read != len(f.Hunks) {
-			misses = append(misses, miss{f.Path, read, len(f.Hunks)})
-		}
-	}
-	if len(misses) > 0 {
-		var sb strings.Builder
-		for _, mi := range misses {
-			fmt.Fprintf(&sb, "  %-30s %d/%d hunks read\n", mi.path, mi.read, mi.all)
-		}
-		t.Errorf("walk left hunks unread:\n%s", sb.String())
 	}
 }
 
@@ -159,11 +140,11 @@ func TestSpaceSpamPreservesScrollProgress(t *testing.T) {
 	if progress == 0 {
 		t.Fatalf("PgDn made no progress")
 	}
-	anchor := review.HunkAnchor("big.txt", 1, 200)
-	displayedBefore := len(m.displayed[anchor])
+	cursor := m.lineCursor
+	hunkIdx := m.hunkIdx
 
-	// Now spam Space. Each one should be a no-op since we're already
-	// on the next unread hunk.
+	// Now spam Space. Each one should be a no-op since the next
+	// unread line is the one already under the cursor.
 	for i := 0; i < 20; i++ {
 		m = key(t, m, ' ', " ")
 	}
@@ -171,9 +152,9 @@ func TestSpaceSpamPreservesScrollProgress(t *testing.T) {
 	if got := m.viewport.YOffset(); got != progress {
 		t.Errorf("Space spam shifted viewport: was %d, now %d", progress, got)
 	}
-	if got := len(m.displayed[anchor]); got < displayedBefore {
-		t.Errorf("Space spam shrank displayed accumulator: was %d, now %d",
-			displayedBefore, got)
+	if m.lineCursor != cursor || m.hunkIdx != hunkIdx {
+		t.Errorf("Space spam moved the cursor: was %d/%d, now %d/%d",
+			hunkIdx, cursor, m.hunkIdx, m.lineCursor)
 	}
 }
 
@@ -208,12 +189,11 @@ func TestSpaceCannotAdvancePastUnread(t *testing.T) {
 
 	// Drill in.
 	m = key(t, m, ' ', " ")
-	anchorA := review.HunkAnchor("a.txt", 1, 100)
 	if m.fileIdx != 0 {
 		t.Fatalf("expected fileIdx 0, got %d", m.fileIdx)
 	}
 	// Spam Space — without firing the read tick, we must never leave
-	// a.txt and never reach atEOF.
+	// a.txt and never reach atEOF, and no line gets marked read.
 	for i := 0; i < 100; i++ {
 		m = key(t, m, ' ', " ")
 		if m.fileIdx != 0 {
@@ -222,8 +202,8 @@ func TestSpaceCannotAdvancePastUnread(t *testing.T) {
 		if m.atEOF {
 			t.Fatalf("Space #%d reached EOF before read tick fired", i)
 		}
-		if m.sess.IsRead(anchorA) {
-			t.Fatalf("Space #%d marked the hunk read without a tick firing", i)
+		if r, _ := m.fileLineCounts(0); r != 0 {
+			t.Fatalf("Space #%d marked %d line(s) read without a tick firing", i, r)
 		}
 	}
 }
@@ -259,21 +239,18 @@ func TestAltSpaceSkipsAndAdvances(t *testing.T) {
 		t.Fatalf("expected modeDiff, got %v", m.mode)
 	}
 
-	// Alt+Space: skip the hunk, advance to EOF or next unread.
-	hunk := m.currentHunk()
-	if hunk == nil {
-		t.Fatalf("expected a current hunk")
-	}
-	anchor := review.HunkAnchor(m.currentFile().Path, hunk.NewStart, hunk.NewLines)
-	if m.sess.IsSkipped(anchor) {
-		t.Fatalf("anchor pre-skipped before Alt+Space")
+	// Alt+Space: skip every reviewable line from the cursor forward,
+	// advance to EOF or next unread.
+	lk := lineKey{fileIdx: m.fileIdx, hunkIdx: m.hunkIdx, lineIdx: m.lineCursor}
+	if m.lineSkipped[lk] {
+		t.Fatalf("line pre-skipped before Alt+Space")
 	}
 	m = step(t, m, tea.KeyPressMsg{Code: ' ', Text: " ", Mod: tea.ModAlt})
-	if !m.sess.IsSkipped(anchor) {
-		t.Errorf("Alt+Space did not mark the hunk skipped")
+	if !m.lineSkipped[lk] {
+		t.Errorf("Alt+Space did not mark the line skipped")
 	}
-	if m.sess.IsRead(anchor) {
-		t.Errorf("Alt+Space wrongly marked the hunk read")
+	if m.lineRead[lk] {
+		t.Errorf("Alt+Space wrongly marked the line read")
 	}
 }
 
@@ -307,33 +284,26 @@ func TestFastSpamDoesNotMarkUnseenHunksRead(t *testing.T) {
 	m := newModel(sess, tmp, 1.0)
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 25})
 
-	// Drill into a.txt.
+	// Drill into a.txt; updateDisplayed schedules ticks for the
+	// visible add lines.
 	m = key(t, m, ' ', " ")
-	anchorA := review.HunkAnchor("a.txt", 1, 5)
-	if !m.pendingReads[anchorA] {
-		// Render a.txt's hunk so the tick gets scheduled.
-		m.refreshViewport()
-	}
 
-	// Skip a.txt (Alt+Space marks the hunk as Skipped + lands on a's
-	// EOF marker), then Space again to advance past EOF into b.txt.
-	// At this point a.txt's hunk is no longer in m.hunkRanges, so the
-	// pending read tick (scheduled when a was first displayed) must
-	// not promote a from skipped to read.
+	// Skip a.txt (Alt+Space marks every reviewable line from the
+	// cursor forward as Skipped + lands on a's EOF marker), then
+	// Space again to advance past EOF into b.txt. At this point the
+	// pending ticks for a's lines should NOT promote them to read
+	// because a's lines are no longer on screen.
 	m = step(t, m, tea.KeyPressMsg{Code: ' ', Text: " ", Mod: tea.ModAlt})
-	if !m.sess.IsSkipped(anchorA) {
-		t.Fatalf("Alt+Space should have skipped a.txt")
-	}
 	m = key(t, m, ' ', " ") // advance from a's EOF to b.txt
 	if !strings.HasSuffix(m.currentFile().Path, "b.txt") {
 		t.Fatalf("expected to land on b.txt, got %s", m.currentFile().Path)
 	}
-	for anchor := range m.pendingReads {
-		next, _ := m.Update(delayedReadMsg{anchor: anchor})
+	for lk := range m.pendingLines {
+		next, _ := m.Update(delayedReadMsg{line: lk})
 		m = next.(*model)
 	}
-	if m.sess.IsRead(anchorA) {
-		t.Errorf("a.txt was marked read despite reviewer paging past it")
+	if r, _ := m.fileLineCounts(0); r != 0 {
+		t.Errorf("a.txt has %d lines marked read despite reviewer paging past it", r)
 	}
 }
 

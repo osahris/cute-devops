@@ -52,8 +52,8 @@ func TestSpaceWalkOnThisRepo(t *testing.T) {
 	const maxSteps = 5000
 	stuck := 0
 	for i := 0; i < maxSteps; i++ {
-		for anchor := range m.pendingReads {
-			next, _ := m.Update(delayedReadMsg{anchor: anchor})
+		for anchor := range m.pendingLines {
+			next, _ := m.Update(delayedReadMsg{line: anchor})
 			m = next.(*model)
 		}
 		if m.edit == editSummary {
@@ -98,34 +98,28 @@ func TestSpaceWalkOnThisRepo(t *testing.T) {
 		}
 	}
 
-	// Verify every (real) file's hunks are marked read.
+	// Verify every (real) file's reviewable lines got marked read.
 	type miss struct {
 		path string
 		read int
 		all  int
 	}
 	var misses []miss
-	for _, f := range m.files {
+	for fi, f := range m.files {
 		if strings.HasPrefix(f.Path, "commit:") {
 			continue
 		}
-		read := 0
-		for _, h := range f.Hunks {
-			a := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
-			if m.sess.IsRead(a) {
-				read++
-			}
-		}
-		if read != len(f.Hunks) {
-			misses = append(misses, miss{f.Path, read, len(f.Hunks)})
+		r, total := m.fileLineCounts(fi)
+		if r != total {
+			misses = append(misses, miss{f.Path, r, total})
 		}
 	}
 	if len(misses) > 0 {
 		var sb strings.Builder
 		for _, mi := range misses {
-			fmt.Fprintf(&sb, "  %-50s %d/%d hunks read\n", mi.path, mi.read, mi.all)
+			fmt.Fprintf(&sb, "  %-50s %d/%d lines read\n", mi.path, mi.read, mi.all)
 		}
-		t.Errorf("walk left hunks unread:\n%s", sb.String())
+		t.Errorf("walk left lines unread:\n%s", sb.String())
 	}
 }
 
