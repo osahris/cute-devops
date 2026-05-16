@@ -1247,25 +1247,12 @@ func (m *model) pageDown() {
 		return
 	}
 
-	// Try to put the marker on row 0.
+	// Try to put the marker on row 0. If the viewport clamps (last
+	// page), keep the same marker — it just appears wherever the
+	// clamped view shows it. The marker IS the (bot-5)th line of the
+	// page the user just left; that's their attention anchor whether
+	// we're mid-file or on the last page.
 	m.viewport.SetYOffset(marker.topRow)
-	actualTop := m.viewport.YOffset()
-	if actualTop < marker.topRow {
-		// Last page: viewport clamped. Pick a different marker — the
-		// first reviewable line at row (pageOverlap - 1), i.e. the
-		// 5th row of the last page.
-		exceptionRow := actualTop + pageOverlap - 1
-		for i := range m.lineRanges {
-			lr := &m.lineRanges[i]
-			if lr.isEOF || lr.kind == review.LineDelete {
-				continue
-			}
-			if lr.topRow >= exceptionRow {
-				marker = lr
-				break
-			}
-		}
-	}
 	m.placeCursor(*marker)
 
 	// If even the last-page-exception marker didn't advance the cursor
