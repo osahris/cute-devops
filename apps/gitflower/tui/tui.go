@@ -1301,10 +1301,10 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch key.String() {
 	case "w":
 		m.toggleWrap()
-	case "left", "h":
+	case "esc", "left", "h":
 		// Hard-wrap: left scrolls horizontally; only when at column 0 do
-		// we go back to section mode. Soft-wrap: left always exits.
-		if !m.viewport.SoftWrap && m.viewport.XOffset() > 0 {
+		// we go back to section mode. Soft-wrap (and Esc): always exit.
+		if (key.String() == "left" || key.String() == "h") && !m.viewport.SoftWrap && m.viewport.XOffset() > 0 {
 			m.viewport.ScrollLeft(4)
 			return m, nil
 		}
@@ -2156,8 +2156,8 @@ func (m *model) updateFile(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch key.String() {
 	case "w":
 		m.toggleWrap()
-	case "left", "h":
-		if !m.viewport.SoftWrap && m.viewport.XOffset() > 0 {
+	case "esc", "left", "h":
+		if (key.String() == "left" || key.String() == "h") && !m.viewport.SoftWrap && m.viewport.XOffset() > 0 {
 			m.viewport.ScrollLeft(4)
 			return m, nil
 		}
