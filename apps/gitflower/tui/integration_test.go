@@ -4,6 +4,7 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -203,6 +204,139 @@ func TestSpaceWalkPagesThroughLongHunk(t *testing.T) {
 	}
 	if !m.sess.IsRead(m.hunkRanges[0].anchor) {
 		t.Errorf("after %d Spaces the hunk still isn't marked read", maxPresses)
+	}
+}
+
+// TestModeTransitionMatrix exhaustively walks every reachable mode
+// transition from each starting mode and asserts the model never panics,
+// the cursor row is always inside the viewport in any line-cursored
+// mode, and every section is at least selectable.
+func TestModeTransitionMatrix(t *testing.T) {
+	scope := smallScope()
+	tmp := t.TempDir()
+	sess := review.New(scope, "alice@example.com", filepath.Join(tmp, "x.review"))
+	m := newModel(sess, tmp, 10*time.Millisecond)
+	m = step(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Section traversal: visit every section via Tab.
+	start := int(m.sect)
+	for i := 0; i < numSections; i++ {
+		m = step(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
+		want := (start + i + 1) % numSections
+		if int(m.sect) != want {
+			t.Errorf("Tab %d: sect=%d want %d", i, m.sect, want)
+		}
+	}
+
+	// Drill into Changes and walk all hunks with j; cursor must always
+	// be on a valid line that gets the line-cursor highlight.
+	for m.sect != sectionChanges {
+		m = step(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
+	}
+	m = key(t, m, ' ', " ") // drill in
+	if m.mode != modeDiff {
+		t.Fatalf("expected modeDiff after Space on Changes, got %v", m.mode)
+	}
+	for i := 0; i < 30; i++ {
+		m = key(t, m, 'j', "j")
+		assertCursorVisible(t, m)
+	}
+	for i := 0; i < 30; i++ {
+		m = key(t, m, 'k', "k")
+		assertCursorVisible(t, m)
+	}
+
+	// Back to section mode preserves file selection.
+	m = key(t, m, 'h', "h")
+	if m.mode != modeTree {
+		t.Errorf("after h: mode=%v want modeTree", m.mode)
+	}
+	if m.sect != sectionChanges {
+		t.Errorf("after h: sect=%v want sectionChanges", m.sect)
+	}
+
+	// Space cycle: each Space should change state.
+	prev := stateSig(m)
+	for i := 0; i < 6; i++ {
+		// Fire pending reads to keep walk moving.
+		for anchor := range m.pendingReads {
+			next, _ := m.Update(delayedReadMsg{anchor: anchor})
+			m = next.(*model)
+		}
+		m = key(t, m, ' ', " ")
+		cur := stateSig(m)
+		if cur == prev {
+			t.Logf("Space at step %d didn't change state: %s", i, cur)
+		}
+		prev = cur
+	}
+}
+
+// assertCursorVisible checks that the line cursor's row is within the
+// current viewport. Detects the "marker invisible" regression.
+func assertCursorVisible(t *testing.T, m *model) {
+	t.Helper()
+	if m.mode != modeDiff && m.mode != modeFile {
+		return
+	}
+	// Re-render and grep for styleLineCur (background 236, bold). For
+	// modeDiff we look for `+ ` or `  ` styled with bold + bg.
+	body, ranges, cursorRow := renderFileDiff(m)
+	_ = body
+	if m.mode == modeFile {
+		return
+	}
+	if len(ranges) == 0 {
+		t.Logf("no hunk ranges (file empty?)")
+		return
+	}
+	top := m.viewport.YOffset()
+	bot := top + m.viewport.Height() - 1
+	if cursorRow < top || cursorRow > bot {
+		t.Errorf("cursor row %d outside viewport [%d,%d]", cursorRow, top, bot)
+	}
+}
+
+// stateSig produces a short string summarising the model's visible state
+// so tests can detect "did anything change?".
+func stateSig(m *model) string {
+	return fmt.Sprintf("mode=%v sect=%v sectIdx=%v file=%d hunk=%d line=%d yOff=%d edit=%v",
+		m.mode, m.sect, m.sectIdx, m.fileIdx, m.hunkIdx, m.lineCursor, m.viewport.YOffset(), m.edit)
+}
+
+// smallScope builds a tiny scope with two files / three hunks for
+// behavioural tests.
+func smallScope() review.Scope {
+	patchA := `diff --git a/a.txt b/a.txt
+new file mode 100644
+--- /dev/null
++++ b/a.txt
+@@ -0,0 +1,3 @@
++a line one
++a line two
++a line three`
+	patchB := `diff --git a/b.txt b/b.txt
+new file mode 100644
+--- /dev/null
++++ b/b.txt
+@@ -0,0 +1,5 @@
++b line one
++b line two
++b line three
++b line four
++b line five`
+	return review.Scope{
+		Branch: "feat", Base: "main",
+		TipSHA: "aaaaaaaaaaaa", BaseSHA: "bbbbbbbbbbbb",
+		Diff: "main..feat", Title: "feat",
+		Commits: []review.Commit{{SHA: "aaa1234567890", Short: "aaa1234", Subject: "test"}},
+		Files:   []string{"a.txt", "b.txt"},
+		RawDiff: patchA + "\n" + patchB,
+		FilePatches: map[string]string{
+			"a.txt": patchA,
+			"b.txt": patchB,
+		},
+		CommitPatches: map[string]string{"aaa1234567890": "From aaa1234 ...\n"},
 	}
 }
 

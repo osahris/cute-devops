@@ -28,6 +28,7 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"gitflower/review"
 )
@@ -36,12 +37,22 @@ import (
 // the TUI emits a ReadStart/ReadEnd. Override at TUI construction.
 const DefaultReadDelay = 1 * time.Second
 
-// Run launches the TUI on sess. readDelay controls how long a hunk must stay
-// visible before the read marker is emitted; pass 0 for DefaultReadDelay.
+// AutoSaveInterval is the debounce window for write-on-dirty. Multiple
+// rapid mutations (e.g. a Space walk through a long diff) coalesce into
+// one save per AutoSaveInterval window instead of one save per mutation.
+const AutoSaveInterval = 2 * time.Second
+
+// Run launches the TUI on sess. readDelay controls how long a hunk must
+// stay visible before the read marker is emitted. The minimum is 1ms —
+// even "immediate" still goes through the tick path so tests exercise
+// the realistic Update/Cmd round-trip.
 func Run(sess *review.ReviewSession, readDelay time.Duration) error {
 	root, _ := gitRoot()
 	if readDelay <= 0 {
 		readDelay = DefaultReadDelay
+	}
+	if readDelay < time.Millisecond {
+		readDelay = time.Millisecond
 	}
 	m := newModel(sess, root, readDelay)
 	_, err := tea.NewProgram(m).Run()
@@ -63,17 +74,19 @@ const (
 type section int
 
 // Sections mirror the H1 chapters of the .review file plus the two
-// sub-sections of `# Review` (Sources, Verdicts).
+// sub-sections of `# Review` (Sources, Verdicts), plus a Tree view of
+// every file at the tip SHA.
 const (
 	sectionSources section = iota
 	sectionVerdicts
 	sectionIssues
 	sectionChanges
 	sectionCommits
+	sectionTree
 	sectionFileReview
 )
 
-const numSections = 6
+const numSections = 7
 
 func (s section) Label() string {
 	switch s {
@@ -87,6 +100,8 @@ func (s section) Label() string {
 		return "Changes"
 	case sectionCommits:
 		return "Commits"
+	case sectionTree:
+		return "Tree"
 	case sectionFileReview:
 		return "File Review"
 	}
@@ -157,6 +172,9 @@ type model struct {
 	readDelay    time.Duration
 	pendingReads map[review.Anchor]bool // anchor has a scheduled read tick
 
+	// Autosave: when true an autoSaveMsg tick is in flight.
+	saveScheduled bool
+
 	// queuedCmds accumulate Cmds produced by non-Cmd-returning helpers
 	// (refreshViewport, updateDisplayed); Update batches and drains them.
 	queuedCmds []tea.Cmd
@@ -211,6 +229,10 @@ func (m *model) Init() tea.Cmd { return nil }
 // viewport, we mark it read.
 type delayedReadMsg struct{ anchor review.Anchor }
 
+// autoSaveMsg fires AutoSaveInterval after dirty state was detected.
+// Coalesces many rapid mutations into a single Save call.
+type autoSaveMsg struct{}
+
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -220,13 +242,19 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.drainCmds()
 	case delayedReadMsg:
 		// The hunk's rows were all visible at some point and the delay
-		// elapsed; mark read unconditionally. (Cancellation has already
-		// happened if the user pressed `u`, which clears pendingReads.)
+		// elapsed; mark read. Schedule a debounced autosave instead of
+		// writing to disk on every single tick.
 		if m.pendingReads[msg.anchor] {
 			m.sess.MarkRead(msg.anchor)
-			_ = m.sess.Save()
+			m.scheduleAutoSave()
 		}
 		delete(m.pendingReads, msg.anchor)
+		return m, m.drainCmds()
+	case autoSaveMsg:
+		m.saveScheduled = false
+		if m.sess.Dirty() {
+			_ = m.sess.Save()
+		}
 		return m, m.drainCmds()
 	}
 
@@ -281,16 +309,17 @@ func (m *model) resize() {
 
 func (m *model) handleGlobal(key string) (tea.Cmd, bool) {
 	switch key {
-	case "ctrl+c", "ctrl+q":
+	case "ctrl+c", "ctrl+q", "q":
+		// Quit cleanly. Flush any pending dirty state (autosave window
+		// might not have expired yet) so the user never loses read
+		// markers / comments / verdict edits. If save fails, ask the
+		// user instead of dropping their work.
 		if m.sess.Dirty() {
-			m.confirmQuit = true
-			return nil, true
-		}
-		return tea.Quit, true
-	case "q":
-		if m.sess.Dirty() {
-			m.confirmQuit = true
-			return nil, true
+			if err := m.sess.Save(); err != nil {
+				m.status = "save failed: " + err.Error()
+				m.confirmQuit = true
+				return nil, true
+			}
 		}
 		return tea.Quit, true
 	case "s":
@@ -371,6 +400,8 @@ func (m *model) sectionItems(s section) []string {
 			out[i] = c.Short + "  " + c.Subject
 		}
 		return out
+	case sectionTree:
+		return m.treeFiles
 	case sectionFileReview:
 		frs := m.sess.FileReviews()
 		out := make([]string, len(frs))
@@ -404,28 +435,50 @@ func (m *model) updateTree(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case "shift+tab":
 		m.sect = section((int(m.sect) + numSections - 1) % numSections)
 	case " ", "space":
-		// Space in section mode: drill in to line mode on the current file.
-		m.openSelectedItem()
+		// On Commits, Space walks commit-by-commit and eventually hands
+		// off to the verdict editor (see spaceWalk). Elsewhere, Space
+		// drills in.
+		if m.sect == sectionCommits || m.sect == sectionVerdicts {
+			m.spaceWalk()
+		} else {
+			m.openSelectedItem()
+		}
 	case "i":
-		// New issue.
+		// Add an entry in the current section:
+		//   Verdicts → open the verdict editor (creates a new audit-log
+		//              entry on Alt+Enter).
+		//   Issues   → open the issue editor (creates a new general issue).
+		//   anywhere else → fall back to Issues.
+		if m.sect == sectionVerdicts {
+			m.openVerdictEditor()
+			return m, nil
+		}
 		m.openEdit(editIssue, "", -1, -1, "")
 		return m, m.title.Focus()
 	case "e":
-		// Edit issue (only meaningful in Issues section).
-		if m.sect != sectionIssues {
+		// Edit the selected item in the current section.
+		switch m.sect {
+		case sectionIssues:
+			idx := m.sectIdx[m.sect]
+			issues := m.sess.Issues()
+			if idx >= len(issues) {
+				return m, nil
+			}
+			it := issues[idx]
+			m.openEdit(editIssue, "", -1, idx, "")
+			m.title.SetValue(it.Title)
+			m.textarea.SetValue(it.Body)
+			return m, m.title.Focus()
+		case sectionVerdicts:
+			// Edit means: open the verdict editor pre-populated. Submitting
+			// creates a fresh audit-log entry (it doesn't mutate the
+			// existing one — the spec defines verdicts as append-only).
+			m.openVerdictEditor()
+			return m, nil
+		default:
 			m.status = "no editable item under cursor"
 			return m, nil
 		}
-		idx := m.sectIdx[m.sect]
-		issues := m.sess.Issues()
-		if idx >= len(issues) {
-			return m, nil
-		}
-		it := issues[idx]
-		m.openEdit(editIssue, "", -1, idx, "")
-		m.title.SetValue(it.Title)
-		m.textarea.SetValue(it.Body)
-		return m, m.title.Focus()
 	case "right", "l", "enter":
 		m.openSelectedItem()
 	default:
@@ -489,6 +542,12 @@ func (m *model) onTreeSelectionChanged() {
 			m.filePath = frs[idx].Path
 			m.fileLines, _ = gitFileLines(m.sess.Scope.TipSHA, m.filePath)
 		}
+	case sectionTree:
+		idx := m.sectIdx[m.sect]
+		if idx < len(m.treeFiles) {
+			m.filePath = m.treeFiles[idx]
+			m.fileLines, _ = gitFileLines(m.sess.Scope.TipSHA, m.filePath)
+		}
 	case sectionCommits, sectionIssues, sectionSources, sectionVerdicts:
 		// no peek-side-effect; renderTreePeek handles display
 	}
@@ -513,11 +572,15 @@ func (m *model) openSelectedItem() {
 		idx := m.sectIdx[m.sect]
 		frs := m.sess.FileReviews()
 		if idx < len(frs) {
-			m.filePath = frs[idx].Path
-			m.fileLines, _ = gitFileLines(m.sess.Scope.TipSHA, m.filePath)
-			m.fileLineCursor = 0
-			m.mode = modeFile
-			m.refreshViewport()
+			m.enterFileReview(frs[idx].Path)
+		}
+	case sectionTree:
+		// Drilling into Tree opens File mode on the chosen path. The
+		// FileReview entry gets created on the fly so the visit lands
+		// in the # File Review section of the saved .review.
+		idx := m.sectIdx[m.sect]
+		if idx < len(m.treeFiles) {
+			m.enterFileReview(m.treeFiles[idx])
 		}
 	case sectionCommits:
 		// For v1: enter Diff mode on the changed-files list, leaving commit
@@ -738,6 +801,10 @@ func (m *model) cursorNewLine(h *review.Hunk) int {
 	return 0
 }
 
+// debugSpaceWalk, when not nil, is called once per spaceWalk entry.
+// Used by tests to introspect state transitions.
+var debugSpaceWalk func(stage string, m *model)
+
 // spaceWalk does the same thing everywhere: take the user to the next
 // unread hunk. Concretely:
 //
@@ -757,6 +824,26 @@ func (m *model) cursorNewLine(h *review.Hunk) int {
 // The viewport is positioned so 5 rows of context precede the new cursor
 // (clamped to top-of-content).
 func (m *model) spaceWalk() {
+	if debugSpaceWalk != nil {
+		debugSpaceWalk("entry", m)
+		defer debugSpaceWalk("exit", m)
+	}
+	// Walking commits in section mode: each Space advances the commit
+	// cursor; at the last commit the verdict editor opens.
+	if m.mode == modeTree && m.sect == sectionCommits {
+		idx := m.sectIdx[sectionCommits]
+		if idx+1 < len(m.sess.Scope.Commits) {
+			m.sectIdx[sectionCommits] = idx + 1
+			m.onTreeSelectionChanged()
+			return
+		}
+		m.sect = sectionVerdicts
+		m.sectIdx[sectionVerdicts] = max(0, len(m.sess.Verdicts())-1)
+		m.refreshViewport()
+		m.openVerdictEditor()
+		m.status = "all read — record your verdict"
+		return
+	}
 	if m.mode == modeTree {
 		if m.sect == sectionChanges {
 			m.fileIdx = m.sectIdx[m.sect]
@@ -853,14 +940,37 @@ func (m *model) spaceWalk() {
 		return
 	}
 
-	// (6) End of changes — land on Verdicts and open the summary editor
-	// so the reviewer commits a verdict to wrap up the walk.
+	// (6) End of changes — start walking commits next. Each follow-up
+	// Space (handled at the top of spaceWalk) advances the commit
+	// cursor; the last commit hands off to the verdict editor.
+	if len(m.sess.Scope.Commits) > 0 {
+		m.mode = modeTree
+		m.sect = sectionCommits
+		m.sectIdx[sectionCommits] = 0
+		m.onTreeSelectionChanged()
+		m.status = "all changes read — walking commits"
+		return
+	}
+	// No commits: jump straight to verdict.
 	m.sect = sectionVerdicts
 	m.sectIdx[sectionVerdicts] = max(0, len(m.sess.Verdicts())-1)
 	m.mode = modeTree
 	m.refreshViewport()
 	m.openVerdictEditor()
 	m.status = "all read — record your verdict"
+}
+
+// scheduleAutoSave queues an autoSaveMsg tick so dirty state gets flushed
+// to disk within AutoSaveInterval. Idempotent — a second call while a
+// tick is already pending is a no-op.
+func (m *model) scheduleAutoSave() {
+	if m.saveScheduled {
+		return
+	}
+	m.saveScheduled = true
+	m.queuedCmds = append(m.queuedCmds, tea.Tick(AutoSaveInterval, func(time.Time) tea.Msg {
+		return autoSaveMsg{}
+	}))
 }
 
 // openVerdictEditor opens the inline summary editor pre-populated with the
@@ -938,7 +1048,18 @@ func (m *model) snapCursorIntoView() {
 		if r.botRow >= top {
 			m.hunkIdx = i
 			if h := m.currentHunk(); h != nil {
-				m.lineCursor = m.firstNonDelete(h, 0, +1)
+				// Pick the first reviewable line at or below the viewport
+				// top, not always line 0 of the hunk — otherwise paging a
+				// multi-page hunk would re-park the cursor off-screen above
+				// the visible area.
+				offset := top - r.topRow - 1 // -1 for the @@ header row
+				if offset < 0 {
+					offset = 0
+				}
+				if offset > len(h.Lines)-1 {
+					offset = len(h.Lines) - 1
+				}
+				m.lineCursor = m.firstNonDelete(h, offset, +1)
 			}
 			return
 		}
@@ -1373,7 +1494,7 @@ func (m *model) updateDisplayed() {
 		}
 		if full && !m.pendingReads[r.anchor] {
 			// Schedule a delayed read; the actual MarkRead happens when
-			// the tick fires AND the hunk is still currently visible.
+			// the tick fires.
 			m.pendingReads[r.anchor] = true
 			anchor := r.anchor
 			m.queuedCmds = append(m.queuedCmds, tea.Tick(m.readDelay, func(time.Time) tea.Msg {
@@ -1521,7 +1642,7 @@ func (m *model) viewSidebar() string {
 	// rendered content exceeds the available height.
 	var lines []string
 	cursorRow := 0
-	for _, sec := range []section{sectionSources, sectionVerdicts, sectionIssues, sectionChanges, sectionCommits, sectionFileReview} {
+	for _, sec := range []section{sectionSources, sectionVerdicts, sectionIssues, sectionChanges, sectionCommits, sectionTree, sectionFileReview} {
 		items := m.sectionItems(sec)
 		hdr := fmt.Sprintf("%s (%d)", sec.Label(), len(items))
 		if m.mode == modeTree && m.sect == sec {
@@ -1624,10 +1745,52 @@ func (m *model) viewConfirmQuit() string {
 // rendering: diff view (modeDiff and Diffs-section peek)
 // ---------------------------------------------------------------------
 
+// wrapDiffText hard-wraps a single diff line's payload (no sign, no gutter)
+// at `width`. ansi.Hardwrap preserves any escape codes embedded in `s`. When
+// soft-wrap would shorten the line to nothing useful, we fall back to one
+// long line and rely on the viewport's own wrap.
+func wrapDiffText(s string, width int) []string {
+	if width < 1 {
+		return []string{s}
+	}
+	wrapped := ansi.Hardwrap(s, width, false)
+	return strings.Split(wrapped, "\n")
+}
+
 func renderFileDiff(m *model) (body string, ranges []hunkRange, cursorRow int) {
 	var sb strings.Builder
 	f := m.currentFile()
 	editing := m.edit == editComment || m.edit == editQuestion
+
+	// Gutter width: enough digits for the largest new- or old-side line
+	// number in any hunk of this file.
+	maxNum := 0
+	for _, h := range f.Hunks {
+		if n := h.NewStart + h.NewLines - 1; n > maxNum {
+			maxNum = n
+		}
+		if n := h.OldStart + h.OldLines - 1; n > maxNum {
+			maxNum = n
+		}
+	}
+	numW := len(fmt.Sprintf("%d", maxNum))
+	if numW < 1 {
+		numW = 1
+	}
+	blank := strings.Repeat(" ", numW)
+	gutterW := numW*2 + 3 // "<old> <new>  "
+
+	// Wrap content (excluding the "+ "/"- "/"  " sign prefix) so that the
+	// continuation rows hang past the sign, aligning with the text the
+	// user is reading. We pre-wrap so the line cursor highlight stays
+	// scoped to the logical line that's selected.
+	vpW := m.viewport.Width()
+	wrapW := vpW - gutterW - 2 // 2 for the sign+space prefix
+	if wrapW < 10 {
+		wrapW = 10
+	}
+	contIndent := strings.Repeat(" ", gutterW+2)
+
 	row := 0
 	for hi, h := range f.Hunks {
 		topRow := row
@@ -1645,16 +1808,10 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, cursorRow int) {
 		default:
 			mk = "  "
 		}
-		header := readMark + mk + h.Header
-		if hi == m.hunkIdx && (m.mode == modeDiff) {
-			header = styleCursor.Render(header)
-		} else {
-			header = styleHunk.Render(header)
-		}
-		sb.WriteString(header + "\n")
-		if hi == m.hunkIdx {
-			cursorRow = row
-		}
+		// Header is plain (no cursor highlight on the @@-line) — the
+		// active cursor lives on a content line below.
+		gutterPad := strings.Repeat(" ", gutterW)
+		sb.WriteString(gutterPad + styleHunk.Render(readMark+mk+h.Header) + "\n")
 		row++
 
 		// Editor splices below the line the cursor is on.
@@ -1663,23 +1820,56 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, cursorRow int) {
 			editorLineIdx = m.lineCursor
 		}
 
+		oldLine := h.OldStart
 		newLine := h.NewStart
 		for li, ln := range h.Lines {
-			var styled string
+			var oldStr, newStr string
 			switch ln.Kind {
 			case review.LineAdd:
-				styled = styleAdd.Render("+ " + ln.Text)
+				oldStr = blank
+				newStr = fmt.Sprintf("%*d", numW, newLine)
 			case review.LineDelete:
-				styled = styleDel.Render("- " + ln.Text)
+				oldStr = fmt.Sprintf("%*d", numW, oldLine)
+				newStr = blank
 			default:
-				styled = styleCtx.Render("  " + ln.Text)
+				oldStr = fmt.Sprintf("%*d", numW, oldLine)
+				newStr = fmt.Sprintf("%*d", numW, newLine)
 			}
-			if hi == m.hunkIdx && li == m.lineCursor {
-				styled = styleLineCur.Render(styled)
-				cursorRow = row
+			gutter := styleDim.Render(oldStr+" "+newStr) + "  "
+
+			var sign string
+			var styleLn lipgloss.Style
+			switch ln.Kind {
+			case review.LineAdd:
+				sign = "+ "
+				styleLn = styleAdd
+			case review.LineDelete:
+				sign = "- "
+				styleLn = styleDel
+			default:
+				sign = "  "
+				styleLn = styleCtx
 			}
-			sb.WriteString(styled + "\n")
-			row++
+			isCursor := hi == m.hunkIdx && li == m.lineCursor
+			parts := wrapDiffText(ln.Text, wrapW)
+			for j, part := range parts {
+				var line string
+				if j == 0 {
+					line = gutter + styleLn.Render(sign+part)
+				} else {
+					// Continuation: blank prefix aligning past sign+space,
+					// then styled text (no sign — just the wrapped chunk).
+					line = contIndent + styleLn.Render(part)
+				}
+				if isCursor {
+					if j == 0 {
+						cursorRow = row
+					}
+					line = styleLineCur.Render(line)
+				}
+				sb.WriteString(line + "\n")
+				row++
+			}
 
 			if li == editorLineIdx {
 				rs := renderInlineEditor(m)
@@ -1694,6 +1884,9 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, cursorRow int) {
 				sb.WriteString(rs)
 				row += strings.Count(rs, "\n")
 				newLine++
+			}
+			if ln.Kind != review.LineAdd {
+				oldLine++
 			}
 		}
 

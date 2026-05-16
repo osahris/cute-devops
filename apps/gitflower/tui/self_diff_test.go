@@ -46,8 +46,24 @@ func TestSpaceWalkOnSelfRepoInProcess(t *testing.T) {
 	reviewPath := filepath.Join(tmp, "test.review")
 	sess := review.New(*scope, "reviewer@example.com", reviewPath)
 
-	m := newModel(sess, repo, 10*time.Millisecond)
+	m := newModel(sess, repo, 1*time.Millisecond)
 	m = step(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	var trace strings.Builder
+	traced := 0
+	debugSpaceWalk = func(stage string, mm *model) {
+		if traced > 200 {
+			return
+		}
+		traced++
+		fmt.Fprintf(&trace, "[%s] %s\n", stage, stateSig(mm))
+	}
+	defer func() {
+		debugSpaceWalk = nil
+		if t.Failed() {
+			t.Logf("spaceWalk trace (first 200):\n%s", trace.String())
+		}
+	}()
 
 	t.Logf("model: %d parsed files", len(m.files))
 
@@ -59,15 +75,8 @@ func TestSpaceWalkOnSelfRepoInProcess(t *testing.T) {
 
 	// Spam space and watch what changes.
 	const maxPresses = 500
-	var (
-		prevFileIdx, prevHunkIdx = -1, -1
-		stuckCount               = 0
-		readByFile               = map[string]int{}
-		hunksByFile              = map[string]int{}
-	)
-	for _, f := range m.files {
-		hunksByFile[f.Path] = len(f.Hunks)
-	}
+	stuckCount := 0
+	readByFile := map[string]int{}
 	for i := 0; i < maxPresses; i++ {
 		// Fire any pending read ticks deterministically.
 		for anchor := range m.pendingReads {
@@ -75,18 +84,15 @@ func TestSpaceWalkOnSelfRepoInProcess(t *testing.T) {
 			m = next.(*model)
 		}
 
-		fileBefore := m.fileIdx
-		hunkBefore := m.hunkIdx
-		yBefore := m.viewport.YOffset()
+		sigBefore := stateSig(m)
 
 		m = key(t, m, ' ', " ")
 
-		// Did anything change?
-		if m.fileIdx == fileBefore && m.hunkIdx == hunkBefore && m.viewport.YOffset() == yBefore {
+		if stateSig(m) == sigBefore {
 			stuckCount++
 			if stuckCount > 3 {
-				t.Logf("STUCK at press %d: fileIdx=%d hunkIdx=%d yOffset=%d hunkRanges=%d pending=%d",
-					i, m.fileIdx, m.hunkIdx, m.viewport.YOffset(), len(m.hunkRanges), len(m.pendingReads))
+				t.Logf("STUCK at press %d: %s hunkRanges=%d pending=%d",
+					i, sigBefore, len(m.hunkRanges), len(m.pendingReads))
 				if f := m.currentFile(); f != nil && f.Path != "" {
 					t.Logf("  file: %s hunks=%d", f.Path, len(f.Hunks))
 				}
@@ -100,25 +106,13 @@ func TestSpaceWalkOnSelfRepoInProcess(t *testing.T) {
 			stuckCount = 0
 		}
 
-		if fileBefore != m.fileIdx && fileBefore >= 0 && fileBefore < len(m.files) {
-			path := m.files[fileBefore].Path
-			for _, h := range m.files[fileBefore].Hunks {
-				a := review.HunkAnchor(path, h.NewStart, h.NewLines)
-				if m.sess.IsRead(a) {
-					readByFile[path]++
-				}
-			}
-		}
-
 		// Did we reach the end? (mode goes back to modeTree on verdict open)
 		if m.mode == modeTree && m.edit == editSummary {
 			t.Logf("reached verdict editor after %d press(es)", i+1)
 			break
 		}
-		prevFileIdx, prevHunkIdx = fileBefore, hunkBefore
 	}
-	_ = prevFileIdx
-	_ = prevHunkIdx
+	_ = readByFile
 
 	// Tally.
 	totalRead := 0

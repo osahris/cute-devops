@@ -118,22 +118,22 @@ func TestReviewViaPTY(t *testing.T) {
 		{keys: "Some identifiers are single-letter.", wait: defaultStepGap},
 		{keys: "\x1b\r", wait: defaultStepGap},                     // Alt+Enter submit
 
-		// Walk to end: pressing Space repeatedly. Each Space either advances
-		// or, when there's nothing left, opens the verdict editor.
-		{keys: " ", wait: 1500 * time.Millisecond}, // let read tick fire (100ms delay)
-		{keys: " ", wait: 1500 * time.Millisecond},
-		{keys: " ", wait: 1500 * time.Millisecond},
-		{keys: " ", wait: 1500 * time.Millisecond},
-		{keys: " ", wait: 1500 * time.Millisecond},
-		{keys: " ", wait: 1500 * time.Millisecond},
-
-		// At end-of-changes Space opens the verdict editor.
+		// Walk to end: pressing Space repeatedly. Walks Changes' hunks,
+		// then Commits, then opens the verdict editor.
+	}
+	// 30 Spaces is comfortably more than the 8 Changes hunks + 3 commit
+	// items + slack for multi-page scrolling in server.go's bigger hunk.
+	for i := 0; i < 30; i++ {
+		steps = append(steps, sendStep{keys: " ", wait: 350 * time.Millisecond})
+	}
+	steps = append(steps, []sendStep{
+		// Verdict editor is now open. Type the summary + Alt+Enter.
 		{keys: "Implementation is sound. Ready to merge.", wait: defaultStepGap},
 		{keys: "\x1b\r", wait: defaultStepGap},                     // Alt+Enter submit
 
 		{keys: "s", wait: defaultStepGap},                          // save
 		{keys: "q", wait: 100 * time.Millisecond},                  // quit
-	}
+	}...)
 	for i, s := range steps {
 		if s.keys != "" {
 			if _, err := ptmx.WriteString(s.keys); err != nil {

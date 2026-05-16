@@ -34,7 +34,7 @@ func TestSpaceWalkOnSelfRepo(t *testing.T) {
 	cmd := exec.Command(gitflowerBin,
 		"review",
 		"--base", "main",
-		"--read-delay", "10ms",
+		"--read-delay", "1ms", // minimum, realistic
 		"experiments/stack-review",
 	)
 	cmd.Dir = repo
@@ -68,20 +68,28 @@ func TestSpaceWalkOnSelfRepo(t *testing.T) {
 	// becomes read almost immediately; subsequent Spaces should advance.
 	// Large hunks get scrolled within first (paged); once fully visible
 	// the timer fires and the next Space jumps to the next unread hunk.
-	const maxPresses = 200
-	progressFloor := 0
+	// After Changes is exhausted, we transition through Commits and
+	// finally land in the verdict editor.
+	const maxPresses = 300
+	pressesUsed := maxPresses
 	for i := 0; i < maxPresses; i++ {
 		if _, err := ptmx.WriteString(" "); err != nil {
 			t.Fatalf("write space %d: %v", i, err)
 		}
-		time.Sleep(150 * time.Millisecond)
-		// Look for the "all read — record your verdict" status line to
-		// know when the walk is done.
-		if bytes.Contains(captured.Bytes()[progressFloor:], []byte("record your verdict")) {
+		time.Sleep(80 * time.Millisecond)
+		// "📝 Verdict summary" is the editor label rendered only when the
+		// verdict editor is open. We can't match on "record your verdict"
+		// because that phrase appears verbatim in the diff content itself
+		// (the source code of tui.go and friends), so it would trigger
+		// false positives the moment those hunks scroll into view.
+		if bytes.Contains(captured.Bytes(), []byte("📝 Verdict summary")) {
+			pressesUsed = i + 1
 			break
 		}
-		progressFloor = captured.Len()
 	}
+	t.Logf("used %d/%d Space presses", pressesUsed, maxPresses)
+	// Wait long enough for the autosave debounce + final renders.
+	time.Sleep(3 * time.Second)
 
 	// At this point we should either be at the verdict editor or very
 	// close to it. Quit and check the .review.
@@ -151,12 +159,11 @@ func TestSpaceWalkOnSelfRepo(t *testing.T) {
 	if totalHunks == 0 {
 		t.Fatalf("no hunks parsed from # Changes — fixture is broken")
 	}
-	// Require at least 70% coverage so we catch the regression (current
-	// run produced only ~3% — 4 of ~130 hunks).
-	min := totalHunks * 70 / 100
-	if reads < min {
-		t.Errorf("Space walk stuck: %d/%d hunks read (want at least %d). Last 1.5KiB of TTY:\n%s",
-			reads, totalHunks, min, tail(captured.Bytes(), 1536))
+	// Aim for 100% coverage. With --read-delay 1ms and a 30ms inter-
+	// Space gap, ticks reliably fire between presses on a quiet machine.
+	if reads < totalHunks {
+		t.Errorf("Space walk incomplete: %d/%d hunks read. Last 1.5KiB of TTY:\n%s",
+			reads, totalHunks, tail(captured.Bytes(), 1536))
 	}
 }
 
