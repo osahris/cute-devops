@@ -201,6 +201,24 @@ type model struct {
 func newModel(sess *review.ReviewSession, root string, readDelay time.Duration) *model {
 	files := review.ParseDiff(sess.Scope.RawDiff)
 
+	// Append each commit's patch as a virtual file so Space-walk
+	// naturally traverses commits the same way it traverses files. The
+	// virtual path is `commit:<short>:<path>` so hunks anchored to it
+	// get their own read state and never collide with real files; the
+	// sidebar's Changes list filters them out so they only show up via
+	// the line-mode walk.
+	for _, c := range sess.Scope.Commits {
+		patch, ok := sess.Scope.CommitPatches[c.SHA]
+		if !ok || strings.TrimSpace(patch) == "" {
+			continue
+		}
+		ch := review.ParseDiff(patch)
+		for i := range ch {
+			ch[i].Path = "commit:" + c.Short + ":" + ch[i].Path
+		}
+		files = append(files, ch...)
+	}
+
 	ta := textarea.New()
 	ta.CharLimit = 0
 	ta.ShowLineNumbers = false
@@ -414,9 +432,16 @@ func (m *model) sectionItems(s section) []string {
 		}
 		return out
 	case sectionChanges:
-		out := make([]string, len(m.files))
-		for i, f := range m.files {
-			out[i] = f.Path
+		// Show only the real files in the Changes sidebar; the commit
+		// virtual files (path prefix "commit:<short>:") are walked
+		// in line mode via Space-walk but aren't first-class sidebar
+		// items.
+		var out []string
+		for _, f := range m.files {
+			if strings.HasPrefix(f.Path, "commit:") {
+				continue
+			}
+			out = append(out, f.Path)
 		}
 		return out
 	case sectionCommits:
@@ -875,87 +900,75 @@ func (m *model) spaceWalk() {
 		debugSpaceWalk("entry", m)
 		defer debugSpaceWalk("exit", m)
 	}
-	// Walking commits in section mode: each Space advances the commit
-	// cursor; at the last commit the verdict editor opens.
-	if m.mode == modeTree && m.sect == sectionCommits {
-		idx := m.sectIdx[sectionCommits]
-		if idx+1 < len(m.sess.Scope.Commits) {
-			m.sectIdx[sectionCommits] = idx + 1
-			m.onTreeSelectionChanged()
-			return
+
+	// Section mode → drill in.
+	if m.mode == modeTree {
+		if m.sect == sectionChanges {
+			m.fileIdx = m.sectIdx[sectionChanges]
 		}
-		m.sect = sectionVerdicts
-		m.sectIdx[sectionVerdicts] = max(0, len(m.sess.Verdicts())-1)
+		m.hunkIdx = -1
+		m.atEOF = false
+		m.mode = modeDiff
 		m.refreshViewport()
+	}
+
+	// On EOF in the current file: advance to the next file (or commit
+	// "file") that still has an unread hunk. If none remain, open the
+	// verdict editor.
+	if m.atEOF {
+		for fi := m.fileIdx + 1; fi < len(m.files); fi++ {
+			if m.fileHasUnread(fi) {
+				m.fileIdx = fi
+				m.hunkIdx = -1
+				m.atEOF = false
+				m.refreshViewport()
+				m.spaceWalkInFile()
+				return
+			}
+		}
+		// All files (including commit virtual files) are fully read.
 		m.openVerdictEditor()
 		m.status = "all read — record your verdict"
 		return
 	}
-	if m.mode == modeTree {
-		if m.sect == sectionChanges {
-			m.fileIdx = m.sectIdx[m.sect]
-		}
-		m.hunkIdx = -1 // virtual "before first hunk"
-		m.atEOF = false
-		m.mode = modeDiff
-	}
 
-	// (2) If we're on a non-EOF unread hunk, either page within it or
-	// stay put waiting for the read tick. If it's read, fall through to
-	// seek the next unread one in this file.
-	if !m.atEOF && m.hunkIdx >= 0 {
-		h := m.currentHunk()
-		if h != nil {
-			a := review.HunkAnchor(m.currentFile().Path, h.NewStart, h.NewLines)
-			if !m.sess.IsRead(a) {
-				for _, r := range m.hunkRanges {
-					if r.anchor != a {
-						continue
-					}
-					top := m.viewport.YOffset()
-					bot := top + m.viewport.Height() - 1
-					if r.botRow > bot {
-						// Defer to the shared pageDown logic so Space
-						// walks use exactly the same "marker N lines
-						// before old bottom, last-page marker on top"
-						// behaviour as PgDn.
-						m.pageDown()
-						return
-					}
-					break
-				}
-				// Fully visible but still unread → stay; the read tick
-				// will fire and the next Space will advance.
-				return
-			}
-		}
-	}
+	m.spaceWalkInFile()
+}
 
-	// (3) Next unread strictly after the cursor in current file.
+// spaceWalkInFile jumps the cursor to "5 rendered rows before the first
+// reviewable line of the next unread hunk in the current file". If
+// nothing in the current file is unread, the cursor parks on the EOF
+// marker — the next Space then hops to the next file with unread.
+func (m *model) spaceWalkInFile() {
 	f := m.currentFile()
-	if !m.atEOF {
-		for hi := m.hunkIdx + 1; hi < len(f.Hunks); hi++ {
-			h := &f.Hunks[hi]
-			a := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
-			if m.sess.IsRead(a) {
-				continue
-			}
-			m.hunkIdx = hi
-			m.lineCursor = m.firstNonDelete(h, 0, +1)
-			m.refreshViewportWithContext(5)
-			return
-		}
+	if f == nil {
+		return
 	}
 
-	// (4) No unread left in this file: land on the synthetic <end of
-	// file> marker so the reader gets an unambiguous "you're done here"
-	// signal. If we're already on the marker, fall through to advance.
-	if !m.atEOF {
+	// Find the next unread hunk at or after the current cursor. We
+	// don't skip the current hunk: if it's still unread, the cursor
+	// belongs at its first reviewable line so the reader sees what
+	// they're about to scroll into.
+	nextHunkIdx := -1
+	for hi := max(0, m.hunkIdx); hi < len(f.Hunks); hi++ {
+		h := &f.Hunks[hi]
+		a := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
+		if m.sess.IsRead(a) {
+			continue
+		}
+		nextHunkIdx = hi
+		break
+	}
+
+	if nextHunkIdx < 0 {
+		// Nothing unread left here — park on EOF so the user gets the
+		// unambiguous "done with this file" signal.
 		m.atEOF = true
 		m.refreshViewport()
-		// Scroll so the EOF marker sits comfortably above the bottom.
+		// Center the EOF marker if we can; otherwise the natural
+		// last-page placement is fine.
 		if eof := m.eofRange(); eof != nil {
-			target := eof.topRow - (m.viewport.Height() - 5)
+			target := eof.topRow - (m.viewport.Height() - pageOverlap)
 			if target < 0 {
 				target = 0
 			}
@@ -965,46 +978,41 @@ func (m *model) spaceWalk() {
 		return
 	}
 
-	// (5) On the EOF marker; advance to the next file.
-	if m.fileIdx+1 < len(m.files) {
-		m.fileIdx++
-		m.hunkIdx = -1
-		m.atEOF = false
-		nf := m.currentFile()
-		for hi := 0; hi < len(nf.Hunks); hi++ {
-			h := &nf.Hunks[hi]
-			a := review.HunkAnchor(nf.Path, h.NewStart, h.NewLines)
-			if !m.sess.IsRead(a) {
-				m.hunkIdx = hi
-				m.lineCursor = m.firstNonDelete(h, 0, +1)
-				m.refreshViewportWithContext(5)
-				return
-			}
-		}
-		// New file is fully read already; jump straight to its EOF.
-		m.atEOF = true
-		m.refreshViewport()
-		return
-	}
-
-	// (6) End of changes — start walking commits next. Each follow-up
-	// Space (handled at the top of spaceWalk) advances the commit
-	// cursor; the last commit hands off to the verdict editor.
-	if len(m.sess.Scope.Commits) > 0 {
-		m.mode = modeTree
-		m.sect = sectionCommits
-		m.sectIdx[sectionCommits] = 0
-		m.onTreeSelectionChanged()
-		m.status = "all changes read — walking commits"
-		return
-	}
-	// No commits: jump straight to verdict.
-	m.sect = sectionVerdicts
-	m.sectIdx[sectionVerdicts] = max(0, len(m.sess.Verdicts())-1)
-	m.mode = modeTree
+	// Place the cursor on the first reviewable line of the unread hunk,
+	// then back the viewport up by `pageOverlap` rendered rows so the
+	// reader has a strip of just-read context above the new content.
+	h := &f.Hunks[nextHunkIdx]
+	m.hunkIdx = nextHunkIdx
+	m.lineCursor = m.firstNonDelete(h, 0, +1)
 	m.refreshViewport()
-	m.openVerdictEditor()
-	m.status = "all read — record your verdict"
+	// Find this line's rendered position and back the viewport up by 5.
+	for _, lr := range m.lineRanges {
+		if lr.isEOF || lr.hunkIdx != nextHunkIdx || lr.lineIdx != m.lineCursor {
+			continue
+		}
+		top := lr.topRow - pageOverlap
+		if top < 0 {
+			top = 0
+		}
+		m.viewport.SetYOffset(top)
+		m.updateDisplayed()
+		return
+	}
+}
+
+// fileHasUnread reports whether any hunk in m.files[fi] is still unread.
+func (m *model) fileHasUnread(fi int) bool {
+	if fi < 0 || fi >= len(m.files) {
+		return false
+	}
+	f := &m.files[fi]
+	for _, h := range f.Hunks {
+		a := review.HunkAnchor(f.Path, h.NewStart, h.NewLines)
+		if !m.sess.IsRead(a) {
+			return true
+		}
+	}
+	return false
 }
 
 // scheduleAutoSave queues an autoSaveMsg tick so dirty state gets flushed
@@ -1244,6 +1252,19 @@ func (m *model) pageDown() {
 		}
 	}
 	if marker == nil {
+		// No reviewable lines at all (e.g. an all-delete hunk). We
+		// still need to make progress so the read tick can fire when
+		// the hunk fully displays — scroll the viewport by a page and
+		// let snap pick whatever lands on screen.
+		step := m.viewport.Height() - pageOverlap
+		if step < 1 {
+			step = 1
+		}
+		m.viewport.SetYOffset(top + step)
+		off := m.viewport.YOffset()
+		m.refreshViewport()
+		m.viewport.SetYOffset(off)
+		m.updateDisplayed()
 		return
 	}
 
@@ -1988,7 +2009,16 @@ func (m *model) mainHeading() string {
 		if hc := len(f.Hunks); hc > 0 {
 			h = fmt.Sprintf("   hunk %d/%d", m.hunkIdx+1, hc)
 		}
-		return f.Path + h
+		path := f.Path
+		// Pretty-print commit-virtual paths: "commit:<short>:<real>"
+		// → "commit <short>  <real>".
+		if strings.HasPrefix(path, "commit:") {
+			rest := strings.TrimPrefix(path, "commit:")
+			if i := strings.Index(rest, ":"); i > 0 {
+				path = "commit " + rest[:i] + "  " + rest[i+1:]
+			}
+		}
+		return path + h
 	case modeFile:
 		return m.filePath + "  @" + truncate(m.sess.Scope.TipSHA, 12)
 	}

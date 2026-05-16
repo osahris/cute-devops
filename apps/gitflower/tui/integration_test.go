@@ -172,24 +172,17 @@ func TestSpaceWalkPagesThroughLongHunk(t *testing.T) {
 	m := newModel(sess, tmp, 10*time.Millisecond)
 	m = step(t, m, tea.WindowSizeMsg{Width: 80, Height: 20})
 
-	// Press Space → drills in. Single hunk exceeds viewport so this is a
-	// page-scroll step, not an advance. Position should change.
-	startY := m.viewport.YOffset()
+	// First Space drills from section into line mode at "5 before the
+	// next unread line" — for a brand-new file that's row 0.
 	m = key(t, m, ' ', " ")
 	if m.mode != modeDiff {
 		t.Fatalf("after first Space: mode %v want modeDiff", m.mode)
 	}
-	if m.viewport.YOffset() == startY && !m.sess.IsRead(m.hunkRanges[0].anchor) {
-		// First press from section mode just enters line mode; viewport may
-		// still be at top. That's fine — subsequent presses must scroll.
-	}
 
-	// Keep pressing Space; each press should make progress until the read
-	// marker fires (delayedReadMsg dispatched on the tick).
+	// PgDn is now the paging action. Page until the hunk gets fully
+	// displayed and the read marker fires.
 	maxPresses := 20
 	for i := 0; i < maxPresses; i++ {
-		// Manually fire any pending delayed-read ticks so the test isn't
-		// flaky on wall-clock timing.
 		for anchor := range m.pendingReads {
 			next, _ := m.Update(delayedReadMsg{anchor: anchor})
 			m = next.(*model)
@@ -198,13 +191,13 @@ func TestSpaceWalkPagesThroughLongHunk(t *testing.T) {
 			break
 		}
 		prevY := m.viewport.YOffset()
-		m = key(t, m, ' ', " ")
+		m = step(t, m, tea.KeyPressMsg{Code: tea.KeyPgDown})
 		if i > 0 && m.viewport.YOffset() == prevY && !m.viewport.AtBottom() {
-			t.Fatalf("Space stuck: YOffset=%d, not at bottom", prevY)
+			t.Fatalf("PgDn stuck: YOffset=%d, not at bottom", prevY)
 		}
 	}
 	if !m.sess.IsRead(m.hunkRanges[0].anchor) {
-		t.Errorf("after %d Spaces the hunk still isn't marked read", maxPresses)
+		t.Errorf("after %d PgDns the hunk still isn't marked read", maxPresses)
 	}
 }
 
