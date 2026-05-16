@@ -765,34 +765,35 @@ func (m *model) spaceWalk() {
 		m.mode = modeDiff
 	}
 
-	// (2a) If the current hunk extends below the viewport (multi-page),
-	// scroll within it. The user needs to actually scroll through so the
-	// displayed-rows tracker can mark the hunk read.
+	// (2) If the current hunk is unread, decide between scrolling within
+	// it (multi-page) or staying still (single-page, waiting for the
+	// read timer). If it's already read, fall through to seek the next
+	// unread one.
 	if m.hunkIdx >= 0 {
 		h := m.currentHunk()
 		if h != nil {
 			a := review.HunkAnchor(m.currentFile().Path, h.NewStart, h.NewLines)
-			for _, r := range m.hunkRanges {
-				if r.anchor != a {
-					continue
-				}
-				top := m.viewport.YOffset()
-				bot := top + m.viewport.Height() - 1
-				if r.botRow > bot {
-					step := m.viewport.Height() - 5
-					if step < 1 {
-						step = 1
-					}
-					m.viewport.SetYOffset(top + step)
-					m.updateDisplayed()
-					m.snapCursorIntoView()
-					return
-				}
-				break
-			}
-			// (2b) Hunk fully visible but still unread? Stay — the read
-			// timer will fire soon, then a follow-up Space advances.
 			if !m.sess.IsRead(a) {
+				for _, r := range m.hunkRanges {
+					if r.anchor != a {
+						continue
+					}
+					top := m.viewport.YOffset()
+					bot := top + m.viewport.Height() - 1
+					if r.botRow > bot {
+						step := m.viewport.Height() - 5
+						if step < 1 {
+							step = 1
+						}
+						m.viewport.SetYOffset(top + step)
+						m.updateDisplayed()
+						m.snapCursorIntoView()
+						return
+					}
+					break
+				}
+				// Fully visible but still unread → stay; the read tick
+				// will fire and the next Space will advance.
 				return
 			}
 		}
