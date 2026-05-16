@@ -29,7 +29,6 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"gitflower/review"
 )
@@ -861,22 +860,6 @@ func (m *model) dirLineCounts(dir string) (read, total int) {
 	return
 }
 
-// pathDir returns the directory portion of `p`, or "" for top-level.
-func pathDir(p string) string {
-	if i := strings.LastIndex(p, "/"); i >= 0 {
-		return p[:i]
-	}
-	return ""
-}
-
-// pathInDir reports whether path `p` lives under directory `dir` (any
-// depth). dir == "" means root.
-func pathInDir(p, dir string) bool {
-	if dir == "" {
-		return true
-	}
-	return strings.HasPrefix(p, dir+"/")
-}
 
 func (m *model) updateTree(msg tea.Msg) (tea.Model, tea.Cmd) {
 	key, ok := msg.(tea.KeyPressMsg)
@@ -1758,15 +1741,6 @@ func (m *model) scheduleColourRefresh() {
 	}))
 }
 
-// openVerdictEditor opens the inline summary editor pre-populated with the
-// current canonical summary. Submitting calls AddVerdict so the audit log
-// gets a fresh entry.
-func (m *model) openVerdictEditor() {
-	m.openEdit(editSummary, "", -1, -1, "")
-	m.textarea.SetValue(m.sess.Summary)
-	_ = m.textarea.Focus()
-}
-
 // refreshViewportWithContext renders the current file and scrolls the
 // viewport so the cursor's hunk sits with `ctx` lines of context above it.
 // Falls back to top-of-content when fewer rows are available.
@@ -1788,42 +1762,6 @@ func (m *model) refreshViewportWithContext(ctx int) {
 // line cursor to that hunk's first reviewable line. Called after every
 // viewport scroll in line mode, so PgUp / PgDn / mouse-wheel each move the
 // active line along with the view.
-// enterFileReview switches to modeFile on the given path. Loads the file
-// content at the scope's tip SHA, parks the cursor at the top, and records
-// the first visited line so the # File Review section gets a sub-section
-// even if the user just opens-and-closes.
-func (m *model) enterFileReview(path string) {
-	if path == "" {
-		return
-	}
-	lines, err := gitFileLines(m.sess.Scope.TipSHA, path)
-	if err != nil || len(lines) == 0 {
-		m.status = "no content at tip for " + path
-		return
-	}
-	m.filePath = path
-	m.fileLines = lines
-	m.fileLineCursor = 0
-	m.mode = modeFile
-	m.recordVisitedLine()
-	m.refreshViewport()
-}
-
-// recordVisitedLine records the cursor's current file-mode line into the
-// session's FileReview entry for the active path.
-func (m *model) recordVisitedLine() {
-	if m.filePath == "" || m.fileLineCursor < 0 || m.fileLineCursor >= len(m.fileLines) {
-		return
-	}
-	m.sess.RecordFileLine(
-		m.filePath,
-		m.sess.Scope.TipSHA,
-		m.fileLineCursor+1, // 1-based line numbers
-		m.fileLines[m.fileLineCursor],
-	)
-	_ = m.sess.Save()
-}
-
 // snapCursorIntoView picks a reviewable line for the cursor based on
 // the current viewport position. If picked successfully, it also nudges
 // the viewport so the chosen line sits at row 0 — otherwise hunk
@@ -2148,277 +2086,6 @@ func (m *model) prevFile() {
 		m.hunkIdx = 0
 		m.refreshViewport()
 	}
-}
-
-// ---------------------------------------------------------------------
-// file review mode
-// ---------------------------------------------------------------------
-
-func (m *model) updateFile(msg tea.Msg) (tea.Model, tea.Cmd) {
-	key, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return m, nil
-	}
-	if cmd, done := m.handleGlobal(key.String()); done {
-		return m, cmd
-	}
-	switch key.String() {
-	case "w":
-		m.toggleWrap()
-	case "esc", "left", "h":
-		if (key.String() == "left" || key.String() == "h") && !m.viewport.SoftWrap && m.viewport.XOffset() > 0 {
-			m.viewport.ScrollLeft(4)
-			return m, nil
-		}
-		// Park the section cursor on the file we were just reviewing.
-		m.sect = sectionFileReview
-		for i, fr := range m.sess.FileReviews() {
-			if fr.Path == m.filePath {
-				m.sectIdx[sectionFileReview] = i
-				break
-			}
-		}
-		m.mode = modeTree
-		m.refreshViewport()
-	case "right", "l":
-		if !m.viewport.SoftWrap {
-			m.viewport.ScrollRight(4)
-			return m, nil
-		}
-	case "j", "down":
-		if m.fileLineCursor+1 < len(m.fileLines) {
-			m.fileLineCursor++
-			m.recordVisitedLine()
-			m.refreshViewport()
-		}
-	case "k", "up":
-		if m.fileLineCursor > 0 {
-			m.fileLineCursor--
-			m.recordVisitedLine()
-			m.refreshViewport()
-		}
-	case "home":
-		m.fileLineCursor = 0
-		m.recordVisitedLine()
-		m.refreshViewport()
-	case "end":
-		m.fileLineCursor = max(0, len(m.fileLines)-1)
-		m.recordVisitedLine()
-		m.refreshViewport()
-	case " ", "space":
-		// Same semantics everywhere: next unread in Changes. From modeFile
-		// this takes the user out into modeDiff at the next unread hunk.
-		m.spaceWalk()
-	case "c", "!", "enter":
-		m.openCommentEdit()
-		return m, m.textarea.Focus()
-	case "a", "?":
-		m.openQuestionEdit()
-		return m, m.textarea.Focus()
-	case "e":
-		m.editSelectedComment()
-		if m.edit != editNone {
-			return m, m.textarea.Focus()
-		}
-	default:
-		// Viewport scroll fallback in file-review mode: keep the line
-		// cursor in view (snap to the first visible line if scrolled away).
-		var cmd tea.Cmd
-		m.viewport, cmd = m.viewport.Update(msg)
-		if top := m.viewport.YOffset(); m.fileLineCursor < top {
-			m.fileLineCursor = top
-		} else if bot := top + m.viewport.Height() - 1; m.fileLineCursor > bot {
-			m.fileLineCursor = bot
-		}
-		return m, cmd
-	}
-	return m, nil
-}
-
-// ---------------------------------------------------------------------
-// edit overlays (comment / question / summary / issue)
-// ---------------------------------------------------------------------
-
-// openEdit prepares the edit overlay with the given kind. cmtIdx/issIdx
-// say which existing item (>=0) is being edited, -1 for new.
-func (m *model) openEdit(kind editKind, label string, cmtIdx, issIdx int, _ string) {
-	m.prevMode = m.mode
-	m.edit = kind
-	m.editCmtIdx = cmtIdx
-	m.editIssIdx = issIdx
-	m.editLabel = label
-	m.editAnchor = m.currentAnchor()
-	m.textarea.Reset()
-	if kind != editIssue {
-		m.title.SetValue("")
-	}
-}
-
-func (m *model) openCommentEdit() {
-	m.openEdit(editComment, "Comment on "+string(m.currentAnchor()), -1, -1, "")
-}
-
-func (m *model) openQuestionEdit() {
-	m.openEdit(editQuestion, "Question on "+string(m.currentAnchor()), -1, -1, "")
-}
-
-// editSelectedComment finds the comment at the current anchor and loads it
-// into the textarea for editing.
-func (m *model) editSelectedComment() {
-	a := m.currentAnchor()
-	idx := m.sess.CommentIndexAt(a)
-	if idx < 0 {
-		m.status = "no comment at cursor"
-		return
-	}
-	c := m.sess.Comments()[idx]
-	kind := editComment
-	if c.Kind == review.KindQuestion {
-		kind = editQuestion
-	}
-	m.openEdit(kind, "Editing on "+string(a), idx, -1, "")
-	m.textarea.SetValue(c.Text)
-}
-
-func (m *model) updateEdit(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if key, ok := msg.(tea.KeyPressMsg); ok {
-		switch key.String() {
-		case "esc":
-			m.closeEdit()
-			return m, nil
-		case "enter":
-			// Plain Enter submits for comment/question.
-			if m.edit == editComment || m.edit == editQuestion {
-				m.submitEdit()
-				return m, nil
-			}
-			// For issue: if title field is focused, Enter moves to body.
-			if m.edit == editIssue && m.title.Focused() {
-				m.title.Blur()
-				return m, m.textarea.Focus()
-			}
-		case "alt+enter", "ctrl+s":
-			m.submitEdit()
-			return m, nil
-		case "tab":
-			if m.edit == editIssue {
-				if m.title.Focused() {
-					m.title.Blur()
-					return m, m.textarea.Focus()
-				}
-				m.textarea.Blur()
-				return m, m.title.Focus()
-			}
-		}
-	}
-	var cmd tea.Cmd
-	if m.edit == editIssue && m.title.Focused() {
-		m.title, cmd = m.title.Update(msg)
-	} else {
-		m.textarea, cmd = m.textarea.Update(msg)
-	}
-	// Re-render so the inline view stays in sync with the textarea.
-	m.refreshViewport()
-	return m, cmd
-}
-
-func (m *model) closeEdit() {
-	m.edit = editNone
-	m.textarea.Blur()
-	m.title.Blur()
-	m.refreshViewport()
-}
-
-func (m *model) submitEdit() {
-	text := strings.TrimRight(m.textarea.Value(), "\n")
-	text = strings.TrimSpace(text)
-	switch m.edit {
-	case editComment, editQuestion:
-		if text == "" {
-			m.status = "empty — discarded"
-			m.closeEdit()
-			return
-		}
-		if m.editCmtIdx >= 0 {
-			if m.sess.UpdateComment(m.editCmtIdx, text) {
-				m.save("comment updated")
-			} else {
-				m.status = "no change"
-			}
-		} else {
-			kind := review.KindComment
-			word := "comment"
-			if m.edit == editQuestion {
-				kind = review.KindQuestion
-				word = "question"
-			}
-			snippet := ""
-			if h := m.currentHunk(); h != nil && m.mode == modeDiff {
-				snippet = renderHunkSnippet(*h, 4)
-			}
-			m.sess.AddComment(review.Comment{
-				Anchor:  m.editAnchor,
-				Text:    text,
-				Snippet: snippet,
-				Kind:    kind,
-			})
-			m.save(word + " added")
-		}
-	case editSummary:
-		// Commit a fresh verdict audit-log entry alongside the summary so
-		// each explicit V submission becomes a new entry in # Verdicts.
-		// (The </> cycle only mutates the canonical state and produces no
-		// audit entry until the user lands here.)
-		m.sess.SetSummary(text)
-		m.sess.AddVerdict(review.VerdictEvent{
-			State:   m.sess.Verdict,
-			Summary: text,
-		})
-		m.save("verdict recorded")
-	case editIssue:
-		title := strings.TrimSpace(m.title.Value())
-		if title == "" {
-			m.status = "issue title required"
-			return
-		}
-		if m.editIssIdx >= 0 {
-			if m.sess.UpdateIssue(m.editIssIdx, title, text) {
-				m.save("issue updated")
-			} else {
-				m.status = "no change"
-			}
-		} else {
-			m.sess.AddIssue(review.Issue{Title: title, Body: text})
-			m.save("issue added")
-		}
-	}
-	m.closeEdit()
-}
-
-// ---------------------------------------------------------------------
-// confirm-quit
-// ---------------------------------------------------------------------
-
-func (m *model) updateConfirmQuit(msg tea.Msg) (tea.Model, tea.Cmd) {
-	key, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return m, nil
-	}
-	switch key.String() {
-	case "y":
-		if err := m.sess.Save(); err != nil {
-			m.status = "save failed: " + err.Error()
-			m.confirmQuit = false
-			return m, nil
-		}
-		return m, tea.Quit
-	case "n":
-		return m, tea.Quit
-	case "esc":
-		m.confirmQuit = false
-		return m, nil
-	}
-	return m, nil
 }
 
 // ---------------------------------------------------------------------
@@ -2786,104 +2453,9 @@ func (m *model) mainHeading() string {
 	return ""
 }
 
-func (m *model) viewConfirmQuit() string {
-	return lipgloss.JoinVertical(lipgloss.Left,
-		styleTitle.Render("Unsaved changes"),
-		"",
-		"Save before quitting? (y/n, Esc to cancel)",
-	)
-}
-
 // ---------------------------------------------------------------------
 // rendering: diff view (modeDiff and Diffs-section peek)
 // ---------------------------------------------------------------------
-
-// wrapDiffText hard-wraps a single diff line's payload (no sign, no gutter)
-// at `width`. ansi.Hardwrap preserves any escape codes embedded in `s`.
-// Tabs are expanded to spaces first because Hardwrap counts a tab as
-// width 1 while the terminal expands it to the next 8-column stop —
-// without expansion, lines with tabs slip past `width`, the terminal
-// re-wraps them itself, and our hanging-indent never gets applied.
-func wrapDiffText(s string, width int) []string {
-	if width < 1 {
-		return []string{s}
-	}
-	s = expandTabs(s, 8)
-	wrapped := ansi.Hardwrap(s, width, false)
-	return strings.Split(wrapped, "\n")
-}
-
-// commitMessageDiff returns a synthetic diff-string that adds the
-// header + commit-message portion of a `git format-patch --stdout`
-// body as a brand-new file `commit:<short>:(message)`. The reviewer
-// then walks the commit message line by line just like any other
-// added content, so the review-rate gating counts the message too.
-// Returns "" if the patch has no extractable preamble.
-func commitMessageDiff(short, patch string) string {
-	lines := strings.Split(patch, "\n")
-	var preamble []string
-	for _, ln := range lines {
-		if strings.HasPrefix(ln, "diff --git ") {
-			break
-		}
-		preamble = append(preamble, ln)
-	}
-	// Trim trailing blanks and the trailing "---" file-list block
-	// that format-patch emits between the message and the diff.
-	for len(preamble) > 0 {
-		last := preamble[len(preamble)-1]
-		if last == "" || last == "---" ||
-			strings.HasPrefix(last, " ") || // file-summary " a | 1 +"
-			strings.HasPrefix(last, "---") {
-			preamble = preamble[:len(preamble)-1]
-			continue
-		}
-		break
-	}
-	if len(preamble) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	path := "commit:" + short + ":(message)"
-	fmt.Fprintf(&sb, "diff --git a/%s b/%s\n", path, path)
-	sb.WriteString("new file mode 100644\n")
-	sb.WriteString("index 0000000..abcdef0\n")
-	fmt.Fprintf(&sb, "--- /dev/null\n")
-	fmt.Fprintf(&sb, "+++ b/%s\n", path)
-	fmt.Fprintf(&sb, "@@ -0,0 +1,%d @@\n", len(preamble))
-	for _, ln := range preamble {
-		sb.WriteString("+")
-		sb.WriteString(ln)
-		sb.WriteString("\n")
-	}
-	return strings.TrimRight(sb.String(), "\n")
-}
-
-// expandTabs replaces each tab with enough spaces to advance to the next
-// `tabSize`-column tab stop. It only inspects ASCII so it stays cheap;
-// any embedded ANSI escape sequences are passed through unchanged but
-// counted as visible — diff payload doesn't normally contain escapes.
-func expandTabs(s string, tabSize int) string {
-	if !strings.ContainsRune(s, '\t') {
-		return s
-	}
-	var b strings.Builder
-	b.Grow(len(s) + 8)
-	col := 0
-	for _, r := range s {
-		if r == '\t' {
-			pad := tabSize - (col % tabSize)
-			for i := 0; i < pad; i++ {
-				b.WriteByte(' ')
-			}
-			col += pad
-			continue
-		}
-		b.WriteRune(r)
-		col++
-	}
-	return b.String()
-}
 
 func renderFileDiff(m *model) (body string, ranges []hunkRange, lines []lineRange, cursorRow int) {
 	var sb strings.Builder
@@ -3116,49 +2688,6 @@ func anchorBelongsToHunk(a review.Anchor, path string, h *review.Hunk) bool {
 }
 
 // ---------------------------------------------------------------------
-// rendering: file view (modeFile and Tree-section peek)
-// ---------------------------------------------------------------------
-
-func renderFileView(m *model) (body string, cursorRow int) {
-	var sb strings.Builder
-	editing := m.edit == editComment || m.edit == editQuestion
-	digits := len(fmt.Sprintf("%d", len(m.fileLines)))
-	setForFile := m.fileLineRead[m.filePath]
-	for i, ln := range m.fileLines {
-		body := fmt.Sprintf("%*d  %s", digits, i+1, ln)
-		// Dim "already-viewed" lines like read diff lines, so the
-		// reviewer can see at a glance how far they've scrolled.
-		if setForFile[i+1] {
-			body = styleRead.Render(body)
-		}
-		if m.mode == modeFile && i == m.fileLineCursor {
-			body = styleLineCur.Render(body)
-			cursorRow = sb.Len()
-			_ = cursorRow
-		}
-		sb.WriteString(body + "\n")
-
-		if editing && m.mode == modeFile && i == m.fileLineCursor {
-			sb.WriteString(renderInlineEditor(m))
-		}
-		// Inline comments for this line.
-		anchorPrefix := m.filePath + "@" + truncate(m.sess.Scope.TipSHA, 12) + ":"
-		want := fmt.Sprintf("%s%d", anchorPrefix, i+1)
-		for _, c := range m.sess.Comments() {
-			s := string(c.Anchor)
-			if s == want || strings.HasPrefix(s, want+"-") {
-				sb.WriteString(renderInlineComment(c))
-			}
-		}
-	}
-	// Compute approximate cursorRow as a fraction of file length.
-	if len(m.fileLines) > 0 {
-		cursorRow = m.fileLineCursor
-	}
-	return sb.String(), cursorRow
-}
-
-// ---------------------------------------------------------------------
 // rendering: commit + issue detail (tree peek)
 // ---------------------------------------------------------------------
 
@@ -3191,33 +2720,6 @@ func renderIssueDetail(m *model) string {
 // ---------------------------------------------------------------------
 // rendering: inline editor + comments
 // ---------------------------------------------------------------------
-
-func renderInlineEditor(m *model) string {
-	var label, icon string
-	switch m.edit {
-	case editComment:
-		icon = "💬"
-		label = "Comment on " + string(m.editAnchor)
-	case editQuestion:
-		icon = "❓"
-		label = "Question on " + string(m.editAnchor)
-	case editSummary:
-		icon = "📝"
-		label = "Verdict summary"
-	case editIssue:
-		icon = "🗂"
-		label = "Issue"
-	}
-	var sb strings.Builder
-	sb.WriteString("    " + styleTitle.Render(icon+" "+label) + "\n")
-	if m.edit == editIssue {
-		sb.WriteString("    title: " + m.title.View() + "\n")
-	}
-	for _, l := range strings.Split(m.textarea.View(), "\n") {
-		sb.WriteString("    " + l + "\n")
-	}
-	return sb.String()
-}
 
 func renderInlineComment(c review.Comment) string {
 	icon := "💬"
@@ -3335,73 +2837,4 @@ func markerStatus(m review.Marker) string {
 // ---------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------
-
-func truncate(s string, w int) string {
-	if w < 1 {
-		return ""
-	}
-	if len(s) <= w {
-		return s
-	}
-	if w < 4 {
-		return s[:w]
-	}
-	return "…" + s[len(s)-w+1:]
-}
-
-func atoi(s string) (int, bool) {
-	n := 0
-	if s == "" {
-		return 0, false
-	}
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return 0, false
-		}
-		n = n*10 + int(r-'0')
-	}
-	return n, true
-}
-
-func gitRoot() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimRight(string(out), "\n"), nil
-}
-
-func gitTreeFiles(sha string) ([]string, error) {
-	out, err := exec.Command("git", "ls-tree", "-r", "--name-only", sha).Output()
-	if err != nil {
-		return nil, err
-	}
-	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
-	var files []string
-	for _, l := range lines {
-		if l != "" {
-			files = append(files, l)
-		}
-	}
-	return files, nil
-}
-
-func gitFileLines(sha, path string) ([]string, error) {
-	out, err := exec.Command("git", "show", sha+":"+path).Output()
-	if err != nil {
-		return nil, err
-	}
-	s := strings.TrimRight(string(out), "\n")
-	if s == "" {
-		return nil, nil
-	}
-	return strings.Split(s, "\n"), nil
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
 
