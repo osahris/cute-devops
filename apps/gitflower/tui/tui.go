@@ -345,10 +345,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				continue
 			}
 			// Skipped doesn't block reading — if the reviewer dwells
-			// on a previously-skipped line, it gets promoted to read.
-			// Skipped only means "don't count as unread for walk
-			// navigation"; it's not a "don't ever read this" flag.
+			// on a previously-skipped line, it gets promoted to read
+			// AND we clear the skipped flag so the state is mutually
+			// exclusive: a line is read OR skipped OR unread, never
+			// "skipped and also read".
 			m.lineRead[lk] = true
+			delete(m.lineSkipped, lk)
 			marked++
 		}
 		if marked > 0 {
