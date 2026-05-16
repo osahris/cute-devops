@@ -341,9 +341,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				continue
 			}
 			lk := lineKey{fileIdx: m.fileIdx, hunkIdx: lr.hunkIdx, lineIdx: lr.lineIdx}
-			if m.lineRead[lk] || m.lineSkipped[lk] {
+			if m.lineRead[lk] {
 				continue
 			}
+			// Skipped doesn't block reading — if the reviewer dwells
+			// on a previously-skipped line, it gets promoted to read.
+			// Skipped only means "don't count as unread for walk
+			// navigation"; it's not a "don't ever read this" flag.
 			m.lineRead[lk] = true
 			marked++
 		}
@@ -1909,7 +1913,10 @@ func (m *model) updateDisplayed() {
 			continue
 		}
 		lk := lineKey{fileIdx: m.fileIdx, hunkIdx: lr.hunkIdx, lineIdx: lr.lineIdx}
-		if m.lineRead[lk] || m.lineSkipped[lk] {
+		// Skipped lines still count toward the reading-time budget if
+		// the reviewer is looking at them — viewing demotes "skip" to
+		// "read".
+		if m.lineRead[lk] {
 			continue
 		}
 		count++
@@ -1991,10 +1998,14 @@ var (
 	// the eye glides past).
 	styleAddUnread = lipgloss.NewStyle().Background(lipgloss.Color("28")) // mid green
 	styleAddRead   = lipgloss.NewStyle().Background(lipgloss.Color("22")) // dim green
-	styleAddSkip   = lipgloss.NewStyle().Background(lipgloss.Color("100")) // muted olive
+	// Skipped lines: still green/red so the reviewer sees it's an
+	// add/delete, but with strikethrough so "I chose not to read this"
+	// reads clearly. If a skipped line ever gets viewed long enough to
+	// promote to Read, the read style wins (render checks read first).
+	styleAddSkip   = lipgloss.NewStyle().Background(lipgloss.Color("22")).Strikethrough(true)
 	styleDelUnread = lipgloss.NewStyle().Background(lipgloss.Color("88")) // mid red
 	styleDelRead   = lipgloss.NewStyle().Background(lipgloss.Color("52")) // dim red
-	styleDelSkip   = lipgloss.NewStyle().Background(lipgloss.Color("94")) // muted brown-red
+	styleDelSkip   = lipgloss.NewStyle().Background(lipgloss.Color("52")).Strikethrough(true)
 	// Back-compat aliases (used by legacy call sites; pick the unread variants).
 	styleAdd      = styleAddUnread
 	styleDel      = styleDelUnread
@@ -2338,20 +2349,20 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, lines []lineRang
 			case review.LineAdd:
 				sign = "+ "
 				switch {
-				case skipped:
-					styleLn = styleAddSkip
 				case read:
 					styleLn = styleAddRead
+				case skipped:
+					styleLn = styleAddSkip
 				default:
 					styleLn = styleAddUnread
 				}
 			case review.LineDelete:
 				sign = "- "
 				switch {
-				case skipped:
-					styleLn = styleDelSkip
 				case read:
 					styleLn = styleDelRead
+				case skipped:
+					styleLn = styleDelSkip
 				default:
 					styleLn = styleDelUnread
 				}

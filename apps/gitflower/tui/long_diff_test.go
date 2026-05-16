@@ -307,6 +307,62 @@ func TestFastSpamDoesNotMarkUnseenHunksRead(t *testing.T) {
 	}
 }
 
+// TestSkippedLinesBecomeReadWhenViewed: a Skipped line is not a "do
+// not show" flag — it just keeps the line from counting as unread in
+// the walk. If the reviewer dwells on a previously-skipped line long
+// enough for the view tick to fire, it gets promoted to Read (and the
+// render shows the read colour, not the skipped one).
+func TestSkippedLinesBecomeReadWhenViewed(t *testing.T) {
+	scope := review.Scope{
+		Branch:  "feature",
+		Base:    "main",
+		TipSHA:  "abc1234567890",
+		BaseSHA: "0000111122223333",
+		Diff:    "main..feature",
+		Title:   "skip",
+		Commits: []review.Commit{{SHA: "abc1234567890", Short: "abc1234", Subject: "skip"}},
+		Files:   []string{"x.txt"},
+		RawDiff: buildAddPatch("x.txt", 20),
+		FilePatches: map[string]string{
+			"x.txt": buildAddPatch("x.txt", 20),
+		},
+		CommitPatches: map[string]string{"abc1234567890": "From abc1234\n"},
+	}
+	tmp := t.TempDir()
+	sess := review.New(scope, "tester@example.com", filepath.Join(tmp, "x.review"))
+	m := newModel(sess, tmp, 1000.0)
+	m = step(t, m, tea.WindowSizeMsg{Width: 80, Height: 30})
+
+	// Drill in, then Alt+Space → marks every unread reviewable line
+	// from cursor forward in the current hunk as Skipped.
+	m = key(t, m, ' ', " ")
+	m = step(t, m, tea.KeyPressMsg{Code: ' ', Text: " ", Mod: tea.ModAlt})
+	if len(m.lineSkipped) == 0 {
+		t.Fatalf("Alt+Space marked nothing skipped")
+	}
+	skipped := map[lineKey]bool{}
+	for k := range m.lineSkipped {
+		skipped[k] = true
+	}
+
+	// Fire any pending tick: skipped lines that are still visible
+	// should flip to read.
+	if m.viewReadScheduled {
+		next, _ := m.Update(viewReadMsg{gen: m.viewReadGen})
+		m = next.(*model)
+	}
+
+	promoted := 0
+	for lk := range skipped {
+		if m.lineRead[lk] {
+			promoted++
+		}
+	}
+	if promoted == 0 {
+		t.Errorf("expected at least some skipped lines to be promoted to read after viewing, got 0")
+	}
+}
+
 // buildAddPatch builds a `git diff` patch that adds `n` lines to a
 // brand-new file at `path`. The lines are short and deterministic so
 // the wrap/render paths don't add noise to the test.
