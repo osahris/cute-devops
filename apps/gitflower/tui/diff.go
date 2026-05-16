@@ -335,15 +335,19 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, lines []lineRang
 			_ = anchor
 			switch {
 			case isMessage:
-				// Commit-message lines: plain prose, no diff sign
-				// or BG. Once read they dim like read context lines.
+				// Commit-message lines: plain prose with a dim grey
+				// background while unread (the "needs attention"
+				// hint, matching the green/red unread BG on diff
+				// lines). Once read the BG drops so the eye glides
+				// past. Skipped is just the dim grey too.
 				sign = "  "
-				if read {
-					styleLn = styleRead
-				} else if skipped {
-					styleLn = styleDim
-				} else {
+				switch {
+				case read:
 					styleLn = lipgloss.NewStyle()
+				case skipped:
+					styleLn = styleMessageBg
+				default:
+					styleLn = styleMessageBg
 				}
 			case ln.Kind == review.LineAdd:
 				sign = "+ "

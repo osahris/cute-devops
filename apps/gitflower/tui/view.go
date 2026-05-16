@@ -31,6 +31,9 @@ var (
 	// reads clearly. If a skipped line ever gets viewed long enough to
 	// promote to Read, the read style wins (render checks read first).
 	styleAddSkip   = lipgloss.NewStyle().Background(lipgloss.Color("22")).Strikethrough(true)
+	// styleMessageBg is the dim grey BG used for unread commit-message
+	// prose lines. Read message lines drop back to no BG.
+	styleMessageBg = lipgloss.NewStyle().Background(lipgloss.Color("237"))
 	styleDelUnread = lipgloss.NewStyle().Background(lipgloss.Color("88")) // mid red
 	styleDelRead   = lipgloss.NewStyle().Background(lipgloss.Color("52")) // dim red
 	styleDelSkip   = lipgloss.NewStyle().Background(lipgloss.Color("52")).Strikethrough(true)
