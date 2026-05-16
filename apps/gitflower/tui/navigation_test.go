@@ -439,6 +439,90 @@ func TestNavSectionThrash(t *testing.T) {
 	}
 }
 
+// TestNavRightArrowExpandThenStepIn: on a folder row in the Changes
+// sidebar, right-arrow expands a collapsed folder; pressed again
+// (folder is now expanded) it steps the cursor into the first child.
+func TestNavRightArrowExpandThenStepIn(t *testing.T) {
+	m := newNavModel(t)
+	for m.sect != sectionChanges {
+		m = step(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
+	}
+	_ = m.sectionItems(sectionChanges)
+	// Collapse the "dir" folder so the first right-arrow expands.
+	m.changesExpanded["dir"] = false
+	m.changesRows = m.buildChangesRows()
+	for i, r := range m.changesRows {
+		if r.kind == tnDir && r.fullPath == "dir" {
+			m.sectIdx[sectionChanges] = i
+			break
+		}
+	}
+	dirIdx := m.sectIdx[sectionChanges]
+
+	// First right: expand.
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyRight})
+	if !m.isChangesDirExpanded("dir") {
+		t.Errorf("first → on collapsed folder didn't expand it")
+	}
+	if m.sectIdx[sectionChanges] != dirIdx {
+		t.Errorf("first → moved cursor away from folder: was %d, now %d",
+			dirIdx, m.sectIdx[sectionChanges])
+	}
+
+	// Second right: step into first child.
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyRight})
+	if m.sectIdx[sectionChanges] != dirIdx+1 {
+		t.Errorf("second → didn't step into first child: want %d, got %d",
+			dirIdx+1, m.sectIdx[sectionChanges])
+	}
+	child := m.currentChangesRow()
+	if child == nil || child.kind != tnFile {
+		t.Errorf("step-in landed on %#v, want a file row", child)
+	}
+}
+
+// TestNavLeftArrowCollapseThenStepUp: on an expanded folder, left
+// collapses; on a child row (or collapsed folder), left jumps up
+// to the parent folder.
+func TestNavLeftArrowCollapseThenStepUp(t *testing.T) {
+	m := newNavModel(t)
+	for m.sect != sectionChanges {
+		m = step(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
+	}
+	_ = m.sectionItems(sectionChanges)
+	// Position on a file row INSIDE "dir/" (so first ← steps up to
+	// the parent folder row, second ← collapses it).
+	m.changesExpanded["dir"] = true
+	m.changesRows = m.buildChangesRows()
+	var dirIdx, childIdx int = -1, -1
+	for i, r := range m.changesRows {
+		if r.kind == tnDir && r.fullPath == "dir" {
+			dirIdx = i
+		}
+		if r.kind == tnFile && r.dirPath == "dir" {
+			childIdx = i
+			break
+		}
+	}
+	if dirIdx < 0 || childIdx < 0 {
+		t.Fatalf("need a child file under dir/; rows=%v", m.changesRows)
+	}
+	m.sectIdx[sectionChanges] = childIdx
+
+	// First left: step up to dir/ row.
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyLeft})
+	if m.sectIdx[sectionChanges] != dirIdx {
+		t.Errorf("← from child should land on dir/ (%d), got %d",
+			dirIdx, m.sectIdx[sectionChanges])
+	}
+
+	// Second left: collapse dir/.
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyLeft})
+	if m.isChangesDirExpanded("dir") {
+		t.Errorf("← on expanded folder didn't collapse it")
+	}
+}
+
 // TestNavCommitsEscReturnsToCommitsSection: after drilling into a
 // commit via the sidebar, Esc / left-arrow should land back on the
 // Commits section with the cursor on the commit we were just in —

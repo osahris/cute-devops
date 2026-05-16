@@ -264,6 +264,105 @@ func (m *model) renderTreeRow(row treeRow, sect section) string {
 	return ""
 }
 
+// expandOrStepIn implements the right-arrow tree navigation:
+//   * folder + collapsed → expand it
+//   * folder + expanded  → move cursor to the first child row
+//   * file              → drill in (same as Enter/l)
+func (m *model) expandOrStepIn() {
+	switch m.sect {
+	case sectionChanges:
+		row := m.currentChangesRow()
+		if row == nil {
+			return
+		}
+		if row.kind == tnFile {
+			m.openSelectedItem()
+			return
+		}
+		if !m.isChangesDirExpanded(row.fullPath) {
+			m.changesExpanded[row.fullPath] = true
+			m.refreshViewport()
+			return
+		}
+		// Already expanded — step into the first child row, which
+		// is the next entry in changesRows (the rebuild keeps the
+		// folder at sectIdx, with its children immediately after).
+		m.changesRows = m.buildChangesRows()
+		if m.sectIdx[sectionChanges]+1 < len(m.changesRows) {
+			m.sectIdx[sectionChanges]++
+		}
+		m.onTreeSelectionChanged()
+	case sectionTree:
+		row := m.currentFileTreeRow()
+		if row == nil {
+			return
+		}
+		if row.kind == tnFile {
+			m.openSelectedItem()
+			return
+		}
+		if !m.fileTreeExpanded[row.fullPath] {
+			m.fileTreeExpanded[row.fullPath] = true
+			m.refreshViewport()
+			return
+		}
+		m.fileTreeRows = m.buildFileTreeRows()
+		if m.sectIdx[sectionTree]+1 < len(m.fileTreeRows) {
+			m.sectIdx[sectionTree]++
+		}
+		m.onTreeSelectionChanged()
+	}
+}
+
+// collapseOrStepUp implements the left-arrow tree navigation:
+//   * expanded folder → collapse it
+//   * file or collapsed folder → jump up to the nearest parent
+//     folder row (scan backwards for a tnDir with smaller depth)
+func (m *model) collapseOrStepUp() {
+	switch m.sect {
+	case sectionChanges:
+		row := m.currentChangesRow()
+		if row == nil {
+			return
+		}
+		if row.kind == tnDir && m.isChangesDirExpanded(row.fullPath) {
+			m.changesExpanded[row.fullPath] = false
+			m.refreshViewport()
+			return
+		}
+		curIdx := m.sectIdx[sectionChanges]
+		curDepth := row.depth
+		for i := curIdx - 1; i >= 0; i-- {
+			r := m.changesRows[i]
+			if r.kind == tnDir && r.depth < curDepth {
+				m.sectIdx[sectionChanges] = i
+				m.onTreeSelectionChanged()
+				return
+			}
+		}
+	case sectionTree:
+		row := m.currentFileTreeRow()
+		if row == nil {
+			return
+		}
+		if row.kind == tnDir && m.fileTreeExpanded[row.fullPath] {
+			m.fileTreeExpanded[row.fullPath] = false
+			m.refreshViewport()
+			return
+		}
+		curIdx := m.sectIdx[sectionTree]
+		curDepth := row.depth
+		for i := curIdx - 1; i >= 0; i-- {
+			r := m.fileTreeRows[i]
+			if r.kind == tnDir && r.depth < curDepth {
+				m.sectIdx[sectionTree] = i
+				m.onTreeSelectionChanged()
+				return
+			}
+		}
+	}
+}
+
 // nextVisibleSection cycles through the visible (sidebar-rendered)
 // sections in `direction` (+1 / -1). sectionFileReview is hidden
 // from the cycle since its content lives as highlights in Tree.
@@ -429,7 +528,25 @@ func (m *model) updateTree(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = "no editable item under cursor"
 			return m, nil
 		}
-	case "right", "l", "enter":
+	case "right":
+		// Right-arrow in the folder-tree sections has its own
+		// behaviour: on a collapsed folder it expands; on an
+		// expanded folder it steps into the first child row;
+		// on a file row it drills in just like Enter/l.
+		if m.sect == sectionChanges || m.sect == sectionTree {
+			m.expandOrStepIn()
+			return m, nil
+		}
+		m.openSelectedItem()
+	case "left":
+		// Left-arrow on a folder collapses it; otherwise (file
+		// row or already-collapsed folder) the cursor jumps up
+		// to the parent folder row.
+		if m.sect == sectionChanges || m.sect == sectionTree {
+			m.collapseOrStepUp()
+			return m, nil
+		}
+	case "l", "enter":
 		m.openSelectedItem()
 	case "pgdown", "f":
 		if m.sect == sectionChanges {
