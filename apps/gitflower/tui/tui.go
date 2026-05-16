@@ -33,28 +33,32 @@ import (
 	"gitflower/review"
 )
 
-// DefaultReadDelay is how long a hunk must remain visible before
-// the TUI emits a ReadStart/ReadEnd. Override at TUI construction.
-const DefaultReadDelay = 1 * time.Second
+// DefaultReadRate is the assumed reviewer reading speed in lines per
+// second. The per-hunk delay before a fully-displayed hunk gets marked
+// read is computed as (reviewable lines in hunk) / DefaultReadRate, so
+// a 30-line hunk at 10 l/s takes 3 seconds, a 5-line hunk takes 0.5s.
+const DefaultReadRate = 10.0
+
+// minReadDelay is the floor for the per-hunk delay. Even a 1-line
+// hunk at a generous rate still goes through the tick path so the
+// Update/Cmd round-trip behaves identically in tests and at runtime.
+const minReadDelay = time.Millisecond
 
 // AutoSaveInterval is the debounce window for write-on-dirty. Multiple
 // rapid mutations (e.g. a Space walk through a long diff) coalesce into
 // one save per AutoSaveInterval window instead of one save per mutation.
 const AutoSaveInterval = 2 * time.Second
 
-// Run launches the TUI on sess. readDelay controls how long a hunk must
-// stay visible before the read marker is emitted. The minimum is 1ms —
-// even "immediate" still goes through the tick path so tests exercise
-// the realistic Update/Cmd round-trip.
-func Run(sess *review.ReviewSession, readDelay time.Duration) error {
+// Run launches the TUI on sess. readRate is the reviewer's assumed
+// reading speed in lines per second; the per-hunk read delay scales
+// with the hunk's reviewable line count and the current viewport size
+// so big hunks earn more time than small ones.
+func Run(sess *review.ReviewSession, readRate float64) error {
 	root, _ := gitRoot()
-	if readDelay <= 0 {
-		readDelay = DefaultReadDelay
+	if readRate <= 0 {
+		readRate = DefaultReadRate
 	}
-	if readDelay < time.Millisecond {
-		readDelay = time.Millisecond
-	}
-	m := newModel(sess, root, readDelay)
+	m := newModel(sess, root, readRate)
 	_, err := tea.NewProgram(m).Run()
 	return err
 }
@@ -185,7 +189,7 @@ type model struct {
 	displayed  map[review.Anchor]map[int]bool
 
 	// Delayed read marking.
-	readDelay    time.Duration
+	readRate     float64 // lines/second; per-hunk delay = lines / readRate
 	pendingReads map[review.Anchor]bool // anchor has a scheduled read tick
 
 	// Autosave: when true an autoSaveMsg tick is in flight.
@@ -198,7 +202,10 @@ type model struct {
 	status string
 }
 
-func newModel(sess *review.ReviewSession, root string, readDelay time.Duration) *model {
+func newModel(sess *review.ReviewSession, root string, readRate float64) *model {
+	if readRate <= 0 {
+		readRate = DefaultReadRate
+	}
 	files := review.ParseDiff(sess.Scope.RawDiff)
 
 	// Append each commit's patch as a virtual file so Space-walk
@@ -246,7 +253,7 @@ func newModel(sess *review.ReviewSession, root string, readDelay time.Duration) 
 		title:        ti,
 		viewport:     vp,
 		displayed:    map[review.Anchor]map[int]bool{},
-		readDelay:    readDelay,
+		readRate:     readRate,
 		pendingReads: map[review.Anchor]bool{},
 	}
 	return m
@@ -257,6 +264,39 @@ func newModel(sess *review.ReviewSession, root string, readDelay time.Duration) 
 // ---------------------------------------------------------------------
 
 func (m *model) Init() tea.Cmd { return nil }
+
+// currentReadDelay returns how long the reviewer should spend on the
+// current viewport before its content counts as read: scaled by the
+// configured lines-per-second rate and the reviewable line count
+// currently visible (intersected with the viewport, not the hunk's
+// total). So paging through a long hunk earns reading time per page,
+// not all at once. Clamped to minReadDelay so a tick always fires.
+func (m *model) currentReadDelay() time.Duration {
+	top := m.viewport.YOffset()
+	bot := top + m.viewport.Height() - 1
+	lines := 0
+	for _, lr := range m.lineRanges {
+		if lr.isEOF || lr.kind == review.LineDelete {
+			continue
+		}
+		if lr.botRow < top || lr.topRow > bot {
+			continue
+		}
+		lines++
+	}
+	if lines < 1 {
+		lines = 1
+	}
+	rate := m.readRate
+	if rate <= 0 {
+		rate = DefaultReadRate
+	}
+	d := time.Duration(float64(time.Second) * float64(lines) / rate)
+	if d < minReadDelay {
+		d = minReadDelay
+	}
+	return d
+}
 
 // delayedReadMsg fires `readDelay` after a hunk first became fully visible.
 // If the hunk is still pending (not user-unread) AND currently in the
@@ -1774,11 +1814,13 @@ func (m *model) updateDisplayed() {
 			}
 		}
 		if full && !m.pendingReads[r.anchor] {
-			// Schedule a delayed read; the actual MarkRead happens when
-			// the tick fires.
+			// Schedule a delayed read sized to the hunk's reviewable
+			// line count: delay = lines / readRate. Bigger hunks earn
+			// more time before they're considered "read"; tiny ones
+			// fire almost immediately.
 			m.pendingReads[r.anchor] = true
 			anchor := r.anchor
-			m.queuedCmds = append(m.queuedCmds, tea.Tick(m.readDelay, func(time.Time) tea.Msg {
+			m.queuedCmds = append(m.queuedCmds, tea.Tick(m.currentReadDelay(), func(time.Time) tea.Msg {
 				return delayedReadMsg{anchor: anchor}
 			}))
 		}

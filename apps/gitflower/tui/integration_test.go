@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -61,7 +60,7 @@ index 0000000..abc1234
 	}
 	sess := review.New(scope, "tester@example.com", reviewPath)
 
-	m := newModel(sess, tmp, 10*time.Millisecond)
+	m := newModel(sess, tmp, 1000.0)
 
 	// Set window dimensions so the model can render.
 	m = step(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -169,7 +168,7 @@ func TestSpaceWalkPagesThroughLongHunk(t *testing.T) {
 		CommitPatches: map[string]string{"abc1234567890": "From abc1234 ...\n"},
 	}
 	sess := review.New(scope, "tester@example.com", reviewPath)
-	m := newModel(sess, tmp, 10*time.Millisecond)
+	m := newModel(sess, tmp, 1000.0)
 	m = step(t, m, tea.WindowSizeMsg{Width: 80, Height: 20})
 
 	// First Space drills from section into line mode at "5 before the
@@ -209,7 +208,7 @@ func TestModeTransitionMatrix(t *testing.T) {
 	scope := smallScope()
 	tmp := t.TempDir()
 	sess := review.New(scope, "alice@example.com", filepath.Join(tmp, "x.review"))
-	m := newModel(sess, tmp, 10*time.Millisecond)
+	m := newModel(sess, tmp, 1000.0)
 	m = step(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	// Section traversal: visit every section via Tab.

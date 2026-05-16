@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -47,7 +46,7 @@ func TestSpaceWalkOnThisRepo(t *testing.T) {
 
 	tmp := t.TempDir()
 	sess := review.New(*scope, "reviewer@example.com", filepath.Join(tmp, "test.review"))
-	m := newModel(sess, root, 1*time.Millisecond)
+	m := newModel(sess, root, 1000.0)
 	m = step(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	const maxSteps = 5000
@@ -155,7 +154,7 @@ func TestSpaceOnlyWalkOnThisRepo(t *testing.T) {
 
 	tmp := t.TempDir()
 	sess := review.New(*scope, "reviewer@example.com", filepath.Join(tmp, "test.review"))
-	m := newModel(sess, root, 1*time.Millisecond)
+	m := newModel(sess, root, 1000.0)
 	m = step(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	const maxPresses = 5000

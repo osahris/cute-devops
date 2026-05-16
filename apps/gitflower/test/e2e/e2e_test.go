@@ -47,7 +47,7 @@ func TestReviewViaPTY(t *testing.T) {
 	cmd := exec.Command(gitflowerBin,
 		"review",
 		"--base", "main",
-		"--read-delay", "100ms",
+		"--read-rate", "1000", // fast reader; ticks fire quickly in tests
 		"feature",
 	)
 	cmd.Dir = repo

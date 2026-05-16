@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -52,7 +51,7 @@ func TestSpaceWalkOnLongDiffs(t *testing.T) {
 	reviewPath := filepath.Join(tmp, "long.review")
 	sess := review.New(scope, "tester@example.com", reviewPath)
 
-	m := newModel(sess, tmp, 1*time.Millisecond)
+	m := newModel(sess, tmp, 1000.0)
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 25})
 
 	// First Space drills into the first file at "5 before first unread".
@@ -147,7 +146,7 @@ func TestSpaceOnlyWalkOnLongDiffs(t *testing.T) {
 	}
 	tmp := t.TempDir()
 	sess := review.New(scope, "tester@example.com", filepath.Join(tmp, "long.review"))
-	m := newModel(sess, tmp, 1*time.Millisecond)
+	m := newModel(sess, tmp, 1000.0)
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 25})
 
 	const maxPresses = 2000

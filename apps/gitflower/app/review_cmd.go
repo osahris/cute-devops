@@ -21,7 +21,7 @@ func cmdReview(args []string, stdout, stderr io.Writer) int {
 	out := fs.String("o", "", "output path (default: <repo>/reviews/<to>-<sha>-from-<from>-<sha>.review)")
 	baseOverride := fs.String("base", "", "override the base ref (default: parsed from `Base:` line, fallback main)")
 	noTUI := fs.Bool("no-tui", false, "scaffold the review file and exit; do not launch the TUI")
-	readDelay := fs.Duration("read-delay", tui.DefaultReadDelay, "delay before marking a fully-visible hunk read (e.g. 500ms, 2s)")
+	readRate := fs.Float64("read-rate", tui.DefaultReadRate, "assumed reading speed in lines/second; per-hunk read delay = lines / read-rate")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: gitflower review [-o path] [--base ref] [--no-tui] [<branch>]")
 		fmt.Fprintln(stderr)
@@ -88,7 +88,7 @@ func cmdReview(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 
-	if err := tui.Run(sess, *readDelay); err != nil {
+	if err := tui.Run(sess, *readRate); err != nil {
 		fmt.Fprintf(stderr, "review: tui: %v\n", err)
 		return 1
 	}
