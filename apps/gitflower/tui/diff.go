@@ -35,9 +35,22 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.ScrollLeft(4)
 			return m, nil
 		}
-		m.sect = sectionChanges
-		if r := m.changesRowForFile(m.fileIdx); r >= 0 {
-			m.sectIdx[sectionChanges] = r
+		// If we were inside a commit virtual file, jump back to the
+		// Commits section parked on that commit — not to Changes.
+		if path := m.currentFile().Path; strings.HasPrefix(path, "commit:") {
+			short := strings.TrimPrefix(path, "commit:")
+			for i, c := range m.sess.Scope.Commits {
+				if c.Short == short {
+					m.sect = sectionCommits
+					m.sectIdx[sectionCommits] = i
+					break
+				}
+			}
+		} else {
+			m.sect = sectionChanges
+			if r := m.changesRowForFile(m.fileIdx); r >= 0 {
+				m.sectIdx[sectionChanges] = r
+			}
 		}
 		m.mode = modeTree
 		m.refreshViewport()

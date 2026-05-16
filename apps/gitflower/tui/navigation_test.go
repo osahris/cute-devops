@@ -272,6 +272,33 @@ func TestNavCommitsLDrillsIntoCommitDiff(t *testing.T) {
 	}
 }
 
+// TestNavCommitsEscReturnsToCommitsSection: after drilling into a
+// commit via the sidebar, Esc / left-arrow should land back on the
+// Commits section with the cursor on the commit we were just in —
+// not on the last file in Changes.
+func TestNavCommitsEscReturnsToCommitsSection(t *testing.T) {
+	m := newNavModel(t)
+	for m.sect != sectionCommits {
+		m = step(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
+	}
+	m.sectIdx[sectionCommits] = 1
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m.mode != modeDiff {
+		t.Fatalf("expected modeDiff after Enter, got %v", m.mode)
+	}
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyEsc})
+	if m.mode != modeTree {
+		t.Errorf("Esc didn't return to tree, mode=%v", m.mode)
+	}
+	if m.sect != sectionCommits {
+		t.Errorf("Esc from a commit virtual file should land on Commits, got %v", m.sect)
+	}
+	if m.sectIdx[sectionCommits] != 1 {
+		t.Errorf("Esc should preserve the commit cursor, got %d want 1",
+			m.sectIdx[sectionCommits])
+	}
+}
+
 // --- File tree section -----------------------------------------------
 
 func TestNavTreeFoldersCollapsedByDefault(t *testing.T) {
