@@ -111,11 +111,23 @@ func cmdReviewMerge(args []string, stdout, stderr io.Writer) int {
 	}
 
 	// commit-tree with two parents: HEAD (first) and the notes tip
-	// (second). First-parent stays on the code line.
+	// (second). First-parent stays on the code line. The commit body
+	// embeds the same shell recipes the `gitflower review` exit hint
+	// prints, so a future reader can extract the review with stock
+	// git + grep — no gitflower required.
+	viewCmds := review.ViewCommands(*notesRef, tipSHA)
+	commitBody := fmt.Sprintf(
+		"Notes-Ref: %s\nNotes-Source-Tip: %s\n\n"+
+			"View the full review:\n  %s\n\n"+
+			"Drop reading/skip bookkeeping:\n  %s\n\n"+
+			"Just the reactions, with surrounding context:\n  %s\n",
+		*notesRef, notesTip,
+		viewCmds[0], viewCmds[1], viewCmds[2],
+	)
 	cmd := exec.Command("git", "commit-tree",
 		mergeTree, "-p", tipSHA, "-p", notesTip,
 		"-m", subject,
-		"-m", fmt.Sprintf("Notes-Ref: %s\nNotes-Source-Tip: %s", *notesRef, notesTip),
+		"-m", commitBody,
 	)
 	out, err := cmd.Output()
 	if err != nil {

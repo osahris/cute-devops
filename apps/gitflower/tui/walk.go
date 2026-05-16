@@ -54,7 +54,7 @@ func (m *model) skipWalk() {
 			if m.lineRead[lk] || m.lineSkipped[lk] {
 				continue
 			}
-			m.lineSkipped[lk] = true
+			m.markLineSkipped(lk)
 			skipped++
 		}
 		if skipped > 0 {

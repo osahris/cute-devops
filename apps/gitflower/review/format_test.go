@@ -4,6 +4,7 @@
 package review_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -133,11 +134,17 @@ func TestRoundTripEventsAndIssues(t *testing.T) {
 	if parsed.Verdict != review.VerdictChanges {
 		t.Errorf("verdict: got %q", parsed.Verdict)
 	}
-	if got := parsed.Marker(review.HunkAnchor("b.txt", 1, 3)); got != review.MarkerGood {
-		t.Errorf("b.txt good marker: got %q", got)
+	// Markers stay in the same hunk but may drift from hunk anchor
+	// (`path:start,count`) to the hunk's last `+` line (`path:N`)
+	// because Render emits them after the last new-side line and
+	// Parse derives the anchor from the preceding `> +N`. Both
+	// shapes are accepted; what matters is the marker is still set
+	// on a position inside the original hunk.
+	if got := markerInHunk(parsed, "b.txt", 1, 3, review.MarkerGood); !got {
+		t.Errorf("b.txt good marker lost; markers: %v", parsed.MarkerAnchors())
 	}
-	if got := parsed.Marker(review.HunkAnchor("b.test", 1, 1)); got != review.MarkerBad {
-		t.Errorf("b.test bad marker: got %q", got)
+	if got := markerInHunk(parsed, "b.test", 1, 1, review.MarkerBad); !got {
+		t.Errorf("b.test bad marker lost; markers: %v", parsed.MarkerAnchors())
 	}
 	if !parsed.IsRead(review.HunkAnchor("b.txt", 1, 3)) {
 		t.Errorf("b.txt:1,3 read marker lost")
@@ -150,6 +157,22 @@ func TestRoundTripEventsAndIssues(t *testing.T) {
 	} else if parsed.Issues()[0].Title != "follow project style" {
 		t.Errorf("issue title: got %q", parsed.Issues()[0].Title)
 	}
+}
+
+// markerInHunk returns true if `s` carries `want` somewhere inside
+// the hunk at (newStart, newLines) of path — either at the exact
+// hunk anchor `path:start,count` or at any `+` line inside the hunk
+// (path:N where newStart <= N <= newStart+newLines-1).
+func markerInHunk(s *review.ReviewSession, path string, newStart, newLines int, want review.Marker) bool {
+	if s.Marker(review.HunkAnchor(path, newStart, newLines)) == want {
+		return true
+	}
+	for n := newStart; n < newStart+newLines; n++ {
+		if s.Marker(review.Anchor(fmt.Sprintf("%s:%d", path, n))) == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestPathEncodingRoundTrip(t *testing.T) {

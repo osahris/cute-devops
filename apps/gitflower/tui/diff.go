@@ -86,8 +86,8 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Mark the current line unread: drop its read state and bump
 		// the view generation so any pending read tick is invalidated.
 		lk := m.currentLineKey()
-		delete(m.lineRead, lk)
-		delete(m.lineSkipped, lk)
+		m.unmarkLineRead(lk)
+		m.unmarkLineSkipped(lk)
 		m.viewReadGen++
 		m.viewReadScheduled = false
 		off := m.viewport.YOffset()
@@ -115,6 +115,19 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.edit != editNone {
 			return m, m.textarea.Focus()
 		}
+	case "d":
+		if m.deleteSelectedComment() {
+			return m, nil
+		}
+		m.status = "no comment at cursor"
+	case "]":
+		// Cycle the "selected event" marker through every comment /
+		// question anchored to the current line or hunk. e/d act on
+		// the selected one. Useful when a hunk has several pieces of
+		// feedback you want to triage in order.
+		m.cycleCommentCursor(+1)
+	case "[":
+		m.cycleCommentCursor(-1)
 	case "F":
 		// Enter file-review mode on the current Changes file.
 		m.enterFileReview(m.currentFile().Path)
@@ -129,6 +142,7 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) lineNext() {
+	m.commentCursor = -1
 	if m.atEOF {
 		return
 	}
@@ -156,6 +170,7 @@ func (m *model) lineNext() {
 }
 
 func (m *model) linePrev() {
+	m.commentCursor = -1
 	if m.atEOF {
 		// Step back from EOF onto the last reviewable line of the file.
 		f := m.currentFile()

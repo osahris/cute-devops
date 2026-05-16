@@ -96,7 +96,8 @@ index 0000000..abc1234
 	for _, r := range "Looks fine." {
 		m = key(t, m, r, string(r))
 	}
-	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModAlt})
+	// Submit: Enter now saves (Alt+Enter is reserved for newline).
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.edit != editNone {
 		t.Errorf("after submit: still in edit mode %v", m.edit)
 	}
@@ -121,7 +122,7 @@ index 0000000..abc1234
 		"### Verdict: requested-changes",
 		"# Changes",
 		"## Changes in `foo.txt`",
-		"> +line one",
+		"> 1 +line one", // diff lines now carry their line-number gutter before the sign.
 		"### Comment (From: tester",
 		"Looks fine.",
 	} {

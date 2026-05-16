@@ -103,10 +103,7 @@ func cmdReview(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "review: save: %v\n", err)
 			return 1
 		}
-		fmt.Fprintf(stdout, "note: %s @ %s\n", *notesRef, tipSHA[:12])
-		if path != "" {
-			fmt.Fprintln(stdout, path)
-		}
+		printExitHint(stdout, *notesRef, tipSHA, path)
 		return 0
 	}
 
@@ -114,11 +111,25 @@ func cmdReview(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "review: tui: %v\n", err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "note: %s @ %s\n", *notesRef, tipSHA[:12])
-	if path != "" {
-		fmt.Fprintln(stdout, path)
-	}
+	printExitHint(stdout, *notesRef, tipSHA, path)
 	return 0
+}
+
+// printExitHint writes the "where did my review go" footer. The
+// review is on a git note; users without gitflower can still read
+// it with stock git + grep using the printed commands.
+func printExitHint(w io.Writer, notesRef, tipSHA, mirrorPath string) {
+	fmt.Fprintf(w, "\nreview saved → %s @ %s\n", notesRef, tipSHA[:12])
+	fmt.Fprintln(w, "\nView the full review:")
+	cmds := review.ViewCommands(notesRef, tipSHA)
+	fmt.Fprintf(w, "  %s\n", cmds[0])
+	fmt.Fprintln(w, "\nDrop reading/skip bookkeeping:")
+	fmt.Fprintf(w, "  %s\n", cmds[1])
+	fmt.Fprintln(w, "\nJust the reactions, with surrounding context:")
+	fmt.Fprintf(w, "  %s\n", cmds[2])
+	if mirrorPath != "" {
+		fmt.Fprintf(w, "\nFile mirror: %s\n", mirrorPath)
+	}
 }
 
 func resolveBranch(arg string) (string, error) {

@@ -148,9 +148,15 @@ func (s *Scope) FilePatch(path string) string {
 	if p, ok := s.FilePatches[path]; ok {
 		return p
 	}
+	// `:(top)path` pathspec magic anchors the path to the repo root.
+	// Without it, `git diff -- path` resolves `path` relative to cwd,
+	// so running gitflower from a subdir returns empty patches for
+	// every file (Scope.Files are root-relative). Empty patches let
+	// renderChanges skip the entire `## Changes in <path>` body and
+	// drop any anchored comments/marks/reads.
 	out, err := gitOut("diff", "--no-color",
 		"-U2", "--inter-hunk-context=0",
-		s.Base+".."+s.Branch, "--", path)
+		s.Base+".."+s.Branch, "--", ":(top)"+path)
 	if err != nil {
 		return ""
 	}

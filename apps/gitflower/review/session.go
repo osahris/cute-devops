@@ -149,7 +149,10 @@ type ReviewSession struct {
 // Verdicts returns the verdict audit log.
 func (s *ReviewSession) Verdicts() []VerdictEvent { return s.verdicts }
 
-// AddVerdict appends to the audit log.
+// AddVerdict records a verdict from the reviewer. A reviewer may hold
+// at most one verdict at a time — submitting a second one replaces
+// the previous entry from that author rather than appending. Other
+// reviewers' verdicts are untouched.
 func (s *ReviewSession) AddVerdict(v VerdictEvent) {
 	if v.Author == "" {
 		v.Author = s.Reviewer
@@ -157,10 +160,54 @@ func (s *ReviewSession) AddVerdict(v VerdictEvent) {
 	if v.Date == "" {
 		v.Date = time.Now().UTC().Format(time.RFC3339)
 	}
-	s.verdicts = append(s.verdicts, v)
+	replaced := false
+	for i := range s.verdicts {
+		if s.verdicts[i].Author == v.Author {
+			s.verdicts[i] = v
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		s.verdicts = append(s.verdicts, v)
+	}
 	s.Verdict = v.State
 	s.Summary = v.Summary
 	s.dirty = true
+}
+
+// VerdictIndexFor returns the index of the verdict authored by the
+// given reviewer, or -1 if none. Used by the TUI's e/d handlers and
+// to decide whether the verdicts sidebar should still show "+ Add
+// verdict" for the current user.
+func (s *ReviewSession) VerdictIndexFor(author string) int {
+	for i, v := range s.verdicts {
+		if v.Author == author {
+			return i
+		}
+	}
+	return -1
+}
+
+// DeleteVerdict removes the verdict at idx from the audit log. When
+// removing the most-recent entry the canonical Verdict/Summary fields
+// fall back to the previous entry, or to VerdictOpen when none remain
+// — keeping `s.Verdict` interpretable for the verdict-cycle keys.
+func (s *ReviewSession) DeleteVerdict(idx int) bool {
+	if idx < 0 || idx >= len(s.verdicts) {
+		return false
+	}
+	s.verdicts = append(s.verdicts[:idx], s.verdicts[idx+1:]...)
+	if len(s.verdicts) == 0 {
+		s.Verdict = VerdictOpen
+		s.Summary = ""
+	} else {
+		last := s.verdicts[len(s.verdicts)-1]
+		s.Verdict = last.State
+		s.Summary = last.Summary
+	}
+	s.dirty = true
+	return true
 }
 
 // FileReviews returns the file-review list.
@@ -225,6 +272,9 @@ func (s *ReviewSession) Dirty() bool { return s.dirty }
 func (s *ReviewSession) IsRead(a Anchor) bool { return s.read[a] }
 
 func (s *ReviewSession) MarkRead(a Anchor) {
+	if s.read == nil {
+		s.read = map[Anchor]bool{}
+	}
 	if !s.read[a] {
 		s.read[a] = true
 		s.dirty = true
@@ -254,6 +304,9 @@ func (s *ReviewSession) ToggleRead(a Anchor) {
 func (s *ReviewSession) IsSkipped(a Anchor) bool { return s.skipped[a] }
 
 func (s *ReviewSession) MarkSkipped(a Anchor) {
+	if s.skipped == nil {
+		s.skipped = map[Anchor]bool{}
+	}
 	if !s.skipped[a] {
 		s.skipped[a] = true
 		s.dirty = true
@@ -292,6 +345,9 @@ func (s *ReviewSession) ReadAnchors() []Anchor {
 func (s *ReviewSession) Marker(a Anchor) Marker { return s.markers[a] }
 
 func (s *ReviewSession) SetMarker(a Anchor, m Marker) {
+	if s.markers == nil {
+		s.markers = map[Anchor]Marker{}
+	}
 	cur := s.markers[a]
 	if cur == m {
 		// Toggling the same marker clears it.
@@ -370,6 +426,28 @@ func (s *ReviewSession) AddIssue(it Issue) {
 	}
 	s.issues = append(s.issues, it)
 	s.dirty = true
+}
+
+// DeleteComment removes the comment at idx. Returns false if idx is
+// out of range.
+func (s *ReviewSession) DeleteComment(idx int) bool {
+	if idx < 0 || idx >= len(s.comments) {
+		return false
+	}
+	s.comments = append(s.comments[:idx], s.comments[idx+1:]...)
+	s.dirty = true
+	return true
+}
+
+// DeleteIssue removes the issue at idx. Returns false if idx is out
+// of range.
+func (s *ReviewSession) DeleteIssue(idx int) bool {
+	if idx < 0 || idx >= len(s.issues) {
+		return false
+	}
+	s.issues = append(s.issues[:idx], s.issues[idx+1:]...)
+	s.dirty = true
+	return true
 }
 
 // UpdateIssue replaces the issue at idx with the given title/body, preserving

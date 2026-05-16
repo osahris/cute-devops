@@ -153,6 +153,8 @@ func (m *model) refreshViewport() {
 			body = renderCommitDetail(m)
 		case sectionIssues:
 			body = renderIssueDetail(m)
+		case sectionVerdicts:
+			body = renderVerdictDetail(m)
 		}
 	}
 	m.hunkRanges = ranges

@@ -9,7 +9,98 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gitflower/review"
 )
+
+// mutateNoteAddComment models exactly what the running binary does
+// when a TUI keystroke triggers a comment: load the note, restore the
+// live Scope from git (same as review_cmd.go), add the comment, save.
+// This is the contract we want LoadFromNote → AddComment → Save to
+// preserve across an editor restart.
+func mutateNoteAddComment(t *testing.T, repo, sha, branch, text string) {
+	t.Helper()
+	wd, _ := os.Getwd()
+	defer os.Chdir(wd)
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir %s: %v", repo, err)
+	}
+	sess, err := review.LoadFromNote(review.DefaultNotesRef, sha)
+	if err != nil || sess == nil {
+		t.Fatalf("LoadFromNote(%s): sess=%v err=%v", sha, sess, err)
+	}
+	scope, err := review.ScopeFor(branch, "")
+	if err != nil {
+		t.Fatalf("ScopeFor(%s): %v", branch, err)
+	}
+	sess.Scope = *scope
+	sess.AddComment(review.Comment{
+		Anchor: review.Anchor("feat.txt:1"),
+		Text:   text,
+	})
+	if err := sess.Save(); err != nil {
+		t.Fatalf("Save after AddComment: %v", err)
+	}
+}
+
+// TestReviewNoteRoundtripsComment exercises the bug the user hit:
+// add a comment via the review API, save, restart, and assert the
+// comment is still there. Skips the TUI — uses the session +
+// notes-store layer directly, since that's where the persistence
+// has to work.
+func TestReviewNoteRoundtripsComment(t *testing.T) {
+	t.Parallel()
+	bin := buildBinary(t)
+	repo := newMiniRepo(t)
+	env := append(os.Environ(),
+		"GIT_AUTHOR_NAME=tester", "GIT_AUTHOR_EMAIL=t@e",
+		"GIT_COMMITTER_NAME=tester", "GIT_COMMITTER_EMAIL=t@e",
+	)
+	// First review writes a fresh note.
+	run(t, env, repo, bin, "review", "--no-tui")
+
+	headSHA := mustGit(t, repo, "rev-parse", "HEAD")
+
+	// Load the note, add a comment, save back to the same note —
+	// this is the API path the TUI's `c` handler eventually
+	// triggers via sess.AddComment + sess.Save().
+	cmd := exec.Command(bin, "review", "--no-tui")
+	cmd.Dir = repo
+	cmd.Env = env
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("warm-up review: %v\n%s", err, out)
+	}
+
+	// Mutate the note out-of-band the way the TUI would: load via
+	// LoadFromNote, mutate, Save. We do this by invoking a tiny
+	// inline Go helper through `go run` ... or simpler, do it in
+	// this test process directly. The `review` package is imported
+	// in the e2e test module; use it directly.
+	mutateNoteAddComment(t, repo, headSHA, "feature", "TEST-COMMENT-MARKER")
+
+	// Debug: dump the note before the second run so we can tell
+	// whether mutate worked OR the restart erased.
+	mid, _ := exec.Command("git", "-C", repo, "notes",
+		"--ref=refs/notes/review", "show", headSHA).CombinedOutput()
+	if !strings.Contains(string(mid), "TEST-COMMENT-MARKER") {
+		t.Fatalf("comment lost during mutateNoteAddComment, not on restart; note body:\n%s", mid)
+	}
+
+	// Restart: run another `review --no-tui` (loads the note,
+	// re-saves, exits). This is the round-trip that the user said
+	// was losing the comment.
+	run(t, env, repo, bin, "review", "--no-tui")
+
+	// Read the note back and assert the comment survived.
+	body, err := exec.Command("git", "-C", repo, "notes",
+		"--ref=refs/notes/review", "show", headSHA).CombinedOutput()
+	if err != nil {
+		t.Fatalf("git notes show: %v\n%s", err, body)
+	}
+	if !strings.Contains(string(body), "TEST-COMMENT-MARKER") {
+		t.Errorf("comment lost across restart; note body:\n%s", string(body))
+	}
+}
 
 // TestReviewNoteAndMerge stands up a tiny git repo, runs
 // `gitflower review --no-tui` to write a fresh review into the notes
@@ -59,6 +150,22 @@ func TestReviewNoteAndMerge(t *testing.T) {
 	parents := strings.Fields(mustGit(t, repo, "log", "-1", "--format=%P", mergeSHA))
 	if len(parents) != 2 {
 		t.Errorf("merge should have 2 parents, got %d: %v", len(parents), parents)
+	}
+
+	// Merge commit body must embed the gitflower-free recipes for
+	// reading the note (git + grep), so future readers don't need
+	// the tool to extract the review. Match the three command
+	// signatures we always emit.
+	mergeBody := mustGit(t, repo, "log", "-1", "--format=%B", mergeSHA)
+	for _, want := range []string{
+		"git notes --ref=refs/notes/review show",
+		"grep -v -E '^### (ReadStart|ReadEnd|SkipStart|SkipEnd) '",
+		"grep -B3 -E ",
+	} {
+		if !strings.Contains(mergeBody, want) {
+			t.Errorf("merge commit body missing %q\n--- body ---\n%s",
+				want, mergeBody)
+		}
 	}
 
 	// File mirror exists in the merge tree.

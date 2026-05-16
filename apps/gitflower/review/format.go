@@ -119,6 +119,59 @@ func renderChanges(sb *strings.Builder, s *ReviewSession) {
 	}
 }
 
+// signAfterNumbers skips the leading line-number gutter (one or two
+// space-separated integers) and returns the sign character that
+// follows ('+', '-', or ':'). Returns 0 if no sign is found — the
+// caller falls back to legacy body[0] parsing.
+func signAfterNumbers(body string) byte {
+	i := 0
+	// First number (always present in the new format).
+	if i >= len(body) || body[i] < '0' || body[i] > '9' {
+		return 0
+	}
+	for i < len(body) && body[i] >= '0' && body[i] <= '9' {
+		i++
+	}
+	for i < len(body) && body[i] == ' ' {
+		i++
+	}
+	if i >= len(body) {
+		return 0
+	}
+	// Optional second number (context lines carry both new+old).
+	if body[i] >= '0' && body[i] <= '9' {
+		for i < len(body) && body[i] >= '0' && body[i] <= '9' {
+			i++
+		}
+		for i < len(body) && body[i] == ' ' {
+			i++
+		}
+		if i >= len(body) {
+			return 0
+		}
+	}
+	switch body[i] {
+	case '+', '-', ':':
+		return body[i]
+	}
+	return 0
+}
+
+// digitsIn returns the number of base-10 digits in `n`. Used to size
+// the line-number gutter in renderQuotedDiff so the largest line in
+// a file picks the column width.
+func digitsIn(n int) int {
+	if n <= 0 {
+		return 1
+	}
+	d := 0
+	for n > 0 {
+		d++
+		n /= 10
+	}
+	return d
+}
+
 // renderQuotedDiff writes a unified diff prefixed by `> `, with reviewer
 // events inserted inline at their anchored positions. Anchoring rule:
 // hunk-anchored events (Like/Dislike/ReadStart/ReadEnd on a hunk) are emitted
@@ -160,9 +213,27 @@ func renderQuotedDiff(sb *strings.Builder, path, patch string, evs []emittableEv
 
 	lines := strings.Split(strings.TrimRight(patch, "\n"), "\n")
 
+	// Pre-scan to find the widest line number we'll need to render, so
+	// the gutter width is stable across the whole file's diff. Without
+	// this each hunk would pick its own width and the columns wouldn't
+	// line up when you cat the note.
+	numW := 1
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "@@") {
+			continue
+		}
+		h := parseHunkHeader(line)
+		if n := digitsIn(h.NewStart + h.NewLines); n > numW {
+			numW = n
+		}
+		if n := digitsIn(h.OldStart + h.OldLines); n > numW {
+			numW = n
+		}
+	}
+
 	inHunk := false
 	var curHunkKey string
-	var newLine int
+	var newLine, oldLine int
 	var hunkBudget int // remaining new-side lines in current hunk
 
 	for _, line := range lines {
@@ -174,6 +245,7 @@ func renderQuotedDiff(sb *strings.Builder, path, patch string, evs []emittableEv
 			}
 			h := parseHunkHeader(line)
 			newLine = h.NewStart
+			oldLine = h.OldStart
 			hunkBudget = h.NewLines
 			curHunkKey = fmt.Sprintf("%d,%d", h.NewStart, h.NewLines)
 			inHunk = true
@@ -181,24 +253,52 @@ func renderQuotedDiff(sb *strings.Builder, path, patch string, evs []emittableEv
 			continue
 		}
 
-		fmt.Fprintln(sb, "> "+line)
-
 		if !inHunk || len(line) == 0 {
+			// File-header lines (`> diff --git`, `> ---`, `> +++`,
+			// `> index ...`) and blank patches stay as the raw text;
+			// they have no line-number coordinates to inject.
+			fmt.Fprintln(sb, "> "+line)
 			continue
 		}
+
 		kind := line[0]
-		if kind == '+' || kind == ' ' {
-			// After emitting this new-side line, drop any line-anchored events.
+		body := line[1:]
+		// Line-number gutter format:
+		//   add (+):  "> <new> +<content>"
+		//   del (-):  "> <old> -<content>"
+		//   ctx (:):  "> <new> <old> :<content>"   (two numbers, always)
+		// Context uses ':' (not the unified-diff space) so Parse can
+		// tell context apart from added lines by the sign character
+		// alone, regardless of how many numbers prefix it.
+		switch kind {
+		case '+':
+			fmt.Fprintf(sb, "> %*d +%s\n", numW, newLine, body)
 			emitEvents(sb, byLineEnd[newLine])
 			delete(byLineEnd, newLine)
 			newLine++
 			hunkBudget--
-			if hunkBudget <= 0 {
-				// Last new-side line of the hunk. Emit hunk-anchored events.
-				emitEvents(sb, byHunk[curHunkKey])
-				delete(byHunk, curHunkKey)
-				inHunk = false
-			}
+		case '-':
+			fmt.Fprintf(sb, "> %*d -%s\n", numW, oldLine, body)
+			oldLine++
+			// Deletes don't consume new-side budget.
+		case ' ':
+			fmt.Fprintf(sb, "> %*d %*d :%s\n", numW, newLine, numW, oldLine, body)
+			emitEvents(sb, byLineEnd[newLine])
+			delete(byLineEnd, newLine)
+			newLine++
+			oldLine++
+			hunkBudget--
+		default:
+			// "\ No newline at end of file" and similar metadata —
+			// pass through verbatim.
+			fmt.Fprintln(sb, "> "+line)
+			continue
+		}
+		if hunkBudget <= 0 {
+			// Last new-side line of the hunk. Emit hunk-anchored events.
+			emitEvents(sb, byHunk[curHunkKey])
+			delete(byHunk, curHunkKey)
+			inHunk = false
 		}
 	}
 	if inHunk {
@@ -309,27 +409,20 @@ func eventsForFile(s *ReviewSession, path string) []emittableEvent {
 		})
 	}
 
-	// Each fully-read hunk emits a ReadStart + ReadEnd at the same anchor;
-	// the writer places ReadStart at the hunk header and ReadEnd at the
-	// hunk tail (handled in renderQuotedDiff).
-	for a, isRead := range s.read {
-		if !isRead || !strings.HasPrefix(string(a), prefix) {
-			continue
-		}
-		out = append(out,
-			emittableEvent{Kind: "ReadStart", Author: s.Reviewer, Date: s.Date, Anchor: a},
-			emittableEvent{Kind: "ReadEnd", Author: s.Reviewer, Date: s.Date, Anchor: a},
-		)
+	// Read and Skip lanes used to emit a ReadStart+ReadEnd pair per
+	// stored anchor. With per-line tracking that turned a 30-line
+	// skip into 60 events and made the rendered note unreadable.
+	// Coalesce contiguous line anchors into a single range
+	// (`path:start-end`) and emit one Start + one End for the run.
+	// Hunk-style anchors (`path:N,M`, legacy) are kept as-is so old
+	// notes still parse round-trip.
+	for _, ev := range coalesceLineRange(s.read, path, "ReadStart", "ReadEnd",
+		s.Reviewer, s.Date) {
+		out = append(out, ev)
 	}
-	// Same shape for skipped hunks: SkipStart/SkipEnd at the hunk anchor.
-	for a, isSkipped := range s.skipped {
-		if !isSkipped || !strings.HasPrefix(string(a), prefix) {
-			continue
-		}
-		out = append(out,
-			emittableEvent{Kind: "SkipStart", Author: s.Reviewer, Date: s.Date, Anchor: a},
-			emittableEvent{Kind: "SkipEnd", Author: s.Reviewer, Date: s.Date, Anchor: a},
-		)
+	for _, ev := range coalesceLineRange(s.skipped, path, "SkipStart", "SkipEnd",
+		s.Reviewer, s.Date) {
+		out = append(out, ev)
 	}
 
 	sort.SliceStable(out, func(i, j int) bool {
@@ -338,10 +431,116 @@ func eventsForFile(s *ReviewSession, path string) []emittableEvent {
 	return out
 }
 
+// expandRangeAnchor turns an anchor that may carry a `path:N-M`
+// range into one anchor per included line (`path:N`, `path:N+1`,
+// …, `path:M`). Single-line anchors and non-range shapes pass
+// through unchanged so hunk-anchored / file-anchored events still
+// land in the map at their original key.
+func expandRangeAnchor(a Anchor) []Anchor {
+	s := string(a)
+	colon := strings.LastIndex(s, ":")
+	if colon < 0 {
+		return []Anchor{a}
+	}
+	path, rest := s[:colon], s[colon+1:]
+	dash := strings.Index(rest, "-")
+	if dash <= 0 {
+		return []Anchor{a}
+	}
+	start, err1 := strconv.Atoi(rest[:dash])
+	end, err2 := strconv.Atoi(rest[dash+1:])
+	if err1 != nil || err2 != nil || end < start {
+		return []Anchor{a}
+	}
+	out := make([]Anchor, 0, end-start+1)
+	for n := start; n <= end; n++ {
+		out = append(out, Anchor(fmt.Sprintf("%s:%d", path, n)))
+	}
+	return out
+}
+
+// coalesceLineRange turns a set of per-line anchors (`path:N`) into
+// the minimum number of Start/End event pairs by grouping contiguous
+// runs into a `path:start-end` range. Hunk-style anchors
+// (`path:start,count`) and other shapes that aren't a plain integer
+// pass through unchanged so legacy notes keep their semantics.
+//
+// kindStart/kindEnd are the event kinds for this lane (e.g.
+// "ReadStart" / "ReadEnd"). The two events use the same anchor so
+// the parser can re-derive the run on load.
+func coalesceLineRange(set map[Anchor]bool, path, kindStart, kindEnd, author, date string) []emittableEvent {
+	prefix := path + ":"
+
+	var lines []int
+	var passthrough []Anchor
+	for a, on := range set {
+		if !on || !strings.HasPrefix(string(a), prefix) {
+			continue
+		}
+		rest := string(a)[len(prefix):]
+		// Hunk anchor (`N,M`) or any non-integer suffix: keep as-is,
+		// it's not a plain line we can fold into a range.
+		if strings.ContainsAny(rest, ",-") {
+			passthrough = append(passthrough, a)
+			continue
+		}
+		n, err := strconv.Atoi(rest)
+		if err != nil {
+			passthrough = append(passthrough, a)
+			continue
+		}
+		lines = append(lines, n)
+	}
+
+	sort.Ints(lines)
+	var out []emittableEvent
+
+	// Walk consecutive runs.
+	i := 0
+	for i < len(lines) {
+		j := i
+		for j+1 < len(lines) && lines[j+1] == lines[j]+1 {
+			j++
+		}
+		// Always emit as a range, even for a single line — the
+		// format only carries range anchors for Read/Skip so the
+		// shape is one event-pair per run, never one per line.
+		anchor := Anchor(fmt.Sprintf("%s:%d-%d", path, lines[i], lines[j]))
+		out = append(out,
+			emittableEvent{Kind: kindStart, Author: author, Date: date, Anchor: anchor},
+			emittableEvent{Kind: kindEnd, Author: author, Date: date, Anchor: anchor},
+		)
+		i = j + 1
+	}
+
+	// Legacy hunk/other anchors keep their original (Start, End) pair.
+	sort.Slice(passthrough, func(i, j int) bool { return passthrough[i] < passthrough[j] })
+	for _, a := range passthrough {
+		out = append(out,
+			emittableEvent{Kind: kindStart, Author: author, Date: date, Anchor: a},
+			emittableEvent{Kind: kindEnd, Author: author, Date: date, Anchor: a},
+		)
+	}
+	return out
+}
+
 func emitEvents(sb *strings.Builder, evs []emittableEvent) {
 	for _, e := range evs {
 		sb.WriteString("\n")
-		fmt.Fprintf(sb, "### %s (From: %s, %s)\n", e.Kind, formatAuthor(e.Author), defaultDate(e.Date))
+		// Read/Skip events embed their anchor in the header so Parse
+		// can recover the exact range without re-deriving it from
+		// diff position. Without this a `path:1-5` range emitted
+		// after line 5 would parse as a hunk anchor — losing the
+		// range — and the TUI's per-line tracker would lose state.
+		switch e.Kind {
+		case "ReadStart", "ReadEnd", "SkipStart", "SkipEnd":
+			fmt.Fprintf(sb, "### %s @ %s (From: %s, %s)\n",
+				e.Kind, string(e.Anchor),
+				formatAuthor(e.Author), defaultDate(e.Date))
+		default:
+			fmt.Fprintf(sb, "### %s (From: %s, %s)\n",
+				e.Kind, formatAuthor(e.Author), defaultDate(e.Date))
+		}
 		if e.Body != "" {
 			sb.WriteString("\n")
 			sb.WriteString(shiftUserHeadingsUp(e.Body))
@@ -446,7 +645,14 @@ func countHashes(s string) int {
 var (
 	pathSafeRe   = regexp.MustCompile(`^[A-Za-z0-9_./-]+$`)
 	slugUnsafeR  = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
-	eventHeaderR = regexp.MustCompile(`^### (Comment|Question|ReadStart|ReadEnd|SkipStart|SkipEnd|Like|Dislike|Verdict)(?:: (open|requested-changes|approved|denied))? \(From: (.+) <(.+)>, (.+)\)$`)
+	// Format:
+	//   ### <Kind>[: <state>] [@ <anchor>] (From: <Name> <<email>>, <date>)
+	// `@ <anchor>` is currently emitted only for Read/Skip ranges,
+	// where the diff-position parser would otherwise collapse the
+	// range. Comment/Question/Like/Dislike keep their anchor implicit
+	// (derived from the preceding `> +N` line) for backwards
+	// compatibility with existing notes.
+	eventHeaderR = regexp.MustCompile(`^### (Comment|Question|ReadStart|ReadEnd|SkipStart|SkipEnd|Like|Dislike|Verdict)(?:: (open|requested-changes|approved|denied))?(?: @ (\S+))? \(From: (.+) <(.+)>, (.+)\)$`)
 	fileLineR    = regexp.MustCompile(`^> (\d+):(?: (.*))?$`)
 )
 
@@ -525,6 +731,7 @@ func Parse(content string) (*ReviewSession, error) {
 	s := &ReviewSession{
 		Verdict: VerdictOpen,
 		read:    map[Anchor]bool{},
+		skipped: map[Anchor]bool{},
 		markers: map[Anchor]Marker{},
 	}
 
@@ -604,13 +811,19 @@ func Parse(content string) (*ReviewSession, error) {
 		case "Dislike":
 			s.markers[st.evAnchor] = MarkerBad
 		case "ReadStart", "ReadEnd":
-			// For v1 we mark the anchored hunk read on either start or end.
-			s.read[st.evAnchor] = true
+			// Renderer coalesces consecutive lines into `path:N-M`
+			// ranges. Expand back into per-line entries so the
+			// TUI's per-line tracker stays accurate.
+			for _, a := range expandRangeAnchor(st.evAnchor) {
+				s.read[a] = true
+			}
 		case "SkipStart", "SkipEnd":
 			if s.skipped == nil {
 				s.skipped = map[Anchor]bool{}
 			}
-			s.skipped[st.evAnchor] = true
+			for _, a := range expandRangeAnchor(st.evAnchor) {
+				s.skipped[a] = true
+			}
 		case "Verdict":
 			s.verdicts = append(s.verdicts, VerdictEvent{
 				State:   Verdict(st.evParam),
@@ -706,20 +919,36 @@ func Parse(content string) (*ReviewSession, error) {
 			}
 			st.evKind = m[1]
 			st.evParam = m[2]
-			st.evAuth = fmt.Sprintf("%s <%s>", m[3], m[4])
-			st.evDate = m[5]
+			st.evAuth = fmt.Sprintf("%s <%s>", m[4], m[5])
+			st.evDate = m[6]
+			explicitAnchor := m[3]
+			st.evAnchor = ""
+			// If the header carried an `@ <anchor>` (Read/Skip ranges
+			// or anything else that needs an exact key) take it
+			// verbatim — that's the authoritative source. Otherwise
+			// fall back to deriving from parse position.
+			if explicitAnchor != "" {
+				st.evAnchor = Anchor(explicitAnchor)
+				continue
+			}
 			// Anchor: derive from current parse position. The event kind
 			// decides whether to use the line anchor or the hunk anchor.
 			switch st.section {
 			case "Changes":
 				switch st.evKind {
-				case "Like", "Dislike", "ReadStart", "ReadEnd", "SkipStart", "SkipEnd":
+				case "ReadStart", "ReadEnd", "SkipStart", "SkipEnd":
+					// Read/Skip are hunk-scoped by design.
 					if st.hunkAnchor != "" {
 						st.evAnchor = st.hunkAnchor
 					} else if st.subPath != "" {
 						st.evAnchor = Anchor(st.subPath)
 					}
-				default: // Comment, Question
+				default: // Comment, Question, Like, Dislike
+					// Prefer the immediately-preceding `> +N` line so a
+					// marker placed on a single line round-trips to that
+					// line, not the surrounding hunk. Falls back to the
+					// hunk anchor when there's no line context (e.g. an
+					// event emitted before any `+`/` ` line was seen).
 					if st.lastNewLine > 0 && st.subPath != "" {
 						st.evAnchor = Anchor(fmt.Sprintf("%s:%d", st.subPath, st.lastNewLine))
 					} else if st.hunkAnchor != "" {
@@ -770,8 +999,18 @@ func Parse(content string) (*ReviewSession, error) {
 				continue
 			}
 			if st.inHunk && len(body) > 0 {
-				kind := body[0]
-				if kind == '+' || kind == ' ' {
+				// New format prefixes each in-hunk line with one or
+				// two line numbers, so the sign isn't at body[0] any
+				// more. Scan past digits + spaces to find it. Falls
+				// back to body[0] for old notes that pre-date the
+				// gutter (sign was the first char in those).
+				kind := signAfterNumbers(body)
+				if kind == 0 {
+					kind = body[0]
+				}
+				// `+` (add) and `:` (context, new format) advance
+				// new-side. Legacy ` ` (context, old format) too.
+				if kind == '+' || kind == ' ' || kind == ':' {
 					st.lastNewLine = st.newLine
 					st.newLine++
 					st.hunkBudget--

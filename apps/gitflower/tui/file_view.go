@@ -180,10 +180,10 @@ func renderFileView(m *model) (body string, cursorRow int) {
 		// Inline comments for this line.
 		anchorPrefix := m.filePath + "@" + truncate(m.sess.Scope.TipSHA, 12) + ":"
 		want := fmt.Sprintf("%s%d", anchorPrefix, i+1)
-		for _, c := range m.sess.Comments() {
+		for ci, c := range m.sess.Comments() {
 			s := string(c.Anchor)
 			if s == want || strings.HasPrefix(s, want+"-") {
-				sb.WriteString(renderInlineComment(c))
+				sb.WriteString(renderInlineComment(c, m.commentSelected(ci)))
 			}
 		}
 	}

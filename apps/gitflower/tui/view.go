@@ -272,7 +272,9 @@ func renderIssueDetail(m *model) string {
 	idx := m.sectIdx[sectionIssues]
 	issues := m.sess.Issues()
 	if idx >= len(issues) {
-		return styleDim.Render("(no issues — press `i` to add one)")
+		// Cursor on the "+ Add issue" sentinel — show the affordance
+		// instead of an empty pane so users know how to act on it.
+		return styleDim.Render("Press Enter (or `i`) to add a new general issue.\n`e` edits, `d` deletes the highlighted entry.")
 	}
 	it := issues[idx]
 	var sb strings.Builder
@@ -284,14 +286,44 @@ func renderIssueDetail(m *model) string {
 	return sb.String()
 }
 
+// renderVerdictDetail shows the verdict at the cursor in the peek
+// pane. When the cursor sits on the "+ Add verdict" sentinel (or
+// there are no verdicts yet), it shows the affordance instead.
+func renderVerdictDetail(m *model) string {
+	idx := m.sectIdx[sectionVerdicts]
+	vs := m.sess.Verdicts()
+	if idx >= len(vs) {
+		return styleDim.Render("Press Enter (or `v`) to record your verdict.\nOne verdict per reviewer — submitting again replaces it.")
+	}
+	v := vs[idx]
+	var sb strings.Builder
+	sb.WriteString(styleTitle.Render(string(v.State)) + "\n")
+	if v.Author != "" {
+		sb.WriteString(styleDim.Render(v.Author+"  "+v.Date) + "\n")
+	}
+	if v.Summary != "" {
+		sb.WriteString("\n" + v.Summary + "\n")
+	}
+	if v.Author == m.sess.Reviewer {
+		sb.WriteString("\n" + styleDim.Render("`e` edits, `d` deletes.") + "\n")
+	}
+	return sb.String()
+}
+
 // ---------------------------------------------------------------------
 // rendering: inline events (comments, reactions) + snippets
 // ---------------------------------------------------------------------
 
-func renderInlineComment(c review.Comment) string {
+func renderInlineComment(c review.Comment, selected bool) string {
 	icon := "💬"
 	if c.Kind == review.KindQuestion {
 		icon = "❓"
+	}
+	style := styleDim
+	if selected {
+		// Reverse-video the selected event so the cursor on it is
+		// visible — same affordance as the diff-line cursor.
+		style = styleCursor
 	}
 	lines := strings.Split(strings.TrimRight(c.Text, "\n"), "\n")
 	var sb strings.Builder
@@ -302,18 +334,24 @@ func renderInlineComment(c review.Comment) string {
 		} else {
 			prefix = "      "
 		}
-		sb.WriteString(styleDim.Render(prefix+ln) + "\n")
+		sb.WriteString(style.Render(prefix+ln) + "\n")
 	}
 	return sb.String()
+}
+
+// commentSelected reports whether the comment at session index `idx`
+// is currently the marked target for e/d.
+func (m *model) commentSelected(idx int) bool {
+	return m.commentCursor == idx
 }
 
 // renderInlineEventsForLine renders all events anchored to a specific
 // new-side line of `path`. Comment/Question/Like/Dislike all show inline.
 func renderInlineEventsForLine(m *model, path string, newLine int) string {
 	var sb strings.Builder
-	for _, c := range m.sess.Comments() {
+	for i, c := range m.sess.Comments() {
 		if eventAnchoredToLine(c.Anchor, path, newLine) {
-			sb.WriteString(renderInlineComment(c))
+			sb.WriteString(renderInlineComment(c, m.commentSelected(i)))
 		}
 	}
 	for _, a := range m.sess.MarkerAnchors() {
@@ -335,9 +373,9 @@ func renderInlineEventsForLine(m *model, path string, newLine int) string {
 func renderInlineEventsForHunk(m *model, path string, newStart, newLines int) string {
 	hunkAnchor := review.HunkAnchor(path, newStart, newLines)
 	var sb strings.Builder
-	for _, c := range m.sess.Comments() {
+	for i, c := range m.sess.Comments() {
 		if c.Anchor == hunkAnchor {
-			sb.WriteString(renderInlineComment(c))
+			sb.WriteString(renderInlineComment(c, m.commentSelected(i)))
 		}
 	}
 	return sb.String()

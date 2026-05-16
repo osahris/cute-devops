@@ -18,6 +18,15 @@ import (
 	"gitflower/review"
 )
 
+// Sentinel sidebar rows for the "add a new entry" affordance in the
+// Verdicts and Issues sections. Using fixed labels keeps the index
+// math simple — anything matching these strings (or any index past
+// the real entries) is the add row.
+const (
+	addVerdictRow = "+ Add verdict"
+	addIssueRow   = "+ Add issue"
+)
+
 // sectionItems returns the items of the given section.
 // Diffs and Tree return file paths; Commits returns "shortSHA subject";
 // Issues returns titles.
@@ -32,19 +41,31 @@ func (m *model) sectionItems(s section) []string {
 		}
 	case sectionVerdicts:
 		vs := m.sess.Verdicts()
-		if len(vs) == 0 {
-			return []string{string(m.sess.Verdict) + " (initial)"}
+		out := make([]string, 0, len(vs)+1)
+		for _, v := range vs {
+			label := string(v.State)
+			if v.Author == m.sess.Reviewer {
+				label += "  (you)"
+			} else if v.Author != "" {
+				label += "  " + review.AuthorEmail(v.Author)
+			}
+			out = append(out, label)
 		}
-		out := make([]string, len(vs))
-		for i, v := range vs {
-			out[i] = string(v.State) + "  " + v.Date
+		// One "+ Add verdict" sentinel per user (only when the current
+		// reviewer hasn't yet recorded their own verdict). With a
+		// verdict already on file, `v` editing reopens the existing
+		// one — no separate "add" row.
+		if m.sess.VerdictIndexFor(m.sess.Reviewer) < 0 {
+			out = append(out, addVerdictRow)
 		}
 		return out
 	case sectionIssues:
-		out := make([]string, len(m.sess.Issues()))
-		for i, it := range m.sess.Issues() {
-			out[i] = it.Title
+		issues := m.sess.Issues()
+		out := make([]string, 0, len(issues)+1)
+		for _, it := range issues {
+			out = append(out, it.Title)
 		}
+		out = append(out, addIssueRow)
 		return out
 	case sectionChanges:
 		m.changesRows = m.buildChangesRows()
@@ -246,13 +267,26 @@ func (m *model) renderTreeRow(row treeRow, sect section) string {
 		}
 		if sect == sectionChanges {
 			r, t := m.dirLineCounts(row.fullPath)
-			return fmt.Sprintf("%s%s %s/  %d/%d", indent, marker, row.name, r, t)
+			line := fmt.Sprintf("%s%s %s/  %d/%d", indent, marker, row.name, r, t)
+			// Roll up event counts only when the folder is collapsed —
+			// expanded folders already show each child's counters, so
+			// repeating the sum would visually double-count.
+			if !expanded {
+				if suf := m.dirEventCounts(row.fullPath).suffix(); suf != "" {
+					line += "  " + suf
+				}
+			}
+			return line
 		}
 		return fmt.Sprintf("%s%s %s/", indent, marker, row.name)
 	case tnFile:
 		if sect == sectionChanges && row.fileIdx >= 0 {
 			r, t := m.fileLineCounts(row.fileIdx)
-			return fmt.Sprintf("%s  %s  %d/%d", indent, row.name, r, t)
+			line := fmt.Sprintf("%s  %s  %d/%d", indent, row.name, r, t)
+			if suf := m.fileEventCounts(m.files[row.fileIdx].Path).suffix(); suf != "" {
+				line += "  " + suf
+			}
+			return line
 		}
 		// Tree section: mark files the reviewer has already opened
 		// for file-review so they can see what they've visited.
@@ -537,37 +571,28 @@ func (m *model) updateTree(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case "alt+space":
 		m.skipWalk()
 	case "i":
-		// Add an entry in the current section:
-		//   Verdicts → verdict editor (new audit-log entry on Alt+Enter)
-		//   anywhere else → issue editor (new general issue)
-		if m.sect == sectionVerdicts {
-			m.openVerdictEditor()
-			return m, nil
-		}
-		m.openEdit(editIssue, "", -1, -1, "")
-		return m, m.title.Focus()
+		// Always: jump to the issue editor for a new general issue —
+		// `i` is the global "I have a project-wide remark" key.
+		m.openIssueEditor()
+		return m, nil
+	case "v":
+		// Global verdict shortcut. Reopens the user's existing
+		// verdict if they already have one; AddVerdict on submit
+		// replaces in-place rather than appending.
+		m.openVerdictEditor()
+		return m, nil
 	case "e":
-		switch m.sect {
-		case sectionIssues:
-			idx := m.sectIdx[m.sect]
-			issues := m.sess.Issues()
-			if idx >= len(issues) {
-				return m, nil
-			}
-			it := issues[idx]
-			m.openEdit(editIssue, "", -1, idx, "")
-			m.title.SetValue(it.Title)
-			m.textarea.SetValue(it.Body)
-			return m, m.title.Focus()
-		case sectionVerdicts:
-			// Submitting creates a fresh audit-log entry (verdicts are
-			// append-only per the spec).
-			m.openVerdictEditor()
-			return m, nil
-		default:
-			m.status = "no editable item under cursor"
+		if m.editEntryUnderCursor() {
 			return m, nil
 		}
+		m.status = "no editable item under cursor"
+		return m, nil
+	case "d":
+		if m.deleteEntryUnderCursor() {
+			return m, nil
+		}
+		m.status = "no deletable item under cursor"
+		return m, nil
 	case "right":
 		// Right-arrow in the folder-tree sections has its own
 		// behaviour: on a collapsed folder it expands; on an
@@ -733,7 +758,7 @@ func (m *model) skipFromSidebar() {
 				if m.lineRead[lk] || m.lineSkipped[lk] {
 					continue
 				}
-				m.lineSkipped[lk] = true
+				m.markLineSkipped(lk)
 				skipped++
 			}
 		}
@@ -816,8 +841,24 @@ func (m *model) currentFileTreeRow() *treeRow {
 // under the section cursor.
 func (m *model) openSelectedItem() {
 	switch m.sect {
-	case sectionSources, sectionVerdicts:
+	case sectionSources:
 		// peek-only; drilling in just keeps the right pane content
+	case sectionVerdicts:
+		// `+ Add verdict` or the user's own row → editor. Drilling on
+		// someone else's verdict is peek-only.
+		idx := m.sectIdx[m.sect]
+		own := m.sess.VerdictIndexFor(m.sess.Reviewer)
+		if idx == own || own < 0 {
+			m.openVerdictEditor()
+		}
+	case sectionIssues:
+		// `+ Add issue` is always the last row; otherwise drill in to
+		// the existing issue (peek-only — body already shows in the
+		// right pane).
+		idx := m.sectIdx[m.sect]
+		if idx >= len(m.sess.Issues()) {
+			m.openIssueEditor()
+		}
 	case sectionChanges:
 		row := m.currentChangesRow()
 		if row == nil {
@@ -882,15 +923,5 @@ func (m *model) openSelectedItem() {
 			return
 		}
 		m.status = "no diff content for commit " + short
-	case sectionIssues:
-		idx := m.sectIdx[m.sect]
-		issues := m.sess.Issues()
-		if idx < len(issues) {
-			it := issues[idx]
-			m.openEdit(editIssue, "", -1, idx, "")
-			m.title.SetValue(it.Title)
-			m.textarea.SetValue(it.Body)
-			_ = m.title.Focus()
-		}
 	}
 }

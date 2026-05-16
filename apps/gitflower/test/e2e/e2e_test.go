@@ -107,7 +107,7 @@ func TestReviewViaPTY(t *testing.T) {
 		{keys: ">", wait: defaultStepGap},                          // verdict cycle
 		{keys: "c", wait: defaultStepGap},                          // comment
 		{keys: "Inline comment from PTY test.", wait: defaultStepGap},
-		{keys: "\x1b\r", wait: defaultStepGap},                     // Alt+Enter submit
+		{keys: "\r", wait: defaultStepGap},                         // Enter submits
 
 		{keys: "F", wait: defaultStepGap},                          // file review
 		{keys: "jjj", wait: defaultStepGap},                         // walk lines
@@ -120,7 +120,7 @@ func TestReviewViaPTY(t *testing.T) {
 		{keys: "Project-wide style nit", wait: defaultStepGap},     // title
 		{keys: "\t", wait: defaultStepGap},                         // Tab → body
 		{keys: "Some identifiers are single-letter.", wait: defaultStepGap},
-		{keys: "\x1b\r", wait: defaultStepGap},                     // Alt+Enter submit
+		{keys: "\r", wait: defaultStepGap},                         // Enter submits
 
 		// Walk to end: pressing Space repeatedly. Walks Changes' hunks,
 		// then Commits, then opens the verdict editor.
@@ -133,7 +133,7 @@ func TestReviewViaPTY(t *testing.T) {
 	steps = append(steps, []sendStep{
 		// Verdict editor is now open. Type the summary + Alt+Enter.
 		{keys: "Implementation is sound. Ready to merge.", wait: defaultStepGap},
-		{keys: "\x1b\r", wait: defaultStepGap},                     // Alt+Enter submit
+		{keys: "\r", wait: defaultStepGap},                         // Enter submits
 
 		// `s` is now "skip viewport" in line mode (saving is handled
 		// by the global autosave + the q-flushes-dirty path).
@@ -204,6 +204,32 @@ func TestReviewViaPTY(t *testing.T) {
 				want, produced)
 		}
 	}
+
+	// The note on refs/notes/review for the branch tip must contain
+	// the same body. The file is just a mirror; the note is the
+	// source of truth, and a regression where Save skips the note
+	// would let comments vanish on restart.
+	tipSHA := strings.TrimSpace(runGit(t, repo, "rev-parse", "feature"))
+	noteOut := runGit(t, repo, "notes", "--ref=refs/notes/review", "show", tipSHA)
+	if !strings.Contains(noteOut, "Inline comment from PTY test.") {
+		t.Errorf("note body for %s missing comment; got:\n%s", tipSHA, noteOut)
+	}
+	if !strings.Contains(noteOut, "Implementation is sound. Ready to merge.") {
+		t.Errorf("note body for %s missing verdict; got:\n%s", tipSHA, noteOut)
+	}
+}
+
+// runGit runs a git command in dir and returns stdout. Fails the test
+// on error.
+func runGit(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+	}
+	return string(out)
 }
 
 // ---------------------------------------------------------------------
@@ -231,15 +257,23 @@ func buildBinary(t *testing.T) string {
 
 func buildRepo(t *testing.T) string {
 	t.Helper()
+	return buildRepoAt(t, defaultRepoPath)
+}
+
+// buildRepoAt builds the deterministic e2e fixture at `dest`, so
+// tests that run in parallel can use distinct paths and avoid the
+// race on the default shared path.
+func buildRepoAt(t *testing.T, dest string) string {
+	t.Helper()
 	setup := filepath.Join(mustPkgDir(t), "test", "e2e", "setup.sh")
-	cmd := exec.Command(setup, defaultRepoPath)
+	cmd := exec.Command(setup, dest)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("setup.sh: %v\n%s", err, out)
 	}
 	path := strings.TrimSpace(string(out))
 	if path == "" {
-		path = defaultRepoPath
+		path = dest
 	}
 	return path
 }

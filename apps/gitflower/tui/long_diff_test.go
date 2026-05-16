@@ -413,7 +413,7 @@ func TestSpaceThenCommentAddsAnchoredComment(t *testing.T) {
 	for _, r := range "hello" {
 		m = key(t, m, r, string(r))
 	}
-	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModAlt})
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if got := len(m.sess.Comments()); got != 1 {
 		t.Fatalf("expected 1 comment, got %d", got)
 	}

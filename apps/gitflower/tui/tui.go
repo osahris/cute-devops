@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	keybinding "charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
@@ -198,6 +199,14 @@ type model struct {
 	hunkIdx    int
 	lineCursor int // index into currentHunk().Lines
 
+	// Comment cursor — index into m.sess.Comments() naming the
+	// currently-selected event for e/d, or -1 when no event is
+	// "marked". Set when the user lands on an event row (j/k in
+	// modeDiff steps through them as well as diff lines). e/d on a
+	// selected event acts on it; otherwise they fall back to the
+	// line-anchor lookup.
+	commentCursor int
+
 	// File review mode state. Cursor is always on exactly one line.
 	filePath       string   // currently-open file in modeFile
 	fileLines      []string // content of filePath at tip SHA
@@ -312,6 +321,15 @@ func newModel(sess *review.ReviewSession, root string, readRate float64) *model 
 	ta := textarea.New()
 	ta.CharLimit = 0
 	ta.ShowLineNumbers = false
+	// Reactions are mostly one-liners. Start at one row and let the
+	// textarea grow as the body picks up actual newlines, so the
+	// editor doesn't take over the diff for a 5-word comment.
+	ta.DynamicHeight = true
+	ta.MinHeight = 1
+	// Plain Enter saves; Alt+Enter inserts a literal newline. The
+	// default keymap has Enter bound to InsertNewline — rebind so
+	// only Alt+Enter inserts.
+	ta.KeyMap.InsertNewline = keybinding.NewBinding(keybinding.WithKeys("alt+enter"))
 
 	ti := textinput.New()
 	ti.Placeholder = "Issue title"
@@ -343,7 +361,12 @@ func newModel(sess *review.ReviewSession, root string, readRate float64) *model 
 		fileTreeExpanded: map[string]bool{},
 		fileLineRead:     map[string]map[int]bool{},
 		fileLineTotals:   map[string]int{},
+		commentCursor:    -1,
 	}
+	// Restore per-line read/skip from the session before the first
+	// frame, so a restart shows the prior progress instead of an
+	// empty slate.
+	m.hydrateFromSession()
 	return m
 }
 
@@ -405,8 +428,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				// Skipped doesn't block reading; promotion clears the
 				// skip flag so a line is read OR skipped OR unread.
-				m.lineRead[lk] = true
-				delete(m.lineSkipped, lk)
+				m.markLineRead(lk)
+				m.unmarkLineSkipped(lk)
 				marked++
 			}
 		case "file":
@@ -505,7 +528,11 @@ func (m *model) resize() {
 	}
 	mainH := max(3, m.height-4)
 	m.textarea.SetWidth(mainW)
-	m.textarea.SetHeight(4)
+	// MaxHeight caps how tall the dynamic-grow textarea may get when
+	// the body really does have many newlines. Leave room for the
+	// inline-editor's label row + the title row (issue case) + some
+	// breathing space above the diff.
+	m.textarea.MaxHeight = max(1, mainH-4)
 	m.title.SetWidth(mainW)
 	m.viewport.SetWidth(mainW)
 	m.viewport.SetHeight(mainH)

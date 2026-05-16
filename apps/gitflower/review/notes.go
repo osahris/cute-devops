@@ -109,6 +109,32 @@ func LastReviewMergeSHA(branch string) (string, error) {
 	return "", nil
 }
 
+// ViewCommands returns shell snippets a reader can copy-paste to
+// read the review for `sha` on `ref` — three of them, in order of
+// increasing terseness:
+//
+//  1. raw — the full body, exactly as stored.
+//  2. quiet — same, minus Read/Skip events (which are TUI bookkeeping
+//     and rarely interesting when reading the prose).
+//  3. terse — just headings and reactions with the 3 diff lines that
+//     precede each, for "what was actually said and where".
+//
+// Used by the `gitflower review` exit hint and embedded in the
+// [Review] merge commit body so the same recipes survive in git
+// history without needing the tool to read them.
+func ViewCommands(ref, sha string) []string {
+	short := sha
+	if len(short) > 12 {
+		short = short[:12]
+	}
+	prefix := fmt.Sprintf("git notes --ref=%s show %s", ref, short)
+	return []string{
+		prefix,
+		prefix + ` | grep -v -E '^### (ReadStart|ReadEnd|SkipStart|SkipEnd) '`,
+		prefix + ` | grep -B3 -E '^(# |## (Sources|Verdicts|Changes in |Issue |Commit |File )|### (Comment|Question|Like|Dislike|Verdict))'`,
+	}
+}
+
 // NotesRefTip returns the OID that refs/notes/<ref> currently points
 // at, or "" if the ref doesn't exist yet.
 func NotesRefTip(ref string) (string, error) {

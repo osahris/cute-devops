@@ -9,6 +9,8 @@
 package tui
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -40,31 +42,265 @@ func (m *model) openQuestionEdit() {
 	m.openEdit(editQuestion, "Question on "+string(m.currentAnchor()), -1, -1, "")
 }
 
-// openVerdictEditor opens the inline summary editor pre-populated with the
-// current canonical summary. Submitting calls AddVerdict so the audit log
-// gets a fresh entry.
+// openVerdictEditor opens the inline summary editor pre-populated with
+// the current canonical summary. Queues the textarea's focus cmd into
+// queuedCmds so callers that don't bubble a tea.Cmd back (the void
+// helpers like spaceWalk) still get the focus dispatched on the next
+// drainCmds — without that, the cursor never starts blinking and the
+// editor looks frozen.
 func (m *model) openVerdictEditor() {
 	m.openEdit(editSummary, "", -1, -1, "")
 	m.textarea.SetValue(m.sess.Summary)
-	_ = m.textarea.Focus()
+	if cmd := m.textarea.Focus(); cmd != nil {
+		m.queuedCmds = append(m.queuedCmds, cmd)
+	}
 }
 
-// editSelectedComment finds the comment at the current anchor and loads it
-// into the textarea for editing.
+// openIssueEditor opens the inline issue editor (new issue, title
+// focused first). Same queuedCmds pattern as openVerdictEditor — the
+// caller doesn't have to plumb a tea.Cmd back.
+func (m *model) openIssueEditor() {
+	m.openEdit(editIssue, "", -1, -1, "")
+	if cmd := m.title.Focus(); cmd != nil {
+		m.queuedCmds = append(m.queuedCmds, cmd)
+	}
+}
+
+// editSelectedComment loads the comment under the comment-cursor (or
+// the first one anchored near the line cursor) into the editor.
 func (m *model) editSelectedComment() {
-	a := m.currentAnchor()
-	idx := m.sess.CommentIndexAt(a)
-	if idx < 0 {
+	idx, found := m.resolveCommentTarget()
+	if !found {
 		m.status = "no comment at cursor"
 		return
 	}
+	m.commentCursor = idx
 	c := m.sess.Comments()[idx]
 	kind := editComment
 	if c.Kind == review.KindQuestion {
 		kind = editQuestion
 	}
-	m.openEdit(kind, "Editing on "+string(a), idx, -1, "")
+	m.openEdit(kind, "Editing "+commentKindWord(c.Kind)+" on "+string(c.Anchor), idx, -1, "")
+	if cmd := m.textarea.Focus(); cmd != nil {
+		m.queuedCmds = append(m.queuedCmds, cmd)
+	}
 	m.textarea.SetValue(c.Text)
+}
+
+// deleteSelectedComment removes the comment under the comment-cursor
+// (or the first one anchored near the line cursor). Returns false if
+// nothing matches.
+func (m *model) deleteSelectedComment() bool {
+	idx, found := m.resolveCommentTarget()
+	if !found {
+		return false
+	}
+	c := m.sess.Comments()[idx]
+	if !m.sess.DeleteComment(idx) {
+		return false
+	}
+	// After delete the indices shift; clear the comment cursor so the
+	// next e/d starts from the line-cursor lookup again.
+	m.commentCursor = -1
+	m.save(commentKindWord(c.Kind) + " deleted")
+	return true
+}
+
+// resolveCommentTarget picks the comment that e/d should act on:
+//   - if commentCursor is a valid index AND still anchored near the
+//     line cursor → use it (the user "selected" with the marker).
+//   - otherwise → search comments anchored to the current line OR
+//     anywhere in the current hunk, returning the first match.
+//
+// The same lookup is used by the comment-cycle keys (`n`/`N`) so e/d
+// and cycle navigation always see the same candidate set.
+func (m *model) resolveCommentTarget() (int, bool) {
+	if m.commentCursor >= 0 && m.commentCursor < len(m.sess.Comments()) {
+		if m.commentAnchoredNearCursor(m.sess.Comments()[m.commentCursor].Anchor) {
+			return m.commentCursor, true
+		}
+	}
+	for _, idx := range m.commentsNearCursor() {
+		return idx, true
+	}
+	return -1, false
+}
+
+// commentsNearCursor returns the indices into m.sess.Comments() of
+// every comment whose anchor matches the current cursor's line OR
+// the current hunk. Returned in session order so cycling is stable.
+func (m *model) commentsNearCursor() []int {
+	var out []int
+	for i, c := range m.sess.Comments() {
+		if m.commentAnchoredNearCursor(c.Anchor) {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// commentAnchoredNearCursor checks whether an anchor matches the
+// current line cursor or the current hunk. Used to find candidate
+// events for the e/d/n keys.
+func (m *model) commentAnchoredNearCursor(a review.Anchor) bool {
+	if m.mode != modeDiff {
+		return a == m.currentAnchor()
+	}
+	f := m.currentFile()
+	h := m.currentHunk()
+	if f == nil || h == nil {
+		return false
+	}
+	// Exact-line match: comment anchored to the same `+`/` ` line.
+	line := m.cursorNewLine(h)
+	if line > 0 {
+		if a == review.Anchor(fmt.Sprintf("%s:%d", f.Path, line)) {
+			return true
+		}
+	}
+	// Hunk match: comment anchored to the surrounding hunk
+	// (`path:start,count`), or to any other line inside the hunk.
+	if a == review.HunkAnchor(f.Path, h.NewStart, h.NewLines) {
+		return true
+	}
+	prefix := f.Path + ":"
+	if !strings.HasPrefix(string(a), prefix) {
+		return false
+	}
+	rest := string(a)[len(prefix):]
+	// Lines in this hunk run [h.NewStart, h.NewStart+h.NewLines-1].
+	// The anchor suffix is one of "N", "N-M", or "N,M"; we just need
+	// the leading int N.
+	end := 0
+	for end < len(rest) && rest[end] >= '0' && rest[end] <= '9' {
+		end++
+	}
+	if end == 0 {
+		return false
+	}
+	n, err := strconv.Atoi(rest[:end])
+	if err != nil {
+		return false
+	}
+	return n >= h.NewStart && n < h.NewStart+h.NewLines
+}
+
+func commentKindWord(k review.Kind) string {
+	if k == review.KindQuestion {
+		return "question"
+	}
+	return "comment"
+}
+
+// cycleCommentCursor moves the comment cursor through every event
+// anchored to the current cursor line or hunk, step = +1 (next) or
+// -1 (prev). Sets a status hint so the reviewer knows which item is
+// now "selected".
+func (m *model) cycleCommentCursor(step int) {
+	cands := m.commentsNearCursor()
+	if len(cands) == 0 {
+		m.commentCursor = -1
+		m.status = "no comments at cursor"
+		return
+	}
+	cur := -1
+	for i, idx := range cands {
+		if idx == m.commentCursor {
+			cur = i
+			break
+		}
+	}
+	if cur < 0 {
+		// No comment was selected (or the previously-selected one
+		// moved out of range): start at the first/last depending on
+		// step direction.
+		if step >= 0 {
+			cur = 0
+		} else {
+			cur = len(cands) - 1
+		}
+	} else {
+		cur = (cur + step + len(cands)) % len(cands)
+	}
+	m.commentCursor = cands[cur]
+	c := m.sess.Comments()[m.commentCursor]
+	m.status = fmt.Sprintf("selected %s %d/%d — e edits, d deletes",
+		commentKindWord(c.Kind), cur+1, len(cands))
+	m.refreshViewport()
+}
+
+// editEntryUnderCursor dispatches the section-mode `e` key. Returns
+// true if it handled the keystroke; false if the current cursor row
+// isn't editable. Caller surfaces a hint. Focus tea.Cmd is queued
+// via the model's queuedCmds rather than returned, so the caller
+// stays simple.
+func (m *model) editEntryUnderCursor() bool {
+	switch m.sect {
+	case sectionIssues:
+		idx := m.sectIdx[m.sect]
+		issues := m.sess.Issues()
+		if idx >= len(issues) {
+			// "+ Add issue" sentinel: treat e same as opening a new one.
+			m.openIssueEditor()
+			return true
+		}
+		it := issues[idx]
+		m.openEdit(editIssue, "", -1, idx, "")
+		m.title.SetValue(it.Title)
+		m.textarea.SetValue(it.Body)
+		if cmd := m.title.Focus(); cmd != nil {
+			m.queuedCmds = append(m.queuedCmds, cmd)
+		}
+		return true
+	case sectionVerdicts:
+		// Only your own verdict is editable; everyone else's row is
+		// peek-only. The verdict editor pre-populates with the
+		// existing state/summary either way.
+		idx := m.sectIdx[m.sect]
+		own := m.sess.VerdictIndexFor(m.sess.Reviewer)
+		if own < 0 || idx == own {
+			m.openVerdictEditor()
+			return true
+		}
+		return false
+	}
+	return false
+}
+
+// deleteEntryUnderCursor handles the section-mode `d` key, returning
+// true if it removed something. Verdicts only allow deleting your
+// own.
+func (m *model) deleteEntryUnderCursor() bool {
+	switch m.sect {
+	case sectionIssues:
+		idx := m.sectIdx[m.sect]
+		if idx >= len(m.sess.Issues()) {
+			return false
+		}
+		if !m.sess.DeleteIssue(idx) {
+			return false
+		}
+		if idx > 0 {
+			m.sectIdx[m.sect] = idx - 1
+		}
+		m.save("issue deleted")
+		return true
+	case sectionVerdicts:
+		own := m.sess.VerdictIndexFor(m.sess.Reviewer)
+		idx := m.sectIdx[m.sect]
+		if own < 0 || idx != own {
+			return false
+		}
+		if !m.sess.DeleteVerdict(own) {
+			return false
+		}
+		if idx > 0 {
+			m.sectIdx[m.sect] = idx - 1
+		}
+		m.save("verdict deleted")
+		return true
+	}
+	return false
 }
 
 func (m *model) updateEdit(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -74,17 +310,18 @@ func (m *model) updateEdit(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.closeEdit()
 			return m, nil
 		case "enter":
-			// Plain Enter submits for comment/question.
-			if m.edit == editComment || m.edit == editQuestion {
-				m.submitEdit()
-				return m, nil
-			}
-			// For issue: if title field is focused, Enter moves to body.
+			// Issue title: Enter advances to the body field, as
+			// before — that's a single-line input where Enter never
+			// makes sense as "submit incomplete".
 			if m.edit == editIssue && m.title.Focused() {
 				m.title.Blur()
 				return m, m.textarea.Focus()
 			}
-		case "alt+enter", "ctrl+s":
+			// Everywhere else (comment/question/verdict/issue body)
+			// Enter is the save action. Newlines require Alt+Enter.
+			m.submitEdit()
+			return m, nil
+		case "ctrl+s":
 			m.submitEdit()
 			return m, nil
 		case "tab":
