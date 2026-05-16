@@ -222,6 +222,12 @@ func TestNavCommitsEnterDrillsIntoCommitDiff(t *testing.T) {
 	if !strings.HasPrefix(m.currentFile().Path, "commit:abc1234:") {
 		t.Errorf("drilled into wrong virtual file: %s", m.currentFile().Path)
 	}
+	// The first commit-virtual file should be the synthetic message
+	// file, so the reviewer reads the commit message before the diff.
+	if !strings.Contains(m.currentFile().Path, "(message)") {
+		t.Errorf("expected to land on the commit-message virtual file first, got %s",
+			m.currentFile().Path)
+	}
 }
 
 func TestNavCommitsRightDrillsIntoCommitDiff(t *testing.T) {

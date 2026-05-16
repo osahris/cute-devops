@@ -242,6 +242,7 @@ type model struct {
 	// through.
 	fileLineRead map[string]map[int]bool
 
+
 	// Per-view read tick. The user reads the lines currently in the
 	// viewport over a "lines_visible / readRate" window. Each time
 	// the view stabilises on a new set of unread lines we schedule
@@ -283,13 +284,17 @@ func newModel(sess *review.ReviewSession, root string, readRate float64) *model 
 	// sidebar's Changes list filters them out so they only show up via
 	// the line-mode walk.
 	for _, c := range sess.Scope.Commits {
-		// CommitPatch fetches and caches on demand — ScopeFor leaves
-		// CommitPatches empty, so without this call there'd be no
-		// virtual files for any commit and Enter/right on a commit
-		// row would have nothing to drill into.
 		patch := sess.Scope.CommitPatch(c.SHA)
 		if strings.TrimSpace(patch) == "" {
 			continue
+		}
+		// Prepend a synthetic file holding the commit's mbox-style
+		// header + message body so the reviewer reads the why before
+		// the diff. We model it as a brand-new file added by the
+		// commit, so its lines participate in the normal per-line
+		// read-tracking just like code lines.
+		if preamble := commitMessageDiff(c.Short, patch); preamble != "" {
+			files = append(files, review.ParseDiff(preamble)...)
 		}
 		ch := review.ParseDiff(patch)
 		for i := range ch {
@@ -2806,6 +2811,52 @@ func wrapDiffText(s string, width int) []string {
 	s = expandTabs(s, 8)
 	wrapped := ansi.Hardwrap(s, width, false)
 	return strings.Split(wrapped, "\n")
+}
+
+// commitMessageDiff returns a synthetic diff-string that adds the
+// header + commit-message portion of a `git format-patch --stdout`
+// body as a brand-new file `commit:<short>:(message)`. The reviewer
+// then walks the commit message line by line just like any other
+// added content, so the review-rate gating counts the message too.
+// Returns "" if the patch has no extractable preamble.
+func commitMessageDiff(short, patch string) string {
+	lines := strings.Split(patch, "\n")
+	var preamble []string
+	for _, ln := range lines {
+		if strings.HasPrefix(ln, "diff --git ") {
+			break
+		}
+		preamble = append(preamble, ln)
+	}
+	// Trim trailing blanks and the trailing "---" file-list block
+	// that format-patch emits between the message and the diff.
+	for len(preamble) > 0 {
+		last := preamble[len(preamble)-1]
+		if last == "" || last == "---" ||
+			strings.HasPrefix(last, " ") || // file-summary " a | 1 +"
+			strings.HasPrefix(last, "---") {
+			preamble = preamble[:len(preamble)-1]
+			continue
+		}
+		break
+	}
+	if len(preamble) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	path := "commit:" + short + ":(message)"
+	fmt.Fprintf(&sb, "diff --git a/%s b/%s\n", path, path)
+	sb.WriteString("new file mode 100644\n")
+	sb.WriteString("index 0000000..abcdef0\n")
+	fmt.Fprintf(&sb, "--- /dev/null\n")
+	fmt.Fprintf(&sb, "+++ b/%s\n", path)
+	fmt.Fprintf(&sb, "@@ -0,0 +1,%d @@\n", len(preamble))
+	for _, ln := range preamble {
+		sb.WriteString("+")
+		sb.WriteString(ln)
+		sb.WriteString("\n")
+	}
+	return strings.TrimRight(sb.String(), "\n")
 }
 
 // expandTabs replaces each tab with enough spaces to advance to the next
