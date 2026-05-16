@@ -498,16 +498,7 @@ func (m *model) updateTree(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case "right", "l", "enter":
 		m.openSelectedItem()
 	default:
-		// Peek: scroll the right pane. Keep the (invisible) line cursor
-		// at the top of the new view so entering line mode lands on a
-		// visible line.
-		var cmd tea.Cmd
-		m.viewport, cmd = m.viewport.Update(msg)
-		m.updateDisplayed()
-		if m.sect == sectionChanges {
-			m.hunkAtTopOfView()
-		}
-		return m, cmd
+		return m, m.scrollViewport(msg)
 	}
 	return m, nil
 }
@@ -698,13 +689,7 @@ func (m *model) updateDiff(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Lines with the content the reviewer actually visits.
 		m.enterFileReview(m.currentFile().Path)
 	default:
-		// Viewport scroll fallback: after scrolling, keep the line cursor
-		// inside the visible viewport so the highlight is never lost.
-		var cmd tea.Cmd
-		m.viewport, cmd = m.viewport.Update(msg)
-		m.updateDisplayed()
-		m.snapCursorIntoView()
-		return m, cmd
+		return m, m.scrollViewport(msg)
 	}
 	return m, nil
 }
@@ -1134,26 +1119,39 @@ func (m *model) placeCursor(lr lineRange) {
 	m.lineCursor = lr.lineIdx
 }
 
-// hunkAtTopOfView places the cursor on the first reviewable line of whichever
-// hunk now occupies the top of the viewport, so a Space walk always leaves
-// the cursor on the uppermost reviewable line of the new view.
-func (m *model) hunkAtTopOfView() {
-	top := m.viewport.YOffset()
-	bestIdx := m.hunkIdx
-	for i, r := range m.hunkRanges {
-		if r.topRow <= top && r.botRow >= top {
-			bestIdx = i
-			break
+// scrollViewport is the one true viewport-scroll path: it forwards the
+// message to the viewport, refreshes read tracking, snaps the line cursor
+// into the new visible region, and — in section mode peeking at Changes —
+// re-renders so the sidebar/marker stays in sync with what's on screen.
+// Every code path that scrolls the diff pane (mouse wheel, PgUp/PgDn,
+// arrow scroll-fallback in either tree or diff mode) routes through here.
+func (m *model) scrollViewport(msg tea.Msg) tea.Cmd {
+	var cmd tea.Cmd
+	m.viewport, cmd = m.viewport.Update(msg)
+	m.updateDisplayed()
+	// Only Changes (line mode or tree-peek) has a line cursor to track.
+	if m.mode == modeDiff || (m.mode == modeTree && m.sect == sectionChanges) {
+		oldHunk, oldLine, oldEOF := m.hunkIdx, m.lineCursor, m.atEOF
+		m.snapCursorIntoView()
+		// Keep the sidebar's selection in sync with the cursor's hunk so
+		// the user can see in the section list which file/hunk they're
+		// currently scrolled to. (For now we only have a per-file Changes
+		// list, so this is a no-op when the peek is for a single file.)
+		if m.mode == modeTree && m.sect == sectionChanges {
+			m.sectIdx[sectionChanges] = m.fileIdx
 		}
-		if r.topRow > top {
-			bestIdx = i
-			break
+		// Re-render to redraw the highlight on the new cursor row. The
+		// viewport position is preserved by stashing & restoring the
+		// offset around refreshViewport, since refreshViewport would
+		// otherwise re-center on the cursor.
+		if oldHunk != m.hunkIdx || oldLine != m.lineCursor || oldEOF != m.atEOF {
+			off := m.viewport.YOffset()
+			m.refreshViewport()
+			m.viewport.SetYOffset(off)
+			m.updateDisplayed()
 		}
 	}
-	m.hunkIdx = bestIdx
-	if h := m.currentHunk(); h != nil {
-		m.lineCursor = m.firstNonDelete(h, 0, +1)
-	}
+	return cmd
 }
 
 // toggleWrap switches the diff/file viewport between soft-wrap (default;
