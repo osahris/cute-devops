@@ -43,8 +43,9 @@ var (
 	styleCtx      = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	styleHunk     = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
 	styleCursor   = lipgloss.NewStyle().Background(lipgloss.Color("237"))
-	cursorBg      = lipgloss.Color("54") // dark purple (xterm-256)
-	styleLineCur  = lipgloss.NewStyle().Background(cursorBg).Bold(true)
+	cursorBg          = lipgloss.Color("54")  // dark purple — focused cursor
+	cursorUnfocusedBg = lipgloss.Color("237") // dim grey — unfocused cursor
+	styleLineCur      = lipgloss.NewStyle().Background(cursorBg).Bold(true)
 	styleSel      = lipgloss.NewStyle().Background(lipgloss.Color("235"))
 	styleRead     = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	styleUnread   = lipgloss.NewStyle().Foreground(lipgloss.Color("11")).Bold(true)
@@ -85,13 +86,9 @@ func (m *model) View() tea.View {
 	}
 
 	var body string
-	switch {
-	case m.sidebarVisible():
+	if m.sidebarVisible() {
 		body = lipgloss.JoinHorizontal(lipgloss.Top, m.viewSidebar(), m.viewMain())
-	case m.fullScreenSections():
-		// Narrow section mode: the section list IS the main view.
-		body = m.viewSidebar()
-	default:
+	} else {
 		body = m.viewMain()
 	}
 
@@ -113,7 +110,7 @@ func (m *model) View() tea.View {
 func (m *model) modeName() string {
 	switch m.mode {
 	case modeTree:
-		return "Section[" + m.sect.Label() + "]"
+		return "Tree[" + m.sect.Label() + "]"
 	case modeDiff, modeFile:
 		return "Line[" + m.sect.Label() + "]"
 	}
@@ -142,37 +139,40 @@ func helpFor(m *model) string {
 }
 
 func (m *model) viewSidebar() string {
-	// In wide layout the sidebar gets its own column; in narrow
-	// (full-screen) section mode it takes the whole screen.
-	var w int
-	if m.fullScreenSections() {
-		w = m.width
-	} else {
-		w = sidebarWidth(m.width)
-	}
+	w := sidebarWidth(m.width)
 
 	var lines []string
 	cursorRow := 0
+	// Sidebar focus colour: purple when the reviewer is in Tree
+	// mode (the sidebar IS the active pane), grey when they're in
+	// a line mode (the cursor stays visible but as a parked
+	// breadcrumb).
+	sidebarBg := cursorBg
+	if m.mode != modeTree {
+		sidebarBg = cursorUnfocusedBg
+	}
+	sidebarCur := lipgloss.NewStyle().Background(sidebarBg).Bold(true)
 	// sectionFileReview is intentionally omitted: visited files are
 	// highlighted in the Tree section instead of living in their own
 	// list.
 	for _, sec := range []section{sectionSources, sectionVerdicts, sectionIssues, sectionChanges, sectionCommits, sectionTree} {
 		items := m.sectionItems(sec)
 		hdr := fmt.Sprintf("%s (%d)", sec.Label(), len(items))
-		if m.mode == modeTree && m.sect == sec {
+		if m.sect == sec {
 			lines = append(lines, styleFocused.Render(hdr))
 		} else {
 			lines = append(lines, styleSectHdr.Render(hdr))
 		}
 		for i, item := range items {
 			marker := "  "
-			if m.mode == modeTree && m.sect == sec && i == m.sectIdx[sec] {
+			isCursor := m.sect == sec && i == m.sectIdx[sec]
+			if isCursor {
 				marker = "▶ "
 				cursorRow = len(lines)
 			}
 			line := marker + truncate(item, w-3)
-			if m.mode == modeTree && m.sect == sec && i == m.sectIdx[sec] {
-				line = styleCursor.Render(line)
+			if isCursor {
+				line = sidebarCur.Render(line)
 			}
 			lines = append(lines, line)
 		}

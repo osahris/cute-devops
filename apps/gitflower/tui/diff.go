@@ -400,8 +400,12 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, lines []lineRang
 			gutterStyle := styleDim
 			lineStyle := styleLn
 			if isCursor {
-				gutterStyle = gutterStyle.Background(cursorBg)
-				lineStyle = lineStyle.Background(cursorBg).Bold(true)
+				bg := cursorBg
+				if m.mode == modeTree {
+					bg = cursorUnfocusedBg
+				}
+				gutterStyle = gutterStyle.Background(bg)
+				lineStyle = lineStyle.Background(bg).Bold(true)
 			}
 			for j, part := range parts {
 				var head, bodyPart string
@@ -472,7 +476,11 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, lines []lineRang
 	eofText := "<end of file>"
 	eofStyle := styleDim
 	if m.atEOF {
-		eofStyle = eofStyle.Background(cursorBg).Bold(true)
+		bg := cursorBg
+		if m.mode == modeTree {
+			bg = cursorUnfocusedBg
+		}
+		eofStyle = eofStyle.Background(bg).Bold(true)
 		cursorRow = row
 	}
 	eofLine := strings.Repeat(" ", gutterW) + eofStyle.Render(eofText)

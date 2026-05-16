@@ -482,24 +482,17 @@ func (m *model) drainCmds() tea.Cmd {
 }
 
 // sidebarMinTotalWidth is the minimum terminal width at which the
-// section sidebar gets its own column next to the peek pane. Below
-// this we still want the section view in section mode — just
-// full-screen instead of as a sidebar.
-const sidebarMinTotalWidth = 150
+// sidebar gets its own column next to the main pane. Below this we
+// give the main pane the whole screen (the sidebar wouldn't have
+// enough room to be useful).
+const sidebarMinTotalWidth = 46
 
-// sidebarVisible reports whether to render the section sidebar
-// alongside the right-pane peek (wide layout). When false, the right
-// pane gets the whole screen — and in section mode that pane swaps
-// to the sidebar's content (see fullScreenSections).
+// sidebarVisible reports whether to render the sidebar alongside the
+// main pane. The sidebar is now always shown when the window is wide
+// enough — focus indication (purple vs grey cursor) tells the
+// reviewer which pane is active.
 func (m *model) sidebarVisible() bool {
-	return m.mode == modeTree && m.width >= sidebarMinTotalWidth
-}
-
-// fullScreenSections reports whether we're in narrow-section-mode:
-// section mode but the window is too narrow for a sidebar/peek
-// split. The main pane then renders the section list itself.
-func (m *model) fullScreenSections() bool {
-	return m.mode == modeTree && m.width < sidebarMinTotalWidth
+	return m.width >= sidebarMinTotalWidth
 }
 
 func (m *model) resize() {

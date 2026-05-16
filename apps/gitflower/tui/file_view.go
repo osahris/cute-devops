@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // updateFile handles key input while the reviewer is browsing a file
@@ -156,8 +157,12 @@ func renderFileView(m *model) (body string, cursorRow int) {
 		if setForFile[i+1] {
 			row = styleRead.Render(row)
 		}
-		if m.mode == modeFile && i == m.fileLineCursor {
-			row = styleLineCur.Render(row)
+		if i == m.fileLineCursor {
+			bg := cursorBg
+			if m.mode != modeFile {
+				bg = cursorUnfocusedBg
+			}
+			row = lipgloss.NewStyle().Background(bg).Bold(true).Render(row)
 			cursorRow = sb.Len()
 			_ = cursorRow
 		}
