@@ -1547,7 +1547,8 @@ var (
 	styleCtx      = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	styleHunk     = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
 	styleCursor   = lipgloss.NewStyle().Background(lipgloss.Color("237"))
-	styleLineCur  = lipgloss.NewStyle().Background(lipgloss.Color("236")).Bold(true)
+	cursorBg      = lipgloss.Color("236")
+	styleLineCur  = lipgloss.NewStyle().Background(cursorBg).Bold(true)
 	styleSel      = lipgloss.NewStyle().Background(lipgloss.Color("235"))
 	styleRead     = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	styleUnread   = lipgloss.NewStyle().Foreground(lipgloss.Color("11")).Bold(true)
@@ -1789,7 +1790,6 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, cursorRow int) {
 	if wrapW < 10 {
 		wrapW = 10
 	}
-	contIndent := strings.Repeat(" ", gutterW+2)
 
 	row := 0
 	for hi, h := range f.Hunks {
@@ -1835,8 +1835,6 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, cursorRow int) {
 				oldStr = fmt.Sprintf("%*d", numW, oldLine)
 				newStr = fmt.Sprintf("%*d", numW, newLine)
 			}
-			gutter := styleDim.Render(oldStr+" "+newStr) + "  "
-
 			var sign string
 			var styleLn lipgloss.Style
 			switch ln.Kind {
@@ -1852,20 +1850,37 @@ func renderFileDiff(m *model) (body string, ranges []hunkRange, cursorRow int) {
 			}
 			isCursor := hi == m.hunkIdx && li == m.lineCursor
 			parts := wrapDiffText(ln.Text, wrapW)
+			// When the cursor is on this line, paint every piece with a
+			// matching background so the whole row reads as one highlight.
+			// Wrapping a pre-styled string in styleLineCur won't work:
+			// each nested style ends with `\x1b[0m`, which resets the
+			// background too — leaving only the gutter highlighted.
+			gutterStyle := styleDim
+			lineStyle := styleLn
+			if isCursor {
+				gutterStyle = gutterStyle.Background(cursorBg)
+				lineStyle = lineStyle.Background(cursorBg).Bold(true)
+			}
 			for j, part := range parts {
-				var line string
+				var head, body string
 				if j == 0 {
-					line = gutter + styleLn.Render(sign+part)
+					head = gutterStyle.Render(oldStr + " " + newStr + "  ")
+					body = lineStyle.Render(sign + part)
 				} else {
-					// Continuation: blank prefix aligning past sign+space,
-					// then styled text (no sign — just the wrapped chunk).
-					line = contIndent + styleLn.Render(part)
+					head = gutterStyle.Render(strings.Repeat(" ", gutterW+2))
+					body = lineStyle.Render(part)
 				}
+				if isCursor && j == 0 {
+					cursorRow = row
+				}
+				line := head + body
 				if isCursor {
-					if j == 0 {
-						cursorRow = row
+					// The viewport doesn't pad short lines; add our own
+					// trailing fill so the highlight extends to the right.
+					used := lipgloss.Width(line)
+					if pad := vpW - used; pad > 0 {
+						line += lineStyle.Render(strings.Repeat(" ", pad))
 					}
-					line = styleLineCur.Render(line)
 				}
 				sb.WriteString(line + "\n")
 				row++

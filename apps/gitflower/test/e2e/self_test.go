@@ -77,15 +77,12 @@ func TestSpaceWalkOnSelfRepo(t *testing.T) {
 			t.Fatalf("write space %d: %v", i, err)
 		}
 		time.Sleep(80 * time.Millisecond)
-		// "📝 Verdict summary" is the editor label rendered only when the
-		// verdict editor is open. We can't match on "record your verdict"
-		// because that phrase appears verbatim in the diff content itself
-		// (the source code of tui.go and friends), so it would trigger
-		// false positives the moment those hunks scroll into view.
-		if bytes.Contains(captured.Bytes(), []byte("📝 Verdict summary")) {
-			pressesUsed = i + 1
-			break
-		}
+		// Don't try to early-exit by matching screen text: any phrase
+		// distinctive enough to flag the verdict editor (e.g. "📝 Verdict
+		// summary" or "record your verdict") also appears verbatim in the
+		// diff content being reviewed, so the moment those hunks scroll
+		// into view we'd false-positive out of the loop. Just spend the
+		// whole budget; the walk completes well within it.
 	}
 	t.Logf("used %d/%d Space presses", pressesUsed, maxPresses)
 	// Wait long enough for the autosave debounce + final renders.
