@@ -286,16 +286,16 @@ func nextVisibleSection(cur section, direction int) section {
 	return visible[next]
 }
 
-// isFileReviewed reports whether the given path has at least one
-// FileReview entry in the session — i.e. the reviewer has opened
-// it in modeFile at some point.
+// isFileReviewed reports whether every line of the given file has
+// been seen long enough to be marked read. Only files the reviewer
+// has actually opened in modeFile (so fileLineTotals[path] is
+// populated) can earn the ✓.
 func (m *model) isFileReviewed(path string) bool {
-	for _, fr := range m.sess.FileReviews() {
-		if fr.Path == path {
-			return true
-		}
+	total, ok := m.fileLineTotals[path]
+	if !ok || total == 0 {
+		return false
 	}
-	return false
+	return len(m.fileLineRead[path]) >= total
 }
 
 // isChangesDirExpanded reports whether the given directory is expanded

@@ -122,6 +122,7 @@ func (m *model) enterFileReview(path string) {
 	m.filePath = path
 	m.fileLines = lines
 	m.fileLineCursor = 0
+	m.fileLineTotals[path] = len(lines)
 	m.mode = modeFile
 	m.recordVisitedLine()
 	m.refreshViewport()

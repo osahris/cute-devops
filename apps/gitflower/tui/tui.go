@@ -235,6 +235,10 @@ type model struct {
 	// reviewer see which lines of a file they've already scrolled
 	// through.
 	fileLineRead map[string]map[int]bool
+	// fileLineTotals[path] = total reviewable line count for the
+	// file the reviewer last opened in modeFile. Used by the Tree
+	// sidebar to decide whether to mark a file as ✓ "reviewed".
+	fileLineTotals map[string]int
 
 
 	// Per-view read tick. The user reads the lines currently in the
@@ -338,6 +342,7 @@ func newModel(sess *review.ReviewSession, root string, readRate float64) *model 
 		changesExpanded:  map[string]bool{},
 		fileTreeExpanded: map[string]bool{},
 		fileLineRead:     map[string]map[int]bool{},
+		fileLineTotals:   map[string]int{},
 	}
 	return m
 }
