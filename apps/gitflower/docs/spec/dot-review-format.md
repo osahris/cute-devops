@@ -121,7 +121,7 @@ PascalCase, like every other keyword. Unknown states are preserved verbatim and 
 
 ### Note subsections
 
-Quote the body of an arbitrary **git note** inline. Any note from any ref the reviewer wants to pull in: a freeform note that already sat on `refs/notes/reviews`, linter output stored on `refs/notes/lint`, a CI bot's `refs/notes/ci-results`, an audit trail on `refs/notes/commits`, whatever the workflow uses.
+Quote the body of an arbitrary **git note** inline. Any note from any ref the reviewer wants to pull in: a freeform note that already sat on a `refs/notes/reviews/<branch>` ref, linter output stored on `refs/notes/lint`, a CI bot's `refs/notes/ci-results`, an audit trail on `refs/notes/commits`, whatever the workflow uses.
 
 Shape: `## Note @ <git command>` where the recipe fetches the note. Body uses the *Object body* shape (see *Body shapes* below) — quoting line-by-line lets a reviewer pin a comment to a specific line of the note.
 
@@ -555,6 +555,24 @@ user-content body.
 
 ## Storage
 
-Default storage is the `refs/notes/reviews` git notes ref, keyed by the reviewed commit's SHA. A `.review` body lives as the note attached to its commit; readers and writers exchange content through `git notes --ref=reviews` rather than touching the working tree.
+Default storage is a per-branch git notes ref named `refs/notes/reviews/<branch>`, with each note keyed by the reviewed commit's SHA. A `.review` body lives as the note attached to its commit; readers and writers exchange content through `git notes --ref=reviews/<branch> show <commit>` rather than touching the working tree. Per-branch refs keep the chain topical — every notes-commit on the ref is about the branch under review, so no filtering is needed when attaching the review to history later.
 
 The on-disk `.review` file is optional and only relevant when a reviewer wants to commit the review into a tree alongside the code — for archival, for tooling that doesn't speak git notes, or to ship a review as part of a release. The conventional path in that case is `reviews/<branch-slug>-<tip-short>.review`, e.g. `reviews/feature-eb2d95b.review`. A single `.review` can carry multiple `# Diff` sections, so the filename names the review, not any one diff inside it.
+
+## Attaching to history
+
+When a review concludes, attach the per-branch notes ref to the branch by merging its tip into HEAD with `-s ours`. The merge commit's tree equals HEAD's tree — no `.review` content lands in the working tree — while the notes-commit chain hangs off the second parent, queryable via `git log <merge>^2` and `git show <merge>^2`. The merge commit becomes a tombstone-with-pointer: clean tree, full provenance.
+
+**Subject and body.** Subject prefixed `[Review]`. The body carries a one-line summary of verdict counts, a `git show <notes-sha>` recipe pointing at the second parent (the literal SHA, baked in), and a trailer block copying every `Verdict-reached-by:` event from the `.review` verbatim — same key, same `Name <email>[ @<RFC3339>]; <state>` shape — so any parser that reads the format reads the trailer.
+
+```
+[Review] feature/add-foo: 2 Approved, 1 ClarificationRequired
+
+Full review: git show 7a2c1f8e
+
+Verdict-reached-by: Alice <alice@example.com> @2026-05-18T14:22:00Z; Approved
+Verdict-reached-by: Bob <bob@example.com> @2026-05-18T14:30:00Z; Approved
+Verdict-reached-by: Carol <carol@example.com> @2026-05-18T16:01:00Z; ClarificationRequired
+```
+
+**Tree inclusion is optional.** `-s ours` is the default — clean tree, full provenance in history only. A reviewer or workflow may override and let some or all of the `.review` (or just the unresolved `## Issue` subsections) land in the tree for in-tree resolution. Policy decisions like "open issues must materialise before merge" belong to a gate hook, not the format.
