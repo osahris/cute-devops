@@ -21,7 +21,7 @@ This project is currently in development phase (0.x.x versions). During this pha
 To create a new release:
 
 1. Review all changes since the last release
-   - Check git log: `git log v$(git describe --tags --abbrev=0)..HEAD --oneline`
+   - Check git log: `git log $(git describe --tags --abbrev=0)..HEAD --oneline`
    - Review CHANGELOG.md [Unreleased] section
    
 2. Determine version increment based on [Semantic Versioning](https://semver.org/):
