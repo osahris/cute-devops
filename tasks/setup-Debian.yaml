@@ -4,5 +4,5 @@
   apt:
     pkg:
     - knot
-    - knot-dnsutils
+    - "{{ 'knot-dnsutils' if ansible_facts['distribution'] == 'bullseye' else 'knot-dnssecutils' }}"
     - bind9-dnsutils
