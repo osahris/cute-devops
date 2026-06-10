@@ -21,7 +21,7 @@
     create_home: true
     move_home: true
   loop: "{{ users.keys() | list }}"
-  notify: restart systemd-logind.service
+  notify: Restart systemd-logind.service
 
 - name: Password
   ansible.builtin.user:
