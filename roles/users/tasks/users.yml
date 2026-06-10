@@ -17,7 +17,7 @@
     groups: "{{ users[item].groups | default([]) | join(',') }}"
     uid: "{{ users[item].uid | default(omit) }}"
     home: "{{ users[item].home | default('/home/' + item) }}"
-    shell: "{{ users[item].shell | default('/usr/bin/fish') }}"
+    shell: "{{ users[item].shell | default(omit) }}"
     create_home: true
     move_home: true
   loop: "{{ users.keys() | list }}"
