@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Alexander Hirsch <Hirsch@med.uni-frankfurt.de>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+passwordless_sudo_sudoers_config_path: "/etc/sudoers.d/10-{{ passwordless_sudo_group_name }}"

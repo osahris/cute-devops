@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Alexander Hirsch <Hirsch@med.uni-frankfurt.de>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: remove {{ passwordless_sudo_group_name }} group
+  ansible.builtin.group:
+    name: "{{ passwordless_sudo_group_name }}"
+    state: absent
+
+- name: remove {{ passwordless_sudo_group_name }} configuration in {{ passwordless_sudo_sudoers_config_path }} for /etc/sudoers
+  ansible.builtin.file:
+    path: "{{ passwordless_sudo_sudoers_config_path }}"
+    state: absent
