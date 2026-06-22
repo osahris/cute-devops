@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Alexander Hirsch <Hirsch@med.uni-frankfurt.de>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- include_tasks: add.yaml
+  when: passwordless_sudo_group_enable
+
+- include_tasks: remove.yaml
+  when: not passwordless_sudo_group_enable
