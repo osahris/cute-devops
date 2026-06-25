@@ -42,12 +42,12 @@ None.
     - role: mkbrechtel.devops.users
       vars:
         users:
-          - name: alice
+          alice:
             groups: ['sudo', 'docker']
             shell: /bin/bash
             ssh_authorized_keys:
               - "ssh-rsa AAAAB3..."
-          - name: bob
+          bob:
             uid: 1002
             shell: /bin/zsh
             linger: true

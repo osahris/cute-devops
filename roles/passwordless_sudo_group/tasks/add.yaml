@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 Alexander Hirsch <Hirsch@med.uni-frankfurt.de>
+# SPDX-FileCopyrightText: 2026 Vasilii Tulskii <tulskyva@mail.ru>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: install sudo
+  apt:
+    pkg: sudo
+
+- name: add {{ passwordless_sudo_group_name }} group
+  ansible.builtin.group:
+    name: "{{ passwordless_sudo_group_name }}"
+
+- name: configure {{ passwordless_sudo_group_name }} in {{ passwordless_sudo_sudoers_config_path }} for /etc/sudoers
+  ansible.builtin.copy:
+    content: "%{{ passwordless_sudo_group_name }} ALL = NOPASSWD: ALL"
+    dest: "{{ passwordless_sudo_sudoers_config_path }}"
+    mode: "0440"
+    validate: visudo -cf '%s'
+    backup: true
+  register: sudoers_dropin
+
+- name: check /etc/sudoers
+  block:
+    - name: check /etc/sudoers
+      command: visudo -c
+      register: visudo_check
+  rescue:
+    - name: remove {{ passwordless_sudo_sudoers_config_path }}
+      ansible.builtin.copy:
+        src: "{{ sudoers_dropin.backup_file }}"
+        remote_src: true
+        dest: "{{ passwordless_sudo_sudoers_config_path }}"
+
+    - name: remove {{ passwordless_sudo_sudoers_config_path }} backup
+      ansible.builtin.file:
+        path: "{{ sudoers_dropin.backup_file }}"
+        state: absent
+  always:
+    - fail:
+        msg: "Failing due to visudo -c failure"
+      when: visudo_check.failed
+
+- name: add group to users
+  ansible.builtin.user:
+    append: true
+    groups: "{{ passwordless_sudo_group_name }}"
+    user: "{{ username }}"
+  loop: "{{ users.keys() | list }}"
+  loop_control:
+    loop_var: username
+    label: "{{ username }}"
