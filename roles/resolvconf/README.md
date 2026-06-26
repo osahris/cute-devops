@@ -28,5 +28,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.devops.resolvconf
+    - osahris.cute_devops.resolvconf
 ```

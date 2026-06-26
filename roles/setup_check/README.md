@@ -26,5 +26,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.devops.setup_check
+    - osahris.cute_devops.setup_check
 ```

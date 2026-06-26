@@ -26,7 +26,7 @@ None.
 ```yaml
 - hosts: servers
   roles:
-     - mkbrechtel.devops.setup_deploy
+     - osahris.cute_devops.setup_deploy
 ```
 
 ## License
@@ -35,4 +35,4 @@ Apache-2.0
 
 ## Author Information
 
-This role was created for the mkbrechtel.devops collection.
+This role was created for the osahris.cute_devops collection.

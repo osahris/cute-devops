@@ -5,7 +5,7 @@ SPDX-License-Identifier: EUPL-1.2
 #}
 
 #!/bin/sh
-# This file is managed by the mkbrechtel.devops.check_ping Ansible role!
+# This file is managed by the osahris.cute_devops.check_ping Ansible role!
 # MANUAL CHANGES WILL BE OVERWRITTEN WITHOUT WARNING!
 
 exec /usr/lib/nagios/plugins/check_ping -H {{ check_ping_hostname }} -w 10,2% -c 20,5%

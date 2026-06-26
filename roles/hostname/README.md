@@ -29,7 +29,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.devops.hostname
+    - role: osahris.cute_devops.hostname
       vars:
         hostname_name: myhost
 ```

@@ -22,5 +22,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.devops.bash_shell
+    - osahris.cute_devops.bash_shell
 ```

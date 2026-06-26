@@ -24,7 +24,7 @@ Key variables:
 
 ## Dependencies
 
-- `mkbrechtel.devops.setup_check`
+- `osahris.cute_devops.setup_check`
 
 ## Example Playbook
 
@@ -32,7 +32,7 @@ Key variables:
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.devops.notify_alerta
+    - role: osahris.cute_devops.notify_alerta
       vars:
         notify_alerta_api_key: your-api-key
         notify_alerta_environment: Production

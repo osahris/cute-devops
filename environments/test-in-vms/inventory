@@ -3,16 +3,16 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 [vms]
-sysops-test-common
+cute-devops-test-common
 
 [setup_deploy]
-sysops-test-common
+cute-devops-test-common
 
 [devboxes]
-sysops-test-devbox
+cute-devops-test-devbox
 
 [knot_nameservers]
-sysops-test-ns
+cute-devops-test-ns
 
 [vms:children]
 setup_deploy

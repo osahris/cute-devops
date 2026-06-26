@@ -32,7 +32,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.devops.locales
+    - role: osahris.cute_devops.locales
       vars:
         locales_gen:
           - en_US.UTF-8

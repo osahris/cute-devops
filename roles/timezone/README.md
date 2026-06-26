@@ -28,7 +28,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.devops.timezone
+    - role: osahris.cute_devops.timezone
       vars:
         timezone_name: UTC
 ```

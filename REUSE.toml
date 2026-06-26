@@ -1,4 +1,4 @@
 version = 1
-SPDX-PackageName = "mkbrechtel.devops"
+SPDX-PackageName = "osahris.cute_devops"
 SPDX-PackageSupplier = "Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>"
-SPDX-PackageDownloadLocation = "https://github.com/mkbrechtel/devops"
+SPDX-PackageDownloadLocation = "https://github.com/osahris/cute-devops"

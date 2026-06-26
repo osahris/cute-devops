@@ -33,7 +33,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.devops.check
+    - role: osahris.cute_devops.check
       vars:
         check_id: my_check
 ```

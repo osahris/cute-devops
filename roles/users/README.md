@@ -39,7 +39,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.devops.users
+    - role: osahris.cute_devops.users
       vars:
         users:
           alice:

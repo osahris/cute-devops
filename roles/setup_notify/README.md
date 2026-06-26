@@ -24,4 +24,4 @@ None.
 
 EUPL-1.2
 
-This role was created for the mkbrechtel.devops collection.
+This role was created for the osahris.cute_devops collection.

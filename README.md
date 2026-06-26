@@ -14,9 +14,9 @@ Heads up: this library is pretty opinionated; we're working on a
 comments section so you can drop in and tell us where we're wrong IYO
 (please only leave constructive critiques).
 
-The repository ships as the Ansible collection `mkbrechtel.devops`
+The repository ships as the Ansible collection `osahris.cute_devops`
 and renders to the website at
-[devops.devio.mkbrechtel.dev](https://devops.devio.mkbrechtel.dev).
+[cute-devops.patterns.how](https://cute-devops.patterns.how).
 
 ## Patterns! 🔷
 
@@ -47,7 +47,7 @@ The website's *Deploy!* sidebar groups them by purpose
 Deployment, Tooling).
 
 ```bash
-ansible-galaxy collection install mkbrechtel.devops
+ansible-galaxy collection install osahris.cute_devops
 ```
 
 Requirements: Ansible ≥ 2.14.3 on Debian 13 (trixie).

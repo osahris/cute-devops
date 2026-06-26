@@ -16,7 +16,7 @@ Configure the system Message of the Day (MOTD).
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `motd` | No | See below | The message of the day content. Defaults to a message stating the system is managed by the mkbrechtel.devops collection. |
+| `motd` | No | See below | The message of the day content. Defaults to a message stating the system is managed by the osahris.cute_devops collection. |
 
 ## Example Playbook
 
@@ -24,7 +24,7 @@ Configure the system Message of the Day (MOTD).
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.devops.motd
+    - role: osahris.cute_devops.motd
       vars:
         motd: |
           Welcome to {{ inventory_hostname }}

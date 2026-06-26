@@ -26,5 +26,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.devops.network_diagnostics
+    - osahris.cute_devops.network_diagnostics
 ```

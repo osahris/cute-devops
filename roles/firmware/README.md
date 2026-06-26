@@ -26,5 +26,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.devops.firmware
+    - osahris.cute_devops.firmware
 ```

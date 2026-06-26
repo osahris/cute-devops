@@ -35,7 +35,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.devops.common
+    - osahris.cute_devops.common
 ```
 
 ## Features

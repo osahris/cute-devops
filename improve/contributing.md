@@ -58,6 +58,6 @@ Disease and Cancer Research of Prof. Janne Vehreschild.
 Parts of this project were developed with assistance from
 [Claude](https://www.anthropic.com/claude) (Anthropic). AI-assisted commits
 are marked with a `Co-Authored-By` trailer in the git history. Pattern
-markdown content under `patterns/` originated in the upstream
-[Cute Patterns!](https://github.com/mkbrechtel/patterns) repository and was
-likewise generated with LLM assistance (Anthropic Claude).
+markdown content under `patterns/` originated in the now-archived
+standalone Cute Patterns! library and was likewise generated with LLM
+assistance (Anthropic Claude).

@@ -19,7 +19,7 @@ Network connectivity monitoring using Nagios check_ping plugin.
 
 ## Dependencies
 
-- `mkbrechtel.devops.check`
+- `osahris.cute_devops.check`
 
 ## Example Playbook
 
@@ -27,7 +27,7 @@ Network connectivity monitoring using Nagios check_ping plugin.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.devops.check_ping
+    - role: osahris.cute_devops.check_ping
       vars:
         check_ping_hostname: google.de
 ```

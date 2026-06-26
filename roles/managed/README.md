@@ -42,7 +42,7 @@ High-level orchestrator role that composes checks, deploys, notifications, and u
 - hosts: servers
   become: true
   roles:
-    - role: mkbrechtel.devops.managed
+    - role: osahris.cute_devops.managed
       vars:
         managed_with_disk_checks: true
         managed_with_network_checks: true
@@ -55,4 +55,4 @@ High-level orchestrator role that composes checks, deploys, notifications, and u
 
 EUPL-1.2
 
-This role was created for the mkbrechtel.devops collection.
+This role was created for the osahris.cute_devops collection.

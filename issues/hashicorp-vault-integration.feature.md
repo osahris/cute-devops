@@ -25,7 +25,7 @@ Depends on: [secrets.feature.md](secrets.feature.md).
 
 ## Design notes
 
-Consumes the same source/store interface as the rest of the secrets role — adding Vault does not require changes to consumers. The Vault client dependency stays optional: pulled in only when a Vault source or store is referenced in the inventory. Mount-path convention: `secret/mkbrechtel.devops/<service>/<name>` (configurable).
+Consumes the same source/store interface as the rest of the secrets role — adding Vault does not require changes to consumers. The Vault client dependency stays optional: pulled in only when a Vault source or store is referenced in the inventory. Mount-path convention: `secret/osahris.cute_devops/<service>/<name>` (configurable).
 
 ## Open questions
 

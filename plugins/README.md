@@ -51,9 +51,9 @@ Given a directory like this:
     ├── alice
     └── bob
 ```
-you can create the users table for `mkbrechtel.sysops.users` via
+you can create the users table for `osahris.cute_devops.users` via
 ```yaml
-users: {{ lookup('mkbrechtel.sysops.parse_key_directory_to_users', 'users') }}
+users: {{ lookup('osahris.cute_devops.parse_key_directory_to_users', 'users') }}
 ```
 The generates users adopt the name of the respective file.
 
@@ -71,14 +71,14 @@ A directory like this:
 ```
 and the configuration like this:
 ```yaml
-users: {{ lookup('mkbrechtel.sysops.parse_key_directory_to_users', 'users', '.pub') }}
+users: {{ lookup('osahris.cute_devops.parse_key_directory_to_users', 'users', '.pub') }}
 ```
 will skip the `README.md` and create two users named "alice" and "bob".
 
 With `attributes` a mapping can be passed to add some attributes to each user.
 ```yaml
 users: {{ lookup(
-  'mkbrechtel.sysops.parse_key_directory_to_users', 'users', '.pub',
+  'osahris.cute_devops.parse_key_directory_to_users', 'users', '.pub',
   {
     shell: 'zsh',
     groups: ['adm'],
@@ -89,7 +89,7 @@ users: {{ lookup(
 If you want to change properties for individual users you will need to merge the parsed mapping with the custom properties, like this for instance:
 ```yaml
 users: {{
-  lookup('mkbrechtel.sysops.parse_key_directory_to_users', 'users')
+  lookup('osahris.cute_devops.parse_key_directory_to_users', 'users')
   | combine(
       {
         'alice': { 'shell': 'fish' },

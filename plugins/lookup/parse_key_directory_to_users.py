@@ -12,7 +12,7 @@ display = Display()
 
 DOCUMENTATION = """
     name: parse_key_directory_to_users
-    short_description: Generate mkbrechtel.sysops.users from authorized_keys-style files
+    short_description: Generate osahris.cute_devops.users from authorized_keys-style files
     description:
         - Read authorized_keys-style files from a directory.
         - The filename dictates the username.

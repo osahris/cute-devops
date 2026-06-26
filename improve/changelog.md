@@ -20,9 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Relicensed from AGPL-3.0-or-later to EUPL-1.2; the
   `restic_client` and `restic_server` roles stay under
   AGPL-3.0-or-later pending consent from a co-author
-- Renamed collection from `mkbrechtel.sysops` to `mkbrechtel.devops`;
-  merged the upstream Cute Patterns! library into `patterns/` and the
-  Astro/Go site machinery into `website/`
+- Renamed collection from `mkbrechtel.sysops` to `osahris.cute_devops`
+  (namespace moved to the `osahris` org); merged the standalone Cute
+  Patterns! library into `patterns/` and the site layout into `website/`,
+  and moved the website to `cute-devops.patterns.how`
 - Rename roles for consistent naming scheme:
   - Setup roles: `checker` -> `setup_check`, `deploy_deploy` -> `setup_deploy`, new `setup_notify`
   - Check instance roles: `checker_check` -> `check`, `checker_check_disk` -> `check_disk`,
@@ -150,9 +151,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **updates** role for system update management
   - **users** role for user account management with home directory configuration
 
-[0.2.0]: https://github.com/mkbrechtel/sysops/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/mkbrechtel/sysops/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/mkbrechtel/sysops/compare/v0.0.3...v0.1.0
-[0.0.3]: https://github.com/mkbrechtel/sysops/compare/v0.0.2...v0.0.3
-[0.0.2]: https://github.com/mkbrechtel/sysops/compare/v0.0.1...v0.0.2
-[0.0.1]: https://github.com/mkbrechtel/sysops/releases/tag/v0.0.1
+[0.2.0]: https://github.com/osahris/cute-devops/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/osahris/cute-devops/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/osahris/cute-devops/compare/v0.0.3...v0.1.0
+[0.0.3]: https://github.com/osahris/cute-devops/compare/v0.0.2...v0.0.3
+[0.0.2]: https://github.com/osahris/cute-devops/compare/v0.0.1...v0.0.2
+[0.0.1]: https://github.com/osahris/cute-devops/releases/tag/v0.0.1

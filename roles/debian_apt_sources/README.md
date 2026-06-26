@@ -32,5 +32,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.devops.debian_apt_sources
+    - osahris.cute_devops.debian_apt_sources
 ```

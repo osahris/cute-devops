@@ -18,7 +18,7 @@ See `defaults/main.yaml` for all available variables and their default values.
 
 ## Dependencies
 
-- `mkbrechtel.devops.check`
+- `osahris.cute_devops.check`
 
 ## Example Playbook
 
@@ -26,5 +26,5 @@ See `defaults/main.yaml` for all available variables and their default values.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.devops.check_ram
+    - osahris.cute_devops.check_ram
 ```

@@ -32,7 +32,7 @@ Defaults (see `defaults/main.yml`):
 - hosts: village
   become: true
   roles:
-    - role: mkbrechtel.devops.passwordless_sudo_group
+    - role: osahris.cute_devops.passwordless_sudo_group
       vars:
         passwordless_sudo_group_enable: true
 ```

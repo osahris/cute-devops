@@ -14,6 +14,6 @@
         path: /srv/repos/cute-devops.git
         group: devops
         owner: root
-        description: "Cute DevOps Patterns! — Ansible roles + patterns. https://devops.patterns.how"
+        description: "Cute DevOps Patterns! — Ansible roles + patterns. https://cute-devops.patterns.how"
   roles:
     - role: repos

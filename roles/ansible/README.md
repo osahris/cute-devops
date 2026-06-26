@@ -28,7 +28,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.devops.ansible
+    - osahris.cute_devops.ansible
 ```
 
 ## Features

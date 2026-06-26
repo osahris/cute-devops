@@ -4,5 +4,5 @@
 
 ---
 motd_content: |
-  This system is managed by the mkbrechtel.devops Ansible collection.
+  This system is managed by the osahris.cute_devops Ansible collection.
   Manual changes may be overwritten without warning!

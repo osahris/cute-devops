@@ -26,5 +26,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.devops.keyboard
+    - osahris.cute_devops.keyboard
 ```

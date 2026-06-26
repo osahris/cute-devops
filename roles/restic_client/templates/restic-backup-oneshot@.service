@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-# This file is managed by the mkbrechtel.sysops.restic_client Ansible role!
+# This file is managed by the osahris.cute_devops.restic_client Ansible role!
 # MANUAL CHANGES WILL BE OVERWRITTEN WITHOUT WARNING!
 
 [Unit]

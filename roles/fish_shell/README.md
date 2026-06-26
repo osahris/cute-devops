@@ -22,5 +22,5 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - mkbrechtel.devops.fish_shell
+    - osahris.cute_devops.fish_shell
 ```

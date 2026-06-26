@@ -6,7 +6,7 @@ SPDX-License-Identifier: EUPL-1.2
 
 # Repos Role
 
-Sets up bare git repositories on the target host. By default, scaffolds them with the [Worktree Treehouses 🌳](https://devops.patterns.how/patterns/approaches/worktree-treehouses) layout: a `treehouses/` directory with `chmod 3775` (setgid + sticky), a starter `README.md`, a `CLAUDE.md → README.md` symlink, and `.claude/` hook scripts. Turn the layout off to get a plain bare repo with sensible group permissions.
+Sets up bare git repositories on the target host. By default, scaffolds them with the [Worktree Treehouses 🌳](https://cute-devops.patterns.how/patterns/approaches/worktree-treehouses) layout: a `treehouses/` directory with `chmod 3775` (setgid + sticky), a starter `README.md`, a `CLAUDE.md → README.md` symlink, and `.claude/` hook scripts. Turn the layout off to get a plain bare repo with sensible group permissions.
 
 ## Requirements
 
@@ -39,7 +39,7 @@ Defaults (see `defaults/main.yml`):
 - hosts: village
   become: true
   roles:
-    - role: mkbrechtel.devops.repos
+    - role: osahris.cute_devops.repos
       vars:
         repos:
           - name: foo
@@ -61,7 +61,7 @@ git -C /srv/repos/foo.git worktree add treehouses/feature/x -b feature/x main
 ## What this role does NOT do
 
 - Wire up the `reference-transaction` hook on `main` (policy + sync-on-merge). That's project-specific — see the pattern.
-- Create or manage Unix groups / users. Use `mkbrechtel.devops.users` for that.
+- Create or manage Unix groups / users. Use `osahris.cute_devops.users` for that.
 - Push initial content into `main`. That's the maintainer's first commit.
 
 ## Implements

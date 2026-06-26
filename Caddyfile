@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-# Central Caddyfile for mkbrechtel.devops.
+# Central Caddyfile for *Cute Devops!*.
 #
 # Today this serves the documentation website. Additional services
 # (e.g. an MCP server) will be mounted as further handle blocks below.

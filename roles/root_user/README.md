@@ -33,7 +33,7 @@ None.
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.devops.root_user
+    - role: osahris.cute_devops.root_user
       vars:
         root_user_shell: /bin/bash
 ```

@@ -68,7 +68,7 @@ Later: systemd credentials (LoadCredential=) — see [systemd-credentials-store.
 
 ### Consumer interfaces (both needed)
 
-**Module** (`mkbrechtel.devops.secret`) runs on the target. Ensures a secret is provisioned; optionally fetches the value back to the controller for use in subsequent tasks. Arguments:
+**Module** (`osahris.cute_devops.secret`) runs on the target. Ensures a secret is provisioned; optionally fetches the value back to the controller for use in subsequent tasks. Arguments:
 
 - `service` (required) — service namespace.
 - `name` (required) — secret name within the service.
@@ -79,13 +79,13 @@ Later: systemd credentials (LoadCredential=) — see [systemd-credentials-store.
 - `fetch` — if `true`, return the secret value back to the controller for template use. Default: `false`.
 - Source-specific args (`length`, `charset`, `file`, `key`, `var`, …).
 
-**Lookup plugin** (`mkbrechtel.devops.secret`) runs on the control node and is usable in templates. It does not SSH to the target — it serves the sources/stores that live on the control node (`var`, `ansible-vault`, `local-pass`). For target-resident secrets, use the module with `fetch: true`.
+**Lookup plugin** (`osahris.cute_devops.secret`) runs on the control node and is usable in templates. It does not SSH to the target — it serves the sources/stores that live on the control node (`var`, `ansible-vault`, `local-pass`). For target-resident secrets, use the module with `fetch: true`.
 
 ### Example usage
 
 ```yaml
 - name: Ensure postgres app password
-  mkbrechtel.devops.secret:
+  osahris.cute_devops.secret:
     service: postgres
     name: app-db-password
     fetch: true

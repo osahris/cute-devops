@@ -24,7 +24,7 @@ Key variables:
 
 ## Dependencies
 
-- `mkbrechtel.devops.check`
+- `osahris.cute_devops.check`
 
 ## Example Playbook
 
@@ -32,7 +32,7 @@ Key variables:
 - hosts: servers
   become: yes
   roles:
-    - role: mkbrechtel.devops.check_disk
+    - role: osahris.cute_devops.check_disk
       vars:
         check_disk_paths:
           - /
