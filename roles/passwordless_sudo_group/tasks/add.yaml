@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: 2026 Alexander Hirsch <Hirsch@med.uni-frankfurt.de>
+# SPDX-FileCopyrightText: 2026 Vasilii Tulskii <tulskyva@mail.ru>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: Install sudo
+  ansible.builtin.apt:
+    pkg: sudo
+
+- name: Add group {{ passwordless_sudo_group_name }}
+  ansible.builtin.group:
+    name: "{{ passwordless_sudo_group_name }}"
+
+- name: Configure passwordless sudo drop-in for {{ passwordless_sudo_group_name }}
+  ansible.builtin.copy:
+    content: "%{{ passwordless_sudo_group_name }} ALL = NOPASSWD: ALL"
+    dest: "{{ passwordless_sudo_group_sudoers_config_path }}"
+    mode: "0440"
+    validate: visudo -cf '%s'
+    backup: true
+  register: sudoers_dropin
+
+- name: Validate sudoers configuration
+  block:
+    - name: Check /etc/sudoers
+      ansible.builtin.command: visudo -c
+      register: visudo_check
+      changed_when: false
+  rescue:
+    - name: Restore {{ passwordless_sudo_group_sudoers_config_path }}
+      ansible.builtin.copy:
+        src: "{{ sudoers_dropin.backup_file }}"
+        remote_src: true
+        dest: "{{ passwordless_sudo_group_sudoers_config_path }}"
+        mode: "0440"
+
+    - name: Remove backup of {{ passwordless_sudo_group_sudoers_config_path }}
+      ansible.builtin.file:
+        path: "{{ sudoers_dropin.backup_file }}"
+        state: absent
+  always:
+    - name: Fail when visudo validation failed
+      ansible.builtin.fail:
+        msg: "Failing due to visudo -c failure"
+      when: visudo_check.failed
+
+- name: Add group to users
+  ansible.builtin.user:
+    append: true
+    groups: "{{ passwordless_sudo_group_name }}"
+    user: "{{ username }}"
+  loop: "{{ users.keys() | list }}"
+  loop_control:
+    loop_var: username
+    label: "{{ username }}"
