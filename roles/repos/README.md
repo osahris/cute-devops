@@ -6,7 +6,7 @@ SPDX-License-Identifier: EUPL-1.2
 
 # Repos Role
 
-Sets up bare git repositories on the target host. By default, scaffolds them with the [Worktree Treehouses 🌳](https://cute-devops.patterns.how/patterns/approaches/worktree-treehouses) layout: a `treehouses/` directory with `chmod 3775` (setgid + sticky), a starter `README.md`, a `CLAUDE.md → README.md` symlink, and `.claude/` hook scripts. Turn the layout off to get a plain bare repo with sensible group permissions.
+Sets up bare git repositories on the target host. By default, scaffolds them with the [Worktree Workshops 🛠️](https://cute-devops.patterns.how/patterns/approaches/worktree-workshops) layout: a `workshops/` directory with `chmod 3775` (setgid + sticky), a starter `README.md`, a `CLAUDE.md → README.md` symlink, and `.claude/` hook scripts. Turn the layout off to get a plain bare repo with sensible group permissions.
 
 ## Requirements
 
@@ -19,10 +19,10 @@ Sets up bare git repositories on the target host. By default, scaffolds them wit
 repos:
   - name: foo                       # short label (optional; defaults to basename of path)
     path: /srv/repos/foo.git        # required; absolute path on target
-    group: devops                   # who can spawn treehouses (defaults to repos_default_group)
+    group: devops                   # who can open workshops (defaults to repos_default_group)
     owner: root                     # who owns policy files (defaults to repos_default_owner)
     description: "A cute project."  # optional; written to bare repo's `description`
-    with_treehouses: true           # per-repo override of repos_with_treehouses
+    with_workshops: true            # per-repo override of repos_with_workshops
     with_claude_hooks: true         # per-repo override of repos_with_claude_hooks
 ```
 
@@ -30,7 +30,7 @@ Defaults (see `defaults/main.yml`):
 
 - `repos_default_group: devops`
 - `repos_default_owner: root`
-- `repos_with_treehouses: true`
+- `repos_with_workshops: true`
 - `repos_with_claude_hooks: true`
 
 ## Example
@@ -52,10 +52,10 @@ After the role runs:
 ```bash
 cd /srv/repos/foo.git
 # bootstrap an empty main:
-git worktree add treehouses/main -b main
-cd treehouses/main && git commit --allow-empty -m "Initial commit"
-# then teammates can spawn their treehouses:
-git -C /srv/repos/foo.git worktree add treehouses/feature/x -b feature/x main
+git worktree add workshops/main -b main
+cd workshops/main && git commit --allow-empty -m "Initial commit"
+# then teammates can open their workshops:
+git -C /srv/repos/foo.git worktree add workshops/feature/x -b feature/x main
 ```
 
 ## What this role does NOT do
@@ -66,7 +66,7 @@ git -C /srv/repos/foo.git worktree add treehouses/feature/x -b feature/x main
 
 ## Implements
 
-- [Worktree Treehouses 🌳](../../patterns/approaches/worktree-treehouses.md)
+- [Worktree Workshops 🛠️](../../patterns/approaches/worktree-workshops.md)
 
 ## License
 

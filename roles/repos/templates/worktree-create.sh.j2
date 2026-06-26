@@ -22,7 +22,7 @@ case "$name" in
 esac
 name="$(printf '%s' "$name" | tr -c 'A-Za-z0-9._/-' '-')"
 
-# Resolve the project root: works from a bare repo, a treehouse, a normal
+# Resolve the project root: works from a bare repo, a workshop, a normal
 # clone, or a worktree of a clone.
 common="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
 if [ "$(git -C "$common" config --bool core.bare 2>/dev/null || echo false)" = "true" ]; then
@@ -31,7 +31,7 @@ else
   project_root="$(dirname "$common")"
 fi
 
-target="$project_root/treehouses/$name"
+target="$project_root/workshops/$name"
 
 if [ -e "$target/.git" ]; then
   printf '%s\n' "$target"

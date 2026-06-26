@@ -1,24 +1,24 @@
 # {{ repo.name | default(repo.path | basename | regex_replace('\.git$', '')) }}
 
-{{ repo.description | default('A treehouse village.') }}
+{{ repo.description | default('A workshop yard.') }}
 
-## Spawn a treehouse
+## Open a workshop
 
 Pick a branch name. Two commands:
 
 ```bash
 cd {{ _repo_path }}
-git worktree add treehouses/<branch> -b <branch> main
-cd treehouses/<branch>
+git worktree add workshops/<branch> -b <branch> main
+cd workshops/<branch>
 ```
 
 Claude users: `claude --worktree <branch>` from the CLI, or ask Claude to call `EnterWorktree` from inside a session. Both routes go through `.claude/hooks/worktree-create`.
 
 ## Who merges what
 
-`treehouses/main/` is the maintainer's treehouse. Open an MR against `main`; the maintainer reviews and merges from there. Don't push to `main` from your own treehouse — the bare repo's hooks will reject it.
+`workshops/main/` is the maintainer's workshop. Open an MR against `main`; the maintainer reviews and merges from there. Don't push to `main` from your own workshop — the bare repo's hooks will reject it.
 
-See [Worktree Treehouses 🌳](https://cute-devops.patterns.how/patterns/approaches/worktree-treehouses) for the full pattern.
+See [Worktree Workshops 🛠️](https://cute-devops.patterns.how/patterns/approaches/worktree-workshops) for the full pattern.
 
 <!-- Initial scaffold from osahris.cute_devops.repos. Once `main` has a canonical
      copy, the reference-transaction hook syncs it into the bare repo on each

@@ -10,7 +10,7 @@ SPDX-License-Identifier: EUPL-1.2
 
 # Push to Deploy 🚀
 
-> **Pattern (draft).** Companion to [Worktree Treehouses 🌳](../patterns/approaches/worktree-treehouses.md). Adds a deploy step to the treehouse lifecycle: after a merge to `main`, `git push <remote>` reaches a deployment target. Same primitive as everything else.
+> **Pattern (draft).** Companion to [Worktree Workshops 🛠️](../patterns/approaches/worktree-workshops.md). Adds a deploy step to the workshop lifecycle: after a merge to `main`, `git push <remote>` reaches a deployment target. Same primitive as everything else.
 
 ## Goal
 
@@ -26,7 +26,7 @@ git remote add deploy ssh://deploy@example.com/srv/apps/foo.git
 git push deploy main
 ```
 
-What "deploy" means is the target's business: a `post-receive` hook that checks out and restarts a service, a forge pipeline, a PaaS build, a VM pull. The treehouse-side workflow doesn't care which.
+What "deploy" means is the target's business: a `post-receive` hook that checks out and restarts a service, a forge pipeline, a PaaS build, a VM pull. The workshop-side workflow doesn't care which.
 
 ## Automating from the bare repo
 
@@ -46,7 +46,7 @@ For multi-target setups, add multiple remotes (`staging`, `prod`) and gate which
    idea ──► git worktree add …
                        │
                        ▼
-              treehouses/<branch>/
+              workshops/<branch>/
                        │
                        ▼
               MR / merge into main
@@ -60,7 +60,7 @@ For multi-target setups, add multiple remotes (`staging`, `prod`) and gate which
 
 ## Why it fits
 
-- **Same primitive.** Treehouses share refs with the bare repo (no push). The bare repo pushes to deploy remotes (no special protocol). Every transfer is `git`.
+- **Same primitive.** Workshops share refs with the bare repo (no push). The bare repo pushes to deploy remotes (no special protocol). Every transfer is `git`.
 - **Auditable.** `git log` on the target shows what landed and when. No "what's in prod?" mystery.
 - **Reversible.** Rollback is `git push deploy <old-tip>:main --force-with-lease` — or the target keeps a ring of past tips and points an `active` symlink.
 

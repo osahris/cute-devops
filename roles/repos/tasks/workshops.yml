@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 ---
-- name: "Create treehouses/ directory (3775: setgid + sticky + group write) under {{ _repo_path }}"
+- name: "Create workshops/ directory (3775: setgid + sticky + group write) under {{ _repo_path }}"
   ansible.builtin.file:
-    path: "{{ _repo_path }}/treehouses"
+    path: "{{ _repo_path }}/workshops"
     state: directory
     owner: "{{ _repo_owner }}"
     group: "{{ _repo_group }}"

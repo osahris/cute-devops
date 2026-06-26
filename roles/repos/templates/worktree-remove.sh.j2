@@ -27,11 +27,11 @@ else
   project_root="$(dirname "$common")"
 fi
 
-# Geofence: only act on paths inside <project-root>/treehouses/.
+# Geofence: only act on paths inside <project-root>/workshops/.
 case "$path" in
-  "$project_root"/treehouses/*) ;;
+  "$project_root"/workshops/*) ;;
   *)
-    echo "worktree-remove: refusing to remove $path (outside treehouses/)" >&2
+    echo "worktree-remove: refusing to remove $path (outside workshops/)" >&2
     exit 1
     ;;
 esac
