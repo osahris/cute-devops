@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+---
+
+- name: Reload knot
+  ansible.builtin.service:
+    name: knot
+    state: reloaded
+  listen: reload nameserver
+
+- name: Restart knot
+  ansible.builtin.service:
+    name: knot
+    state: restarted
+
+- name: Check zones
+  ansible.builtin.command: kzonecheck {{ item.domain }}
+  loop: "{{ nameserver_zones }}"
+  changed_when: false

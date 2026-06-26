@@ -1,3 +1,10 @@
+{#
+SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+
+SPDX-License-Identifier: EUPL-1.2
+#}
+# This file is managed by the mkbrechtel.devops.knot_nameserver Ansible role!
+# MANUAL CHANGES WILL BE OVERWRITTEN WITHOUT WARNING!
 server:
 {% if not nameserver_ips is defined%}
   listen: 0.0.0.0@53
@@ -16,9 +23,9 @@ log:
 template:
 - id: secondary
   storage: /var/lib/knot/secondary
-{% if nameserver_zonefile_directory is defined %}
+{% if knot_nameserver_zonefile_directory is defined %}
 - id: default
-  storage: {{nameserver_zonefile_directory}}
+  storage: {{knot_nameserver_zonefile_directory}}
   semantic-checks: on
 {% endif %}
 

@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+---
+
+- name: Knot configuration
+  ansible.builtin.template:
+    src: knot.conf.j2
+    dest: /etc/knot/knot.conf
+    mode: "0644"
+  notify: Reload knot
+
+- name: Working directory
+  ansible.builtin.file:
+    path: /var/lib/knot
+    state: directory
+    owner: knot
+    group: knot
+    mode: "0750"
+    recurse: true
+  notify: Restart knot

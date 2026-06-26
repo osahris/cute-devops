@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+---
+
+- name: Include OS-specific setup
+  ansible.builtin.include_tasks: setup-{{ ansible_os_family }}.yaml
+
+- name: Import configure tasks
+  ansible.builtin.import_tasks: configure.yaml
+  tags: knot-config
+
+- name: Import zonefiles tasks
+  ansible.builtin.import_tasks: zonefiles.yaml
+
+- name: Import check tasks
+  ansible.builtin.import_tasks: check.yaml
