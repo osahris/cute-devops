@@ -13,15 +13,15 @@
 - name: Account
   ansible.builtin.user:
     name: "{{ item }}"
-    group: "{{ item }}"
+    group: "{{ (item if 'gid' in users[item] else None) | default(omit) }}"
     groups: "{{ users[item].groups | default([]) | join(',') }}"
-    uid: "{{ users[item].uid }}"
+    uid: "{{ users[item].uid | default(omit) }}"
     home: "{{ users[item].home | default('/home/' + item) }}"
-    shell: "{{ users[item].shell | default('/usr/bin/fish') }}"
+    shell: "{{ users[item].shell | default(omit) }}"
     create_home: true
     move_home: true
   loop: "{{ users.keys() | list }}"
-  notify: restart systemd-logind.service
+  notify: Restart systemd-logind.service
 
 - name: Password
   ansible.builtin.user:
