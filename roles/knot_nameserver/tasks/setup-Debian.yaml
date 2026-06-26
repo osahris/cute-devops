@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+---
+
+- name: Install debian packages
+  ansible.builtin.apt:
+    pkg:
+      - knot
+      - knot-dnssecutils
+      - knot-dnsutils
+      - bind9-dnsutils

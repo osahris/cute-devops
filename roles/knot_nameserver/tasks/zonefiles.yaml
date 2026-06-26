@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+---
+
+- name: Zonefiles directory
+  ansible.builtin.file:
+    path: "{{ knot_nameserver_zonefile_directory }}"
+    state: directory
+    mode: "0755"
+
+- name: Copy zonefiles
+  ansible.builtin.copy:
+    src: zonefiles/{{ zone.domain }}.zone
+    dest: "{{ knot_nameserver_zonefile_directory }}/{{ zone.domain }}.zone"
+    mode: "0644"
+  notify: "Reload knot"
+  loop: "{{ nameserver_zones }}"
+  loop_control:
+    loop_var: zone
+    label: "{{ zone.domain }}"

@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+---
+
+- name: Check zonefiles
+  ansible.builtin.command: kzonecheck -v "{{ knot_nameserver_zonefile_directory }}/{{ zone.domain }}.zone"
+  loop: "{{ nameserver_zones }}"
+  loop_control:
+    loop_var: zone
+    label: "{{ zone.domain }}"
+  changed_when: false
