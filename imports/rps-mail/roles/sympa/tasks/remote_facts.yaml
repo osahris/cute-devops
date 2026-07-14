@@ -1,8 +1,0 @@
----
-
-# register remote facts as a dictionary
-- name: Gather facts
-  setup:
-  delegate_to: "{{ remote_facts_from }}"
-  delegate_facts: true
-  register: remote_facts

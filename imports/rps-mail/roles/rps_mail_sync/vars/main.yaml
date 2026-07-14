@@ -1,2 +1,0 @@
-sympa_sync_secrets:
-  sympa_sync_keycloak_client_secret: "{{ sympa_sync_keycloak_client_secret | default(lookup('ansible.builtin.password', '/dev/null length=32 chars=ascii_letters,digits')) }}"
