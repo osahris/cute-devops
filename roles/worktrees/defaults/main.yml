@@ -15,10 +15,14 @@ worktrees_with_claude_hooks: true
 # there is no allowlist; the worktree hook creates a category folder on demand
 # if it doesn't exist yet. These are the ones a fresh project starts with.
 worktrees_default_categories:
-  - feature
-  - fix
-  - refactor
-  - chore
-  - docs
-  - experiment
-  - update
+  - feature      # new capabilities and behaviour
+  - fix          # fixes to existing behaviour
+  - hotfix       # urgent production fixes, branched from main/release, not develop
+  - refactor     # structural changes with no behaviour change
+  - test         # test-only changes
+  - ci           # pipeline / workflow changes
+  - chore        # tooling, dependencies, and housekeeping
+  - docs         # documentation and pattern writing
+  - update       # dependency bumps and version updates
+  - experiment   # throwaway spikes and explorations
+  - release      # release stabilization branches (gitflow-style; skip for trunk-based)

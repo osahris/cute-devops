@@ -109,8 +109,8 @@ directory layout and a soft taxonomy:
 - `<category>` is simply a **folder** under the work directory that groups
   related work — no allowlist. Each category folder carries the same `3775`
   permissions as the work directory, and a new one is created on demand. A fresh
-  project starts with `feature`, `fix`, `refactor`, `chore`, `docs`,
-  `experiment`, `update`.
+  project starts with `feature`, `fix`, `hotfix`, `refactor`, `test`, `ci`,
+  `chore`, `docs`, `update`, `experiment`, `release`.
 - `<branch>` is a URL slug: lowercase `a-z`/`0-9`, starts with a letter,
   contains at least one `-`, at most 40 characters.
 

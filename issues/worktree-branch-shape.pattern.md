@@ -32,7 +32,8 @@ Every worktree lives at `/work/<project>/<category>/<branch>` on a branch named
 (`/work/<project>/<category>/`), created on demand with the same permissions as
 the work directory itself (mode `3775`, setgid+sticky+group-write). There's no
 allowlist file to check against — the default folders are `feature`, `fix`,
-`refactor`, `chore`, `docs`, `experiment`, and `update`, but any folder name works.
+`hotfix`, `refactor`, `test`, `ci`, `chore`, `docs`, `update`, `experiment`, and
+`release`, but any folder name works.
 `<branch>` is a URL slug: lowercase `a-z`/`0-9`, starts with a letter, contains
 at least one dash, at most 40 characters.
 

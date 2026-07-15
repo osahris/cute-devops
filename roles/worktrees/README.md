@@ -16,9 +16,9 @@ layout. For each project it creates `{{ worktrees_base }}/<project>` (default
   directory. It reports as bare, so it's read-only: a place to look things up,
   not an editable checkout.
 - **category folders** — a folder per default category (`feature`, `fix`,
-  `refactor`, `chore`, `docs`, `experiment`, `update`), each with the same `3775`
-  permissions as the work directory. Worktrees live inside these; new category
-  folders are created on demand.
+  `hotfix`, `refactor`, `test`, `ci`, `chore`, `docs`, `update`, `experiment`,
+  `release`), each with the same `3775` permissions as the work directory.
+  Worktrees live inside these; new category folders are created on demand.
 - **`CLAUDE.md`** — the landing doc explaining how to look things up and how to
   spawn a worktree.
 - **`.claude/`** — Claude Code `WorktreeCreate` / `WorktreeRemove` hooks.
@@ -77,7 +77,7 @@ Defaults (see `defaults/main.yml`):
 - `worktrees_default_owner: root`
 - `worktrees_base: /work`
 - `worktrees_with_claude_hooks: true`
-- `worktrees_default_categories:` — `feature`, `fix`, `refactor`, `chore`, `docs`, `experiment`, `update`.
+- `worktrees_default_categories:` — `feature`, `fix`, `hotfix`, `refactor`, `test`, `ci`, `chore`, `docs`, `update`, `experiment`, `release`.
 
 ## Example
 
