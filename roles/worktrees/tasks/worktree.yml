@@ -1,0 +1,80 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: "Resolve facts for {{ wt.name | default(wt.repo | basename) }}"
+  ansible.builtin.set_fact:
+    _wt_repo: "{{ wt.repo }}"
+    _wt_slug: "{{ wt.name | default(wt.repo | basename | regex_replace('\\.git/?$', '')) }}"
+    _wt_group: "{{ wt.group | default(worktrees_default_group) }}"
+    _wt_owner: "{{ wt.owner | default(worktrees_default_owner) }}"
+    _wt_claude: "{{ wt.with_claude_hooks | default(worktrees_with_claude_hooks) }}"
+    _wt_categories: "{{ wt.categories | default(worktrees_default_categories) }}"
+
+- name: "Assert wt.repo is an absolute path ending in .git: {{ _wt_repo }}"
+  ansible.builtin.assert:
+    that:
+      - _wt_repo is match('^/.+\.git/?$')
+    fail_msg: "wt.repo must be an absolute path to a bare repo ending in .git (got: {{ _wt_repo }})"
+
+- name: "Assert the bare repo exists at {{ _wt_repo }}"
+  ansible.builtin.stat:
+    path: "{{ _wt_repo }}/HEAD"
+  register: _wt_repo_head
+  failed_when: not _wt_repo_head.stat.exists
+
+- name: "Resolve work directory path for {{ _wt_slug }}"
+  ansible.builtin.set_fact:
+    _wt_workdir: "{{ wt.workdir | default([worktrees_base, _wt_slug] | path_join) }}"
+
+- name: "Create work directory (3775: setgid + sticky + group write) at {{ _wt_workdir }}"
+  ansible.builtin.file:
+    path: "{{ _wt_workdir }}"
+    state: directory
+    owner: "{{ _wt_owner }}"
+    group: "{{ _wt_group }}"
+    mode: "3775"
+
+- name: "Create category folders (same 3775 perms) under {{ _wt_workdir }}"
+  ansible.builtin.file:
+    path: "{{ _wt_workdir }}/{{ item }}"
+    state: directory
+    owner: "{{ _wt_owner }}"
+    group: "{{ _wt_group }}"
+    mode: "3775"
+  loop: "{{ _wt_categories }}"
+
+- name: "Read recorded work directory in {{ _wt_repo }}"  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    cmd: "git --git-dir={{ _wt_repo }} config --default '' cute.workdir"
+  register: _wt_recorded_workdir
+  changed_when: false
+  failed_when: false
+
+- name: "Record work directory path into config of {{ _wt_repo }}"  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    cmd: "git --git-dir={{ _wt_repo }} config cute.workdir {{ _wt_workdir }}"
+  when: _wt_recorded_workdir.stdout | trim != _wt_workdir
+  changed_when: true
+
+- name: "Write .git lookup pad pointing at {{ _wt_repo }}"
+  ansible.builtin.copy:
+    content: "gitdir: {{ _wt_repo }}\n"
+    dest: "{{ _wt_workdir }}/.git"
+    owner: "{{ _wt_owner }}"
+    group: "{{ _wt_group }}"
+    mode: "0644"
+
+- name: "Scaffold CLAUDE.md landing doc in {{ _wt_workdir }}"
+  ansible.builtin.template:
+    src: CLAUDE.md.j2
+    dest: "{{ _wt_workdir }}/CLAUDE.md"
+    owner: "{{ _wt_owner }}"
+    group: "{{ _wt_group }}"
+    mode: "0644"
+    force: false
+
+- name: "Set up Claude hooks in {{ _wt_workdir }}"
+  ansible.builtin.include_tasks: claude_hooks.yml
+  when: _wt_claude | bool

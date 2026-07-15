@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: "Ensure .claude/hooks/ subdirectory exists in {{ _wt_workdir }}"
+  ansible.builtin.file:
+    path: "{{ _wt_workdir }}/.claude/hooks"
+    state: directory
+    owner: "{{ _wt_owner }}"
+    group: "{{ _wt_group }}"
+    mode: "0755"
+
+- name: "Scaffold .claude/settings.json in {{ _wt_workdir }}"
+  ansible.builtin.template:
+    src: settings.json.j2
+    dest: "{{ _wt_workdir }}/.claude/settings.json"
+    owner: "{{ _wt_owner }}"
+    group: "{{ _wt_group }}"
+    mode: "0644"
+    force: false
+
+- name: "Scaffold WorktreeCreate hook in {{ _wt_workdir }}"
+  ansible.builtin.template:
+    src: worktree-create.sh.j2
+    dest: "{{ _wt_workdir }}/.claude/hooks/worktree-create"
+    owner: "{{ _wt_owner }}"
+    group: "{{ _wt_group }}"
+    mode: "0755"
+    force: false
+
+- name: "Scaffold WorktreeRemove hook in {{ _wt_workdir }}"
+  ansible.builtin.template:
+    src: worktree-remove.sh.j2
+    dest: "{{ _wt_workdir }}/.claude/hooks/worktree-remove"
+    owner: "{{ _wt_owner }}"
+    group: "{{ _wt_group }}"
+    mode: "0755"
+    force: false
+
+- name: "Strip group-write under .claude in {{ _wt_workdir }}"
+  ansible.builtin.command:
+    cmd: "chmod -R g-w {{ _wt_workdir }}/.claude"
+  changed_when: false

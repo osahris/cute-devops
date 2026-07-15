@@ -8,8 +8,6 @@
     _repo_path: "{{ repo.path }}"
     _repo_group: "{{ repo.group | default(repos_default_group) }}"
     _repo_owner: "{{ repo.owner | default(repos_default_owner) }}"
-    _repo_treehouses: "{{ repo.with_treehouses | default(repos_with_treehouses) }}"
-    _repo_claude: "{{ repo.with_claude_hooks | default(repos_with_claude_hooks) }}"
 
 - name: "Assert repo.path is absolute and ends in .git: {{ _repo_path }}"
   ansible.builtin.assert:
@@ -45,6 +43,11 @@
     group: "{{ _repo_group }}"
     recurse: true
 
-- name: "Set up Worktree Treehouses layout in {{ _repo_path }}"
-  ansible.builtin.include_tasks: treehouse.yml
-  when: _repo_treehouses | bool
+- name: "Strip group-write on policy paths in {{ _repo_path }}"
+  ansible.builtin.command:
+    cmd: "chmod -R g-w {{ _repo_path }}/{{ item }}"
+  loop:
+    - hooks
+    - config
+    - description
+  changed_when: false

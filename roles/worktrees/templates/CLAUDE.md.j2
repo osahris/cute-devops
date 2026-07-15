@@ -1,0 +1,66 @@
+# {{ _wt_slug }}
+
+{{ wt.description | default('A shared work directory.') }}
+
+This is the shared **work directory** for the project. The bare git repository
+lives at `{{ _wt_repo }}`; this directory's `.git` file points at it, so you can
+run git here to **look things up** — but you cannot edit anything from here (the
+pad reports as a bare repo, so there is no working tree).
+
+## Looking things up
+
+Run git directly in this directory against the live repo:
+
+```bash
+git log --oneline -20 main              # recent history
+git branch                              # what work is in flight
+git show main:path/to/file              # read a file at a ref
+git log --oneline work/<category>/<branch>   # someone's in-progress branch
+```
+
+## Doing work → use a worktree
+
+Don't edit files here. Each piece of work gets its own worktree at
+`{{ _wt_workdir }}/<category>/<branch>` on a branch `work/<category>/<branch>`.
+
+Claude users: ask Claude to call the **`EnterWorktree`** tool (or start with
+`claude --worktree <category>/<branch>` from the CLI). Both routes go through
+`.claude/hooks/worktree-create`, which creates the worktree and its branch.
+
+The name is **`<category>/<branch>`**:
+
+- `<category>` is just a folder under this work directory grouping related work.
+  There's no allowlist — a new category folder is created on demand. This
+  project starts with: {% for c in _wt_categories %}`{{ c }}`{{ ", " if not loop.last else "" }}{% endfor %}.
+- `<branch>` is a URL slug: lowercase `a-z`/`0-9`, start with a letter, contain
+  at least one `-`, at most 40 characters — e.g. `add-dns-role`, `fix-login`.
+
+So: `feature/add-dns-role`, `fix/login-redirect`, `experiment/new-router`.
+
+### Stacked branching
+
+The base of the new branch depends on **where you are** when you create it:
+
+- From this work directory (or anywhere not inside a worktree) → the new branch
+  is cut from **`main`**.
+- From inside an existing worktree → the new branch is cut from **that
+  worktree's current branch**, so you can stack work on top of work in review.
+
+To do it by hand:
+
+```bash
+# from the work directory → based on main:
+git -C {{ _wt_repo }} worktree add {{ _wt_workdir }}/feature/my-thing -b work/feature/my-thing main
+cd {{ _wt_workdir }}/feature/my-thing
+```
+
+## Who merges what
+
+Open an MR against `main`; the maintainer reviews and merges. Don't push to
+`main` from a `work/…` branch — the bare repo's hooks will reject it.
+
+See [Shared Worktrees 🌳](https://cute-devops.patterns.how/patterns/approaches/shared-worktrees) for the full pattern.
+
+<!-- Initial scaffold from osahris.cute_devops.worktrees. Once `main` has a canonical
+     copy, the reference-transaction hook syncs it into the work directory on each
+     merge and this file is no longer maintained by Ansible. -->

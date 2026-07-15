@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: Assert worktrees is defined and iterable
+  ansible.builtin.assert:
+    that:
+      - worktrees is defined
+      - worktrees is iterable
+    fail_msg: "worktrees must be defined as a list of work-directory definitions"
+
+- name: Set up each shared work directory
+  ansible.builtin.include_tasks: worktree.yml
+  loop: "{{ worktrees }}"
+  loop_control:
+    loop_var: wt
+    label: "{{ wt.name | default(wt.repo | basename) }}"

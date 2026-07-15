@@ -10,7 +10,7 @@ SPDX-License-Identifier: EUPL-1.2
 
 # Village of Villages 🏘️
 
-> **Pattern (draft).** Multi-repo extension of [Worktree Treehouses 🌳](../patterns/approaches/worktree-treehouses.md). Lifted out of that pattern because it's a separate concern most single-repo projects don't need.
+> **Pattern (draft).** Multi-repo extension of [Shared Worktrees 🌳](../patterns/approaches/shared-worktrees.md). Lifted out of that pattern because it's a separate concern most single-repo projects don't need.
 
 ## Goal
 
@@ -25,16 +25,19 @@ For organisations running several related bare repos, give them a shared notice 
 ├── .claude/                      ← shared agent skills / settings
 ├── manifest.yaml                 ← lists member repos + their roles
 └── repos/
-    ├── frontend.git/             ← each is itself a treehouse village
-    │   ├── treehouses/{main, feature/x, ...}
-    │   └── .claude/, hooks/, README.md
+    ├── frontend.git/             ← each is its own bare repo…
     ├── backend.git/
-    │   └── treehouses/...
     └── infra.git/
-        └── treehouses/...
+
+/work/                            ← …with a shared work directory per project
+├── frontend/{main pad, feature/x, fix/y, ...}
+├── backend/...
+└── infra/...
 ```
 
-Each bare repo still follows the single-repo treehouse pattern internally. The org directory adds nothing to the per-repo workflow.
+Each bare repo still follows the single-repo Shared Worktrees pattern
+internally — a `/work/<project>` work directory with stacked, categorised
+worktrees. The org directory adds nothing to the per-repo workflow.
 
 ## What it provides
 
@@ -44,14 +47,14 @@ Each bare repo still follows the single-repo treehouse pattern internally. The o
 
 ## What it deliberately does not do
 
-- **No org-level worktree.** Treehouses live inside the individual repos, not at the org root.
-- **No shared `main` treehouse.** Each repo's maintainer owns their own `treehouses/main/`; an org-wide merge is several per-repo merges.
+- **No org-level worktree.** Worktrees live inside each project's own `/work/<project>` directory, not at the org root.
+- **No shared mainline.** Each repo's maintainer merges into their own `main`; an org-wide merge is several per-repo merges.
 
 ## Open questions
 
 - How does per-repo `.claude/` actually inherit from the org's `.claude/`? Symlinks, settings.json `extends`, a sync hook?
 - What goes in `manifest.yaml`, exactly — just names + maintainers, or also dependency edges / version pins?
-- A "composed treehouse" (one directory holding coordinated worktrees of several repos on related branches) is tempting but needs real tooling. Defer.
+- A "composed worktree" (one directory holding coordinated worktrees of several repos on related branches) is tempting but needs real tooling. Defer.
 
 ## Acceptance
 

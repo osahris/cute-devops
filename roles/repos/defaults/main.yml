@@ -5,5 +5,3 @@
 ---
 repos_default_group: devops
 repos_default_owner: root
-repos_with_treehouses: true
-repos_with_claude_hooks: true

@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# This file is managed by the osahris.cute_devops.repos Ansible role (initial scaffold)!
+# Once `main` has the canonical copy, the bare repo's reference-transaction hook
+# syncs it into the work directory on each merge and this file is no longer
+# Ansible-managed.
+set -euo pipefail
+
+payload="$(cat || true)"
+
+# Pull a name out of the JSON payload (try a few key variants).
+extract() {
+  printf '%s' "$payload" \
+    | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" \
+    | head -n1
+}
+name="$(extract name)"
+[ -z "$name" ] && name="$(extract worktree_name)"
+
+# The bare repo (shared object/ref store) and the work directory. The work
+# directory is recorded in the bare repo's config by the role, so it resolves
+# the same from the pad or from inside any worktree. Fall back to this hook's
+# own location (<workdir>/.claude/hooks/worktree-create).
+common="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
+workdir="$(git --git-dir="$common" config --default '' cute.workdir)"
+if [ -z "$workdir" ]; then
+  workdir="$(cd "$(dirname "$0")/../.." && pwd)"
+fi
+
+# A worktree name is <category>/<branch>. The category is just a folder that
+# groups related work; the branch is the actual slug. This input is untrusted,
+# so we validate strictly rather than sanitise — a bad name is rejected outright.
+usage() {
+  echo "worktree-create: '$name' is not a valid worktree name" >&2
+  echo "  expected <category>/<branch>, e.g. feature/add-dns-role" >&2
+  echo "  category: a lowercase folder name (a-z/0-9/-, start with a letter)" >&2
+  echo "  branch: lowercase a-z/0-9, start with a letter, >=1 dash, <=40 chars" >&2
+}
+
+category="${name%%/*}"
+branch_slug="${name#*/}"
+
+# Exactly one '/', both parts present.
+case "$name" in
+  */*/*) usage; exit 1 ;;
+  */*) : ;;
+  *) usage; exit 1 ;;
+esac
+
+# Category: a lowercase folder-name slug. No allowlist — any category is fine;
+# its folder is created on demand below with the same perms as the work dir.
+if ! printf '%s' "$category" | grep -Eq '^[a-z][a-z0-9-]*$'; then
+  usage; exit 1
+fi
+
+# Branch: strict slug, at least one dash, at most 40 characters. (The length is
+# checked with a second regex rather than a bash length expansion, so this file
+# stays a valid Ansible Jinja template — a brace-hash pair opens a Jinja comment.)
+if ! printf '%s' "$branch_slug" | grep -Eq '^[a-z][a-z0-9]*(-[a-z0-9]+)+$' \
+   || ! printf '%s' "$branch_slug" | grep -Eq '^.{1,40}$'; then
+  usage; exit 1
+fi
+
+# Stacked branching: if we're already inside a worktree, branch from its current
+# branch; otherwise (from the pad, whose HEAD is main) branch from main.
+base="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
+[ -z "$base" ] && base="main"
+
+branch="work/$category/$branch_slug"
+target="$workdir/$category/$branch_slug"
+
+if [ -e "$target/.git" ]; then
+  printf '%s\n' "$target"
+  exit 0
+fi
+
+# Clear any stale admin entry from a previously removed worktree so re-creating
+# the same name doesn't fail with "missing but already registered".
+git --git-dir="$common" worktree prune >/dev/null 2>&1 || true
+
+# Ensure the category folder exists with the same 3775 (setgid + sticky + group
+# write) permissions as the work directory. Only chmod folders we create, so we
+# don't fight a maintainer-set mode on a pre-existing one.
+catdir="$workdir/$category"
+if [ ! -d "$catdir" ]; then
+  mkdir -p "$catdir"
+  chmod 3775 "$catdir" 2>/dev/null || true
+fi
+
+if git --git-dir="$common" show-ref --verify --quiet "refs/heads/$branch"; then
+  git --git-dir="$common" worktree add "$target" "$branch" >&2
+else
+  git --git-dir="$common" worktree add -b "$branch" "$target" "$base" >&2
+fi
+
+printf '%s\n' "$target"

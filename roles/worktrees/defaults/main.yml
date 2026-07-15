@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+worktrees_default_group: devops
+worktrees_default_owner: root
+# Base directory under which each project gets its shared work directory
+# (`{{ worktrees_base }}/<project>`).
+worktrees_base: /work
+# Scaffold the Claude Code worktree hooks in the work directory's .claude/.
+worktrees_with_claude_hooks: true
+# Category folders to pre-create under the work directory, each with the same
+# 3775 permissions as the work directory itself. Categories are just folders —
+# there is no allowlist; the worktree hook creates a category folder on demand
+# if it doesn't exist yet. These are the ones a fresh project starts with.
+worktrees_default_categories:
+  - feature
+  - fix
+  - refactor
+  - chore
+  - docs
+  - experiment
+  - bot

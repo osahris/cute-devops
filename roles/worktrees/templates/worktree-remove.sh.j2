@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# This file is managed by the osahris.cute_devops.repos Ansible role (initial scaffold)!
+# Once `main` has the canonical copy, the bare repo's reference-transaction hook
+# syncs it into the work directory on each merge and this file is no longer
+# Ansible-managed.
+set -euo pipefail
+
+payload="$(cat || true)"
+
+extract() {
+  printf '%s' "$payload" \
+    | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" \
+    | head -n1
+}
+path="$(extract worktree_path)"
+[ -z "$path" ] && path="$(extract path)"
+
+if [ -z "$path" ]; then
+  echo "worktree-remove: no path in payload" >&2
+  exit 0
+fi
+
+# Resolve the bare repo and the work directory the same way as worktree-create.
+common="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
+workdir="$(git --git-dir="$common" config --default '' cute.workdir)"
+if [ -z "$workdir" ]; then
+  workdir="$(cd "$(dirname "$0")/../.." && pwd)"
+fi
+
+# Geofence: only act on a worktree directly inside the work directory, never the
+# work directory itself. A typo (or a prompt-injected agent) must not be able to
+# delete arbitrary paths.
+case "$path" in
+  "$workdir"/*/) ;;
+  "$workdir"/*) ;;
+  *)
+    echo "worktree-remove: refusing to remove $path (outside $workdir/)" >&2
+    exit 1
+    ;;
+esac
+
+git --git-dir="$common" worktree remove "$path" 2>/dev/null \
+  || git --git-dir="$common" worktree remove --force "$path" 2>/dev/null \
+  || rm -rf "$path"
+
+git --git-dir="$common" worktree prune >/dev/null 2>&1 || true
