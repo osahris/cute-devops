@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+# git URL (or local path) of the gitflower repository — required, no default
+gitflower_repo_url: ""
+
+# branch, tag, or commit to deploy
+gitflower_version: main
+
+# where the checkout lives on the target
+gitflower_install_dir: /opt/gitflower
+
+# keep the checkout updated on subsequent runs
+gitflower_update: true
+
+# Debian packages gitflower runs on (click CLI + FastAPI web UI)
+gitflower_apt_packages:
+  - git
+  - python3
+  - python3-click
+  - python3-fastapi
+  - python3-uvicorn

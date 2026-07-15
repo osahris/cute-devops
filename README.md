@@ -44,7 +44,7 @@ The Ansible roles that implement the patterns. Each role has a
 README documenting variables, examples, and the patterns it ships.
 The website's *Deploy!* sidebar groups them by purpose
 (Orchestrators, System, Shells, Containers, Backup, Monitoring,
-Deployment, Tooling).
+Deployment, Tooling, Ecosystem).
 
 ```bash
 ansible-galaxy collection install osahris.cute_devops

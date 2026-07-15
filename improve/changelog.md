@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- New `gitflower` role: deploys gitflower — the git-based development
+  platform — from its own git repository. gitflower stays an independent
+  product promoted as part of the ecosystem; it is not integrated into
+  this collection's codebase
+
 ### Changed
 - Relicensed from AGPL-3.0-or-later to EUPL-1.2; the
   `restic_client` and `restic_server` roles stay under

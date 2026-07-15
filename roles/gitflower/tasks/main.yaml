@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: Check that gitflower_repo_url is set
+  ansible.builtin.assert:
+    that:
+      - gitflower_repo_url | length > 0
+    fail_msg: "Set gitflower_repo_url to the git URL of your gitflower repository."
+
+- name: Install Debian packages gitflower runs on
+  ansible.builtin.apt:
+    name: "{{ gitflower_apt_packages }}"
+    state: present
+
+- name: Check out gitflower
+  ansible.builtin.git:
+    repo: "{{ gitflower_repo_url }}"
+    dest: "{{ gitflower_install_dir }}"
+    version: "{{ gitflower_version }}"
+    update: "{{ gitflower_update }}"
