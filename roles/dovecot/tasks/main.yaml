@@ -48,3 +48,9 @@
     - reload dovecot
 
 - include_tasks: auth/{{dovecot_auth}}.yaml
+
+- name: ensure dovecot is started and enabled
+  ansible.builtin.systemd_service:
+    name: dovecot
+    state: started
+    enabled: true

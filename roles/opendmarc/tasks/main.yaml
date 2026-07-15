@@ -14,3 +14,9 @@
     src: opendmarc.conf.j2
     dest: /etc/opendmarc.conf
   notify: restart opendmarc
+
+- name: ensure opendmarc is started and enabled
+  ansible.builtin.systemd_service:
+    name: opendmarc
+    state: started
+    enabled: true
