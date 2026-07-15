@@ -16,7 +16,7 @@ Cute DevOps! is based on the work of many people, across more than one project a
 - **Tom-Robin Raja** — Uniklinik Köln
 - **Christian Akele** — Uniklinik Köln
 - **Vasilii Tulskii** — Institute for Digital Medicine and Clinical Data Science, Goethe University Frankfurt
-- **Alexander Hirsch**
+- **Alexander Hirsch** — Institute for Digital Medicine and Clinical Data Science, Goethe University Frankfurt
 - **Andreas Streichardt**
 - **Philipp Kaluza**
 
