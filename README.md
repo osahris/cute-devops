@@ -1,80 +1,12 @@
-<!--
-SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+# gitflower
 
-SPDX-License-Identifier: EUPL-1.2
--->
+A git-based development platform — local-first, git-centric. Being rewritten
+as a Python **FastAPI** (web UI) + **click** (CLI) application, built on Debian
+`python3-*` apt packages.
 
-# Cute DevOps! 🦄
+## Development
 
-The ***Cute DevOps!*** library is a small, opinionated knowledge base
-about running computers — patterns we like, the patterns we *don't
-recommend*, and the Ansible roles we use to ship the ones we do.
-
-Heads up: this library is pretty opinionated; we're working on a
-comments section so you can drop in and tell us where we're wrong IYO
-(please only leave constructive critiques).
-
-The repository ships as the Ansible collection `osahris.cute_devops`
-and renders to the website at
-[cute-devops.patterns.how](https://cute-devops.patterns.how).
-
-## Patterns! 🔷
-
-Cute, helpful patterns for getting work done — operational habits,
-deployment shapes, and thinking tools. Patterns are organized by
-*approach* (e.g. Smalltown Infrastructure), *operation* (deployment,
-backup, monitoring), *development* (frontend), and *meta* (how to
-write a pattern, why "cuteness" matters).
-
-→ [Browse the patterns library 🔷](./patterns.md)
-
-## Anti-Patterns! 🔻
-
-Critiques of industry patterns that aren't cute: practices that
-look reasonable on the surface but produce friction, opaque
-systems, or unhappy operators in the long run. Each entry names
-what it is, why it's tempting, and what to do instead — usually a
-pointer back to the [Patterns!](#patterns-) library.
-
-→ [See the anti-patterns 🔻](./anti-patterns.md)
-
-## Deploy! 🚀
-
-The Ansible roles that implement the patterns. Each role has a
-README documenting variables, examples, and the patterns it ships.
-The website's *Deploy!* sidebar groups them by purpose
-(Orchestrators, System, Shells, Containers, Backup, Monitoring,
-Deployment, Tooling).
-
-```bash
-ansible-galaxy collection install osahris.cute_devops
-```
-
-Requirements: Ansible ≥ 2.14.3 on Debian 13 (trixie).
-
-→ [Browse role documentation 🚀](./roles.md)
-
-## Improve! ✨
-
-Documentation for working on the collection itself: coding
-conventions, contribution flow, the release process, and the
-project's planning surface (`issues/*.feature.md`,
-`issues/*.pattern.md`, `issues/*.bug.md`).
-
-→ [Read the developer docs ✨](./improve.md)
-
-## License
-
-EUPL-1.2 by default. Per-file `SPDX-License-Identifier` headers are
-authoritative; the carve-outs are:
-
-- `roles/restic_client/` and `roles/restic_server/` —
-  AGPL-3.0-or-later (carve-out for a co-author's contributions; see
-  [`improve/contributing.md`](./improve/contributing.md)).
-- Third-party powerline-go integration snippets
-  (`roles/bash_shell/files/powerline-go.sh`,
-  `roles/zsh_shell/files/powerline-go.zsh`,
-  `roles/fish_shell/files/global/fish_prompt.fish`) —
-  GPL-3.0-only.
-- Google Noto Emoji glyphs used as section icons / favicon
-  (`website/static/*.svg`) — Apache-2.0.
+This repository uses the [Worktree Treehouses 🌳](https://cute-devops.patterns.how/patterns/approaches/worktree-treehouses)
+shared-worktree layout. The bare repo lives at `/srv/repos/gitflower.git`; the
+shared work directory is `/work/gitflower`. See `CLAUDE.md` in the work
+directory for how to spawn a worktree.
