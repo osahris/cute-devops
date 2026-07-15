@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: Deploy gitflower as a bare git repo with treehouses layout
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: false
+  vars:
+    repos:
+      - name: gitflower
+        path: /srv/repos/gitflower.git
+        group: devops
+        owner: root
+        description: "gitflower — a git-based development platform (FastAPI + click). https://cute-devops.patterns.how"
+  roles:
+    - role: repos
