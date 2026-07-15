@@ -3,7 +3,7 @@ title: Contributions
 ---
 
 <!--
-SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2016-2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
 
 SPDX-License-Identifier: EUPL-1.2
 -->
@@ -11,7 +11,7 @@ SPDX-License-Identifier: EUPL-1.2
 
 ## Authors
 
-- **Markus Katharina Brechtel** (2016–2026) — Primary author and maintainer.
+- **Mirian Brechtel** (2016–2026) — Primary author and maintainer.
 
 ## Imported Contributions
 

@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2024 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
 SPDX-FileCopyrightText: 2024-2025 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
 SPDX-FileCopyrightText: 2024-2025 Uniklinik Köln
 SPDX-FileCopyrightText: 2025 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science

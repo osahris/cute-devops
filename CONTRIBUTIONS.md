@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2024-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2024-2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
 SPDX-FileCopyrightText: 2024-2025 Uniklinik Köln
 SPDX-FileCopyrightText: 2025-2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
 
@@ -12,7 +12,7 @@ Cute DevOps! is based on the work of many people, across more than one project a
 
 ## Developers
 
-- **Markus Katharina Brechtel** — Uniklinik Köln; Institute for Digital Medicine and Clinical Data Science, Goethe University Frankfurt
+- **Mirian Brechtel** — Uniklinik Köln; Institute for Digital Medicine and Clinical Data Science, Goethe University Frankfurt
 - **Tom-Robin Raja** — Uniklinik Köln
 - **Christian Akele** — Uniklinik Köln
 - **Vasilii Tulskii** — Institute for Digital Medicine and Clinical Data Science, Goethe University Frankfurt

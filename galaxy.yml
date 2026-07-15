@@ -1,5 +1,5 @@
 ---
-# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2016-2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
 #
 # SPDX-License-Identifier: EUPL-1.2
 ### REQUIRED
@@ -20,7 +20,7 @@ readme: README.md
 # A list of the collection's content authors. Can be just the name or in the format 'Full Name <email> (url)
 # @nicks:irc/im.site#channel'
 authors:
-  - Markus Katharina Brechtel <mkb@thengo.net>
+  - Mirian Brechtel <mkb@thengo.net>
 
 ### OPTIONAL but strongly recommended
 # A short summary description of the collection

@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2016-2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
 SPDX-FileCopyrightText: 2026 Alexander Hirsch <Hirsch@med.uni-frankfurt.de>
 
 SPDX-License-Identifier: EUPL-1.2
