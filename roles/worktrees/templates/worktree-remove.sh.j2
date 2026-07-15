@@ -5,6 +5,12 @@
 # Ansible-managed.
 set -euo pipefail
 
+# The caller may run this hook from inside the very worktree being removed; once
+# that directory is gone, git aborts trying to read the missing CWD (exit 128).
+# Anchor to the hook's own location — it must exist, we're executing it — before
+# touching git.
+cd "$(dirname "$0")/../.." 2>/dev/null || cd /
+
 payload="$(cat || true)"
 
 extract() {
