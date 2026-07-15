@@ -25,14 +25,14 @@ Every worktree lives at `/work/<project>/<category>/<branch>` on a branch named
 - `feature/cute-thing`
 - `fix/login-redirect`
 - `refactor/auth`
-- `bot/auto-bump`
+- `update/auto-bump`
 - `experiment/new-router`
 
 `<category>` is just a sub-folder under the work directory
 (`/work/<project>/<category>/`), created on demand with the same permissions as
 the work directory itself (mode `3775`, setgid+sticky+group-write). There's no
 allowlist file to check against — the default folders are `feature`, `fix`,
-`refactor`, `chore`, `docs`, `experiment`, and `bot`, but any folder name works.
+`refactor`, `chore`, `docs`, `experiment`, and `update`, but any folder name works.
 `<branch>` is a URL slug: lowercase `a-z`/`0-9`, starts with a letter, contains
 at least one dash, at most 40 characters.
 
