@@ -39,6 +39,9 @@
     owner: sympa
     group: sympa
 #     mode: 0644
+  # only when this domain declares a list source; the template reads
+  # sympa_mailinglist_envs[virtual_domain] and would fail on an empty map
+  when: virtual_domain in sympa_mailinglist_envs
 
 - name: create rps-sync-editors config file
   template:
@@ -47,6 +50,7 @@
     owner: sympa
     group: sympa
 #     mode: 0644
+  when: virtual_domain in sympa_mailinglist_envs
 
 - name: create robot.conf file
   template:

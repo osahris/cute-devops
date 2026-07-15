@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+---
+# Reach the instances by execing into the rootless podman container
+# (inventory_hostname == container name). Container root is the mapped
+# rootless user, so no privilege escalation is needed inside.
+ansible_connection: containers.podman.podman
+ansible_podman_executable: podman
+ansible_user: root
+ansible_become: false

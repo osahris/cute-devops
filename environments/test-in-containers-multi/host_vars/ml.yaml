@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+---
+# ml: mailing lists. Sympa needs a local postfix (it writes transport /
+# virtual maps and restarts it), so ml carries its own MTA.
+postfix_with_sympa: true
+postfix_with_opendkim: false
+postfix_with_opendmarc: false
+
+# sympa decoupled from RPS/Keycloak for the test run
+# (real loose-coupling lands with issues/mailinglist-sync.feature.md)
+sympa_patch_sympa_pl: false
+sympa_domains: []
+sympa_gather_facts_from: []
+sympa_mailinglist_envs: {}
+sympa_postgres_password: testsympa
+
+# assertions
+test_mail_stack_expected_units:
+  - postfix
+  - sympa
+test_mail_stack_expected_ports:
+  - 25
+test_mail_stack_flow: false

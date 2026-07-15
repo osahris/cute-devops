@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+galaxy_info:
+  author: Markus Katharina Brechtel
+  description: Assert a mail instance's services are up and mail flows end-to-end
+  license: EUPL-1.2
+  min_ansible_version: "2.16"
+  platforms:
+    - name: Debian
+      versions:
+        - all
+  galaxy_tags:
+    - testing
+
+dependencies: []

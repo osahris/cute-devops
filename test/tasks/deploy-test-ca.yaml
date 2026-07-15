@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Installs the harness test CA into an instance's trust store and drops
+# this instance's leaf cert/key where the mail roles expect them. Runs
+# inside the instance over the podman connection. Test infrastructure
+# only — not the production certificate story.
+#
+# Cert files are produced on the controller by test/ca/make-ca.sh; the
+# group_vars point postfix_/dovecot_certificate_* at the dest paths below.
+---
+- name: Install the test CA into the trust store
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/test/ca/out/ca.crt.pem"
+    dest: /usr/local/share/ca-certificates/cute-devops-test-ca.crt
+    mode: "0644"
+  register: _test_ca
+
+- name: Refresh CA certificates
+  ansible.builtin.command: update-ca-certificates
+  changed_when: true
+  when: _test_ca.changed  # noqa: no-handler
+
+- name: Install this instance's TLS certificate
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/test/ca/out/{{ inventory_hostname }}.fullchain.pem"
+    dest: /etc/ssl/certs/{{ inventory_hostname }}.fullchain.pem
+    mode: "0644"
+
+- name: Install this instance's TLS private key
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/test/ca/out/{{ inventory_hostname }}.key.pem"
+    dest: /etc/ssl/private/{{ inventory_hostname }}.key.pem
+    owner: root
+    group: root
+    mode: "0640"

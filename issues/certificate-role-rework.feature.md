@@ -42,6 +42,34 @@ rely on it.
   ([dns.feature.md](dns.feature.md)) and the secrets role for provider
   credentials, same as Caddy does.
 
+## Concrete pain points (acceptance criteria)
+
+The rework should resolve each of these, observed in the role as imported:
+
+- **Inert change handler.** `handlers/main.yml`'s `certificate changed`
+  only stats the cert; nothing reloads the consuming daemon on rotation.
+  A rotated cert should reload postfix/dovecot.
+- **Duplicate ACME paths racing on port 80.** The `postfix` role runs its
+  own `certbot --apache` (`roles/postfix/tasks/certbot.yaml`, cron renew
+  with a `systemctl reload postfix` post-hook), while this role's
+  `provider-letsencrypt.yml` runs a separate `acme_certificate` HTTP-01
+  flow writing to `/var/www/default/.well-known/`. One host, one mail
+  name, two ACME clients, two account keys, two on-disk conventions.
+  Collapse to one.
+- **letsencrypt provider hardcoded** to HTTP-01 and the production ACME
+  directory, with no staging and no DNS-01 — conflicting with the DNS-01
+  goal and unusable behind a daemon that owns port 80.
+- **Certs never rotate once present.** The `ca` and `manual` providers
+  guard purely on `creates:`, so a CA-signed or manually placed cert
+  silently goes stale and expires; only `selfsigned` has a `checkend`
+  trigger.
+- **Private-key directory unreadable by daemons.** `/etc/ssl/private` is
+  `root:root 0710` with the `ssl-cert` group grant left commented out, so
+  a non-root consumer cannot read the key.
+
+(A `certificate_provider: selfsigned` default has already been added so a
+bare invoke no longer fails on an undefined provider include.)
+
 ## Open questions
 
 - Keep a bespoke `certificate` role at all, or standardize on certbot +
@@ -49,5 +77,3 @@ rely on it.
 - Could a central ACME client (Caddy, or a dedicated one) issue and
   drop cert files for postfix/dovecot, so there's a single ACME account
   per host? Worth prototyping.
-- What exactly makes the current role a pain-bringer — enumerate the
-  concrete failures so the rework has acceptance criteria.

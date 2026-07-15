@@ -44,6 +44,28 @@ Wrapping them in a container buys you very little and costs:
 You're paying container-tax on a workload whose update cadence is
 "once a year if that".
 
+## What This Is *Not* About 🧭
+
+This warns against **dockerizing** in the compose sense: splitting the
+mail stack into a swarm of single-process containers — postfix here,
+dovecot there, opendkim in a third — each with the service binary as
+PID 1, no init, no shared userspace, stitched together over bridge
+networks and volumes. That decomposition is what buys the networking
+gymnastics and the scattered state above.
+
+A **systemd system container** is a different animal: one container,
+`systemd` as PID 1, the full Debian userspace, every service a real
+`.service` unit under one init and one journald. Same service topology
+as a VM or bare metal — it is just another way of encapsulating Debian,
+with the same logs, the same firewall story, the same on-disk layout.
+That is *not* what this warns against, and it is a fine way to run — and
+to test — a mail server. The
+[`test-in-containers`](../test/README.md) harness uses exactly this
+shape.
+
+The line: **one process per container, no init → the anti-pattern**;
+**one container, systemd PID 1, full userspace → fine encapsulation**.
+
 ## The Cute Alternative 💙
 
 Run a plain **Debian mail server** managed by Ansible. Pin the

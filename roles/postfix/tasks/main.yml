@@ -96,13 +96,24 @@
 
 # repair permissions for opendkim and opendmarc
 - name: repair permissions for opendkim
-  command: chown -R opendkim:opendkim /var/run/opendkim
+  ansible.builtin.file:
+    path: /var/run/opendkim
+    state: directory
+    owner: opendkim
+    group: opendkim
+    recurse: true
   when: postfix_with_opendkim
 
 - name: repair permissions for opendmarc
-  command: chown -R opendmarc:opendmarc /var/run/opendmarc
+  ansible.builtin.file:
+    path: /var/run/opendmarc
+    state: directory
+    owner: opendmarc
+    group: opendmarc
+    recurse: true
   when: postfix_with_opendmarc
 
-- name: restart postfix opendkim opendmarc
-  command: systemctl restart postfix opendkim opendmarc
-  notify: restart postfix
+# Restarts are handled by the restart/reload handlers notified from the
+# config-template tasks above (and the opendkim/opendmarc roles notify
+# their own restarts), so no unconditional `systemctl restart` here — it
+# would report changed on every run and break idempotence.

@@ -1,0 +1,60 @@
+#!/usr/bin/env -S ansible-playbook -i environments/test-in-containers-multi/
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Multi-server topology: mx / mo / mb / ml as separate instances on a
+# shared network. See test/README.md for prerequisites, the cross-host
+# wiring, and the iteration loop.
+---
+- name: Provision the test containers
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+  tasks:
+    - name: Provision instances
+      ansible.builtin.import_tasks: test/tasks/provision-instances.yaml
+      vars:
+        test_instances: "{{ groups['mailservers'] }}"
+        test_ca_domain: "{{ mail_test_domain | default('mail.test') }}"
+
+- name: Base configuration and test CA on every instance
+  hosts: mailservers
+  gather_facts: true
+  tasks:
+    - name: Base configuration
+      ansible.builtin.import_role:
+        name: common
+    - name: Install the harness test CA and certs
+      ansible.builtin.import_tasks: test/tasks/deploy-test-ca.yaml
+
+- name: Mailboxes (mb)
+  hosts: mb
+  gather_facts: true
+  roles:
+    - role: dovecot
+      tags: dovecot
+
+- name: Mail exchange (mx) and mailout (mo)
+  hosts: mx:mo
+  gather_facts: true
+  roles:
+    - role: postfix
+      tags: postfix
+
+- name: Mailing lists (ml)
+  hosts: ml
+  gather_facts: true
+  roles:
+    - role: postfix
+      tags: postfix
+    - role: sympa
+      tags: sympa
+
+- name: Assert the mail stack is up
+  hosts: mailservers
+  gather_facts: false
+  tags: test
+  roles:
+    - role: test_mail_stack

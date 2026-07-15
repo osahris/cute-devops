@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Single-server topology: one instance runs the whole mail stack
+# (postfix + dovecot + sympa) co-located, delivering over local sockets.
+
+[mailservers]
+mail

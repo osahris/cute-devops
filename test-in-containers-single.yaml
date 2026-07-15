@@ -1,0 +1,49 @@
+#!/usr/bin/env -S ansible-playbook -i environments/test-in-containers-single/
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Single-server topology: build the base image, start one rootless
+# quadlet instance, and deploy the whole mail stack into it. See
+# test/README.md for prerequisites and the iteration loop.
+---
+- name: Provision the test container
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+  tasks:
+    - name: Provision instances
+      ansible.builtin.import_tasks: test/tasks/provision-instances.yaml
+      vars:
+        test_instances: "{{ groups['mailservers'] }}"
+        test_ca_domain: "{{ mail_test_domain | default('mail.test') }}"
+
+- name: Deploy the mail stack
+  hosts: mailservers
+  gather_facts: true
+  tasks:
+    - name: Base configuration
+      ansible.builtin.import_role:
+        name: common
+    - name: Install the harness test CA and certs
+      ansible.builtin.import_tasks: test/tasks/deploy-test-ca.yaml
+    - name: Postfix
+      ansible.builtin.import_role:
+        name: postfix
+      tags: postfix
+    - name: Dovecot
+      ansible.builtin.import_role:
+        name: dovecot
+      tags: dovecot
+    - name: Sympa
+      ansible.builtin.import_role:
+        name: sympa
+      tags: sympa
+
+- name: Assert the mail stack is up
+  hosts: mailservers
+  gather_facts: false
+  tags: test
+  roles:
+    - role: test_mail_stack

@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Multi-server topology: the mail stack split across four instances on
+# the shared podman network, resolving each other by name. Per-instance
+# config lives in host_vars/. The deploy playbook targets each instance
+# by hostname pattern (hosts: mb, hosts: mx:mo, hosts: ml).
+#   mx = mail exchange (inbound postfix + DKIM/DMARC)
+#   mo = mailout       (submission / outbound relay postfix)
+#   mb = mailboxes     (dovecot: IMAP + LMTP + auth)
+#   ml = mailinglists  (postfix + sympa)
+
+[mailservers]
+mx
+mo
+mb
+ml

@@ -34,6 +34,17 @@ groups:
   - name: Containers
     roles:
       - podman
+  - name: Mail
+    roles:
+      - mailname
+      - postfix
+      - dovecot
+      - sympa
+      - opendkim
+      - opendmarc
+      - postfixadmin
+      - rainloop
+      - certificate
   - name: Backup
     roles:
       - restic_client

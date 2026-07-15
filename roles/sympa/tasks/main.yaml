@@ -15,6 +15,7 @@
 - name: Apply patch for Sympa.pl
   tags: sympa-patch
   import_tasks: patch-sympa-pl.yaml
+  when: sympa_patch_sympa_pl | default(false) | bool
 
 - name: Sympa post-install operations
   tags: sympa-config

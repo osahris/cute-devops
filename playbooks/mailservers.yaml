@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Collection-level mail playbook. Reproduces the single-server role
+# ordering from the old imports/rps-mail/deploy.yaml, minus the removed
+# rps_mail_sync role (its replacement is tracked in
+# issues/mailinglist-sync.feature.md). The multi-server split is
+# exercised by the test-in-containers-multi harness.
+---
+- name: Configure mail servers
+  hosts: mailservers
+  become: true
+  roles:
+    - role: postfix
+      tags: postfix
+    - role: dovecot
+      tags: dovecot
+    - role: sympa
+      tags: sympa

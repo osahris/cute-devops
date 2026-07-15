@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+---
+# mx: inbound mail exchange. Accepts mail, verifies DKIM/DMARC, and hands
+# mailbox mail to the mailboxes instance (mb) over LMTP on the network.
+postfix_virtual_transport: lmtp:inet:mb:24
+postfix_with_sympa: false
+
+# assertions
+test_mail_stack_expected_units:
+  - postfix
+test_mail_stack_expected_ports:
+  - 25
+test_mail_stack_flow: false

@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Shared rootless podman network for the test-in-containers harness.
+# aardvark-dns (installed by the podman role) gives every instance name
+# resolution for the others (mx, mo, mb, ml), so the multi-server
+# topology can address peers by hostname.
+[Network]
+NetworkName=cute-devops-test
+
+[Install]
+WantedBy=default.target

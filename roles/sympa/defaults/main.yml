@@ -1,6 +1,19 @@
 ---
 sympa_main_domain: lists.{{ mailserver_domain_name }}
 
+# List-source coupling. Empty by default so a bare sympa deploy stands up
+# a working robot with no external data sources; populate per virtual
+# domain to wire RPS-style include_remote_file sources. The generic
+# loose-coupling replacement is tracked in
+# issues/mailinglist-sync.feature.md.
+sympa_mailinglist_envs: {}
+sympa_gather_facts_from: []
+
+# Whether to overwrite the packaged Sympa.pm with a build fetched from
+# GitHub at deploy time. Off by default: it needs internet and pins to an
+# upstream branch. Opt in only where that patch is actually required.
+sympa_patch_sympa_pl: false
+
 sympa_admin_email: "{{ postfix_admin_email | default('listmaster@'+mailserver_domain_name) }}"
 sympa_listmaster_emails:
   - "{{ sympa_admin_email }}"
