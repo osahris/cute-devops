@@ -24,7 +24,10 @@ Network=cute-devops-test.network
 # podman auto-detects the /sbin/init entrypoint and wires up /run, /tmp
 # and /sys/fs/cgroup for systemd; be explicit so it holds regardless of
 # how the unit is invoked.
-PodmanArgs=--systemd=always
+# --systemd=always: run systemd as PID 1 (tmpfs /run, cgroup wiring).
+# --no-hosts: don't bind-mount /etc/hosts, so the hostname role can write
+# it in place; cross-instance name resolution still works via aardvark DNS.
+PodmanArgs=--systemd=always --no-hosts
 # No host PublishPort by default: rootless cannot bind <1024 and the
 # end-to-end test runs inside the shared network. Uncomment to poke an
 # instance from the host on a high port, e.g. mb's IMAPS:
