@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
 
 # Contributors
 
-Cute DevOps! is its own project. Part of it — the mail server roles — grew out of the **RPS mail server** project, whose work this collection incorporates and builds on. We thank everyone who contributed to that work and to this project.
+Cute DevOps! is its own project. Part of the work on it, from 2025 onward, is done at the Institute for Digital Medicine and Clinical Data Science (Goethe University Frankfurt); its mail server roles additionally incorporate and build on work from the **RPS mail server** project. We thank everyone who contributed to that work and to this project.
 
 ## Developers
 
