@@ -12,3 +12,7 @@ ansible_connection: containers.podman.podman
 ansible_podman_executable: podman
 ansible_user: root
 ansible_become: false
+# Podman bind-mounts /etc/hosts, /etc/hostname, /etc/resolv.conf, so
+# Ansible's atomic temp+rename write fails on them; fall back to in-place
+# writes (safe for a throwaway test container).
+ansible_unsafe_writes: true
