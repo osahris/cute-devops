@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# This file is managed by the osahris.cute_devops.worktrees Ansible role (initial scaffold)!
-# Once `main` has the canonical copy, the bare repo's reference-transaction hook
-# syncs it into the work directory on each merge and this file is no longer
-# Ansible-managed.
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-License-Identifier: EUPL-1.2
+#
+# Claude Code WorktreeCreate hook — spawn /work/<project>/<category>/<branch>.
+# Canonical copy tracked on main; osahris.cute_devops.worktrees scaffolds an
+# initial copy into the work directory (the pad), and the reference-transaction
+# hook keeps the pad's copy in sync with this one.
 set -euo pipefail
 
 payload="$(cat || true)"
@@ -17,9 +20,9 @@ name="$(extract name)"
 [ -z "$name" ] && name="$(extract worktree_name)"
 
 # The bare repo (shared object/ref store) and the work directory. The work
-# directory is recorded in the bare repo's config by the role, so it resolves
-# the same from the pad or from inside any worktree. Fall back to this hook's
-# own location (<workdir>/.claude/hooks/worktree-create).
+# directory is recorded in the bare repo's config, so it resolves the same from
+# the pad or from inside any worktree. Fall back to this hook's own location
+# (<workdir>/.claude/hooks/worktree-create).
 common="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
 workdir="$(git --git-dir="$common" config --default '' cute.workdir)"
 if [ -z "$workdir" ]; then
@@ -52,9 +55,7 @@ if ! printf '%s' "$category" | grep -Eq '^[a-z][a-z0-9-]*$'; then
   usage; exit 1
 fi
 
-# Branch: strict slug, at least one dash, at most 40 characters. (The length is
-# checked with a second regex rather than a bash length expansion, so this file
-# stays a valid Ansible Jinja template — a brace-hash pair opens a Jinja comment.)
+# Branch: strict slug, at least one dash, at most 40 characters.
 if ! printf '%s' "$branch_slug" | grep -Eq '^[a-z][a-z0-9]*(-[a-z0-9]+)+$' \
    || ! printf '%s' "$branch_slug" | grep -Eq '^.{1,40}$'; then
   usage; exit 1

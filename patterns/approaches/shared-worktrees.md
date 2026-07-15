@@ -194,16 +194,20 @@ existing session, asking Claude to call `EnterWorktree` does the same thing. Bot
 routes go through `.claude/hooks/worktree-create`, which runs the same `git
 worktree add` under the hood.
 
-`.claude/settings.json` wires Claude's `WorktreeCreate` and `WorktreeRemove`
-lifecycle hooks to two small shell scripts:
+`.claude/settings.json` wires Claude's `WorktreeCreate`, `WorktreeRemove`, and
+`Stop` hooks to small shell scripts, addressed by `$CLAUDE_PROJECT_DIR` so the
+same file works in the pad and in every worktree:
 
 ```json
 {
+  "worktree": { "bgIsolation": "worktree" },
   "hooks": {
     "WorktreeCreate": [{"hooks": [{"type": "command",
-      "command": "/work/foo/.claude/hooks/worktree-create"}]}],
+      "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-create"}]}],
     "WorktreeRemove": [{"hooks": [{"type": "command",
-      "command": "/work/foo/.claude/hooks/worktree-remove"}]}]
+      "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-remove"}]}],
+    "Stop": [{"hooks": [{"type": "command",
+      "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/require-clean"}]}]
   }
 }
 ```
@@ -216,9 +220,22 @@ category folder exists (creating it with `3775` on demand), picks the base branc
 remove hook refuses any path outside the work directory, then calls `git worktree
 remove --force`.
 
-Beyond worktree lifecycle, the `.claude/` directory ships permissions, hooks,
-and skills tuned for this repo — so a Claude session in a fresh worktree starts
-already knowing how the project works. No per-session bootstrapping.
+The **`Stop` hook** (`require-clean`) refuses to let a session end while its
+worktree has uncommitted changes — so work always lands as a commit, and git's
+own `pre-commit` / `pre-push` hooks (lint, tests) get a chance to gate it. The
+bare pad has no work tree, so the hook is a no-op there. `bgIsolation: "worktree"`
+tells background sessions to auto-isolate into their own worktree.
+
+**Where the settings must live.** Claude Code loads `.claude/settings.json` only
+from the session's own project root — it does *not* inherit settings from parent
+directories the way `CLAUDE.md` does. So a hook that must fire *inside a worktree*
+(the `Stop` gate, and `WorktreeCreate` for stacking a new worktree from within an
+existing one) has to be in the **repository's tracked `.claude/settings.json`**,
+which is checked out into every worktree. The pad's `.claude/` (scaffolded by the
+role) only governs sessions started *in the pad*. Keep the two in sync: track the
+canonical `.claude/` on `main` and let the `reference-transaction` hook copy it
+into the pad — so a Claude session in a fresh worktree starts already knowing how
+the project works, with no per-session bootstrapping.
 
 ## Security Considerations 🔐
 
@@ -272,9 +289,10 @@ already knowing how the project works. No per-session bootstrapping.
 
 ### Wire the Claude path
 
-- [ ] Add `/work/foo/.claude/settings.json` with `WorktreeCreate` and `WorktreeRemove` hooks pointing at the two scripts.
+- [ ] Track `.claude/settings.json` on `main` with `WorktreeCreate`, `WorktreeRemove`, and `Stop` hooks addressed by `$CLAUDE_PROJECT_DIR` (so it works checked out in any worktree). Scaffold a copy into `/work/foo/.claude/` for pad sessions.
 - [ ] Add `worktree-create` that reads the JSON from stdin, splits `<category>/<branch>`, validates the category folder slug and the branch slug, ensures the category folder exists (`3775`), resolves the work directory from `cute.workdir`, picks the base branch (current branch inside a worktree, else `main`), runs `git worktree add`, and prints the path.
 - [ ] Add `worktree-remove` that refuses any path outside `/work/foo/` and then calls `git worktree remove --force`.
+- [ ] Add `require-clean` (the `Stop` hook): block the session from ending while `git status` in the worktree is dirty; no-op in the bare pad.
 - [ ] Strip group-write on `/work/foo/.git`, `/work/foo/.claude`, and `CLAUDE.md`.
 
 ### Protect the mainline

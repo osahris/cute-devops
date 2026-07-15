@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# This file is managed by the osahris.cute_devops.worktrees Ansible role (initial scaffold)!
-# Once `main` has the canonical copy, the bare repo's reference-transaction hook
-# syncs it into the work directory on each merge and this file is no longer
-# Ansible-managed.
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-License-Identifier: EUPL-1.2
+#
+# Claude Code WorktreeRemove hook — remove a worktree under the work directory.
+# Canonical copy tracked on main; the worktrees role scaffolds an initial copy
+# into the work directory (the pad).
 set -euo pipefail
 
 payload="$(cat || true)"

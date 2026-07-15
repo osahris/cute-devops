@@ -21,7 +21,13 @@ layout. For each project it creates `{{ worktrees_base }}/<project>` (default
   Worktrees live inside these; new category folders are created on demand.
 - **`CLAUDE.md`** — the landing doc explaining how to look things up and how to
   spawn a worktree.
-- **`.claude/`** — Claude Code `WorktreeCreate` / `WorktreeRemove` hooks.
+- **`.claude/`** — Claude Code `WorktreeCreate` / `WorktreeRemove` hooks, a
+  `Stop` hook (`require-clean`) that blocks a session from ending while its
+  worktree is dirty (forcing a commit), and `bgIsolation: "worktree"`. Hooks are
+  addressed by `$CLAUDE_PROJECT_DIR`. Note: for the `Stop` and stacked-spawn
+  hooks to fire *inside* a worktree, the same `.claude/settings.json` must be
+  tracked in the repo (checked out per worktree) — Claude Code does not inherit
+  settings from the parent pad directory. This role scaffolds the pad's copy.
 
 Worktrees then live at `/work/<project>/<category>/<branch>` on branches
 `work/<category>/<branch>`, one per unit of work. The role records the work

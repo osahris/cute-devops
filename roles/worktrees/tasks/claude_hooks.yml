@@ -38,6 +38,15 @@
     mode: "0755"
     force: false
 
+- name: "Scaffold Stop (require-clean) hook in {{ _wt_workdir }}"
+  ansible.builtin.template:
+    src: require-clean.sh.j2
+    dest: "{{ _wt_workdir }}/.claude/hooks/require-clean"
+    owner: "{{ _wt_owner }}"
+    group: "{{ _wt_group }}"
+    mode: "0755"
+    force: false
+
 - name: "Strip group-write under .claude in {{ _wt_workdir }}"
   ansible.builtin.command:
     cmd: "chmod -R g-w {{ _wt_workdir }}/.claude"

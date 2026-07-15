@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# This file is managed by the osahris.cute_devops.worktrees Ansible role (initial
+# scaffold)! Once `main` has the canonical copy, the bare repo's
+# reference-transaction hook syncs it into the work directory on each merge and
+# this file is no longer Ansible-managed.
+#
+# Claude Code `Stop` hook: refuse to let the session end while the worktree has
+# uncommitted changes, so work always lands as a commit (where git hooks — lint,
+# tests — can gate it). Reads the hook JSON on stdin and blocks via a
+# {"decision":"block"} response; a clean tree (or the bare pad) exits 0.
+set -euo pipefail
+
+payload="$(cat || true)"
+
+extract() {
+  printf '%s' "$payload" \
+    | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" \
+    | head -n1
+}
+dir="$(extract cwd)"
+[ -z "$dir" ] && dir="$PWD"
+
+# Not inside a real (non-bare) work tree — e.g. the lookup pad. Nothing to
+# commit here, so allow the session to end.
+if [ "$(git -C "$dir" rev-parse --is-inside-work-tree 2>/dev/null || echo false)" != "true" ]; then
+  exit 0
+fi
+
+dirty="$(git -C "$dir" status --porcelain 2>/dev/null || true)"
+if [ -z "$dirty" ]; then
+  exit 0
+fi
+
+n="$(printf '%s\n' "$dirty" | grep -c . || true)"
+printf '{"decision":"block","reason":"This worktree has %s uncommitted change(s). Commit your work before finishing: review `git status`, then `git add` and `git commit` on the work/<category>/<branch> branch. This Stop hook enforces a clean tree so every change lands as a commit."}\n' "$n"
+exit 0
