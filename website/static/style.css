@@ -1,34 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2016-2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+ * SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+ * SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+ * SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+ *
  * SPDX-License-Identifier: EUPL-1.2
- *
- * osahris.cute_devops — website stylesheet
- *
- * Organization
- * ------------
- *   1. Design tokens         :root custom properties + dark scheme
- *   2. Reset & base          universal box-sizing, body, links
- *   3. Header                sticky top bar (hamburger | title | _)
- *   4. Layout shell          .layout container; reserves space for
- *                            the desktop sidebar via padding-left
- *   5. Sidebar & drawer      fixed left rail on desktop, the same
- *                            element becomes a checkbox-driven
- *                            off-canvas drawer on mobile (all nav
- *                            styling lives together)
- *   6. Content               .content + markdown typography
- *                            (headings, code, tables, …)
- *   7. Responsive (≤768px)   one override block: hide the rail,
- *                            turn drawer mechanics on, swap the
- *                            layout padding, lock body scroll
- *
- * Conventions
- * -----------
- *   - Spacing, colours and sizes go through tokens in :root.
- *   - Physical properties (left/right/top) — not logical — to match
- *     the rest of the codebase.
- *   - Mobile breakpoint: 768px. Adjust in section 7 only.
  */
-
 
 /* =================================================================
  * 1. Design tokens

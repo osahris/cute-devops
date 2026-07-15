@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: 2016-2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
 #
 # SPDX-License-Identifier: EUPL-1.2
-#
-# End-to-end mail-flow probe for the test-in-containers harness. Injects
-# a message over SMTP and confirms it is retrievable over IMAP, proving
-# the postfix -> dovecot (LMTP) -> mailbox path works. Prints a PASS/FAIL
-# summary and exits non-zero on any failure, mirroring the convention in
-# experiments/alerta-backup-monitoring/test.sh.
-#
-# Usage: test-mail-flow.sh <smtp_host> <imap_host> <user> <password>
+
 set -uo pipefail
 
 smtp_host="${1:?smtp host}"

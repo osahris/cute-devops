@@ -1,19 +1,11 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: 2016-2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
 #
 # SPDX-License-Identifier: EUPL-1.2
-#
-# Throwaway test PKI for the test-in-containers harness. Generates a
-# local CA and one leaf cert per instance so the mail roles can present
-# real, mutually-trusted certs (STARTTLS, IMAPS, cross-instance
-# LMTP/SASL) without ACME. This is test infrastructure ONLY — it is not
-# the certificate-role rework and must never be used for production.
-#
-# Usage: make-ca.sh <domain> <instance> [<instance> ...]
-#   e.g. make-ca.sh mail.test mx mo mb ml
-#
-# Output goes to test/ca/out/ (gitignored). Re-running is idempotent:
-# existing CA and leaf certs are kept.
+
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
