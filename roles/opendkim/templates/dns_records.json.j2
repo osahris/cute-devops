@@ -1,3 +1,10 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
 {
 {% for dkim_domain in dkim_domains %}
 "{{dkim_selector}}._domainkey.{{dkim_domain}}": "v=DKIM1; h=sha256; k=rsa; p={{_dkim_public_keys[dkim_domain]}}",

@@ -1,3 +1,11 @@
+# SPDX-FileCopyrightText: 2023-2024 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2024-2025 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+# SPDX-FileCopyrightText: 2025 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+# SPDX-FileCopyrightText: 2025 Vasilii Tulskii <tulskyva@mail.ru>
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
 ---
 postfix_domain: "{{mailserver_domain_name}}"
 postfix_hostname: "{{mailserver_domain_name}}"

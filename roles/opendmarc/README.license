@@ -1,14 +1,4 @@
-{#
 SPDX-FileCopyrightText: 2023-2024 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
 SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
 
 SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
-#}
-
-{{ansible_managed|comment}}
-
-::1
-127.0.0.1
-localhost
-ip6-localhost
-ip6-loopback
