@@ -1,0 +1,6 @@
+---
+postfix_with_spf_check: true
+postfix_with_spamhaus_check: true
+postfix_with_opendkim: true
+postfix_with_opendmarc: true
+postfix_with_sympa: true

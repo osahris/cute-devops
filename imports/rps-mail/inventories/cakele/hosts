@@ -1,0 +1,2 @@
+[mailservers]
+mail.cakele.iodatalabs.dev ansible_user=root

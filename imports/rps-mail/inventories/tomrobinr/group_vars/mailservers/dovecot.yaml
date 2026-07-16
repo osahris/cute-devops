@@ -1,0 +1,10 @@
+dovecot_certificate_fullchain_file: /etc/ssl/certs/{{mailserver_domain_name}}.cert.pem
+dovecot_certificate_private_key_file: /etc/ssl/private/{{mailserver_domain_name}}.key.pem
+
+dovecot_users:
+  - username: postmaster@tomrobinr.iodatalabs.dev
+    password_hash: $5$mZtTwRWOg1eKJAJV$XEsQj91eUCCJV4HawNVvEC5Ss4NON2LHcP7ZJKGLpP0
+  - username: accounts@tomrobinr.iodatalabs.dev
+    password_hash: $5$pu766BzsCHNM3w.W$ojvSUAfOhX8yAQ9VYCNlPuhPMHvwgmrdrbhcmyw82Q4
+  - username: no-reply@tomrobinr.iodatalabs.dev
+    password_hash: $5$pu766BzsCHNM3w.W$ojvSUAfOhX8yAQ9VYCNlPuhPMHvwgmrdrbhcmyw82Q4

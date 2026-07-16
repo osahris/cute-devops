@@ -1,0 +1,6 @@
+---
+- name: mailserver_domain_name
+  copy:
+    content: "{{ mailserver_domain_name }}"
+    dest: /etc/mailname
+  notify: new mailserver_domain_name

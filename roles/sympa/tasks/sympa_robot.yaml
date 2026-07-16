@@ -1,0 +1,24 @@
+---
+
+- name : "robot {{ robot_domain }}: create list_data directory"
+  file:
+    path: "{{ sympa_lists_path }}/{{ robot_domain }}"
+    state: directory
+    owner: sympa
+    group: sympa
+
+- name : "robot {{ robot_domain }}: create etc directory"
+  file:
+    path: "{{ sympa_config_directory }}/{{ robot_domain }}"
+    state: directory
+    owner: sympa
+    group: sympa
+
+- name: "robot {{ robot_domain }}: install robot.conf"
+  template:
+    src: robot.conf.j2
+    dest: "{{ sympa_config_directory }}/{{ robot_domain }}/robot.conf"
+    mode: 0640
+    owner: sympa
+    group: sympa
+  notify: restart sympa

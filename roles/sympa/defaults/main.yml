@@ -1,0 +1,30 @@
+---
+sympa_main_domain: lists.{{ mailserver_domain_name }}
+
+sympa_admin_email: "{{ postfix_admin_email | default('listmaster@'+mailserver_domain_name) }}"
+sympa_listmaster_emails:
+  - "{{ sympa_admin_email }}"
+
+sympa_config_directory: /etc/sympa
+sympa_lib_directory: /var/lib/sympa
+sympa_spool_directory: /var/spool/sympa
+sympa_mail_alias_file: /var/lib/sympa/transport
+sympa_lists_path: /var/lib/sympa/lists
+sympa_arc_path: /var/lib/sympa/archives
+sympa_bounce_path: /var/lib/sympa/bounce
+
+sympa_with_sympasoap: false
+
+sympa_language: 'en_US'
+sympa_log_level: 0
+
+sympa_create_list: listmaster
+
+sympa_web_domain: "{{ sympa_main_domain }}"
+sympa_domains: []
+
+sympa_sync_unix_user: sympa-sync
+sympa_sync_unix_group: sympa-sync
+
+sympa_postgres_password: "{{ ansible_local.sympa.sympa_postgres_password }}"
+certificate_provider: letsencrypt

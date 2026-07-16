@@ -1,0 +1,2 @@
+{{ lookup('file','host_files/'+inventory_hostname+'/certificate/'+certificate_name+'.cert.pem') }}
+{{ lookup('file','host_files/'+inventory_hostname+'/certificate/'+certificate_name+'.chain.pem') }}

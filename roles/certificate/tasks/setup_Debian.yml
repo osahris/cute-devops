@@ -1,0 +1,8 @@
+---
+
+- name: install debian packages
+  apt:
+    pkg:
+      - openssl
+      - certbot
+      - python3-cryptography

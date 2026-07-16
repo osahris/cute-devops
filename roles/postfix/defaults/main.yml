@@ -1,0 +1,38 @@
+---
+postfix_domain: "{{mailserver_domain_name}}"
+postfix_hostname: "{{mailserver_domain_name}}"
+postfix_origin: "{{mailserver_domain_name}}"
+postfix_admin_email: "{{rps_admin_email}}"
+postfix_relayhost: null
+postfix_relayhost_auth_enabled: false
+
+postfix_with_smtp_service: true
+postfix_with_submission_service: false
+
+postfix_with_postfixadmin: false
+postfix_postfixadmin_mysql_host: localhost
+postfix_postfixadmin_mysql_database: postfixadmin
+postfix_postfixadmin_mysql_username: postfix
+
+postfix_virtual_transport: lmtp:unix:private/dovecot-lmtp
+
+postfix_with_spf_check: false
+postfix_with_spamhaus_check: false
+
+postfix_with_opendkim: true
+postfix_with_opendmarc: true
+
+postfix_with_submission_service_smtpd_sasl_path: private/auth
+
+postfix_with_smtps_service: true
+
+postfix_certificate_fullchain_file: /etc/ssl/certs/ssl-cert-snakeoil.pem
+postfix_certificate_private_key_file: /etc/ssl/private/ssl-cert-snakeoil.key
+
+postfix_with_sympa: false
+
+
+postfix_virtual_mailbox_maps: >-
+          {{
+            dict(dovecot_users | map(attribute='username') | zip(dovecot_users | map(attribute='username') | map('split', '@') | map('first') | map('regex_replace', '^', mailserver_domain_name + '/')))
+          }}

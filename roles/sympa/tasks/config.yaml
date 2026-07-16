@@ -1,0 +1,16 @@
+---
+
+- name: Template Sympa configuration file
+  template:
+    src: sympa.conf.j2
+    dest: /etc/sympa/sympa/sympa.conf
+    owner: sympa
+    group: sympa
+    mode: 0640
+  tags: sympa.conf
+  notify: restart sympa
+
+- name: Copy list aliases file
+  copy:
+    src: files/list_aliases.tt2
+    dest: "/etc/sympa/list_aliases.tt2"

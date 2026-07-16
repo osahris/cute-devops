@@ -1,0 +1,67 @@
+---
+
+- include_tasks: key.yml
+- include_tasks: csr.yml
+
+- name: certificate host_files directory
+  local_action: file
+  args:
+    path: host_files/{{inventory_hostname}}/certificate
+    state: directory
+
+- name: fetch certificate signing request
+  fetch:
+    src: "{{ certificate_signing_request_file }}"
+    dest: host_files/{{inventory_hostname}}/certificate/{{certificate_name}}.csr.pem
+    flat: yes
+    fail_on_missing: yes
+
+- name: copy certificate signing request
+  copy:
+    src: host_files/{{inventory_hostname}}/certificate/{{certificate_name}}.csr.pem
+    dest: "{{ certificate_authority_directory }}/csr/{{inventory_hostname}}-{{certificate_name}}.csr.pem"
+  delegate_to: "{{ certificate_authority_host }}"
+
+- name: sign certificate with ca
+  command: openssl ca -batch -notext
+    -config cnf/ca.cnf
+    -in csr/{{inventory_hostname}}-{{certificate_name}}.csr.pem
+    -out certs/{{inventory_hostname}}-{{certificate_name}}.cert.pem
+    {{ certificate_authority_private_key_password is defined | ternary('-passin env:PRIVATE_KEY_PASSWORD','') }}
+  args:
+    chdir: "{{ certificate_authority_directory }}"
+    creates: "{{ certificate_authority_directory }}/certs/{{inventory_hostname}}-{{certificate_name}}.cert.pem"
+  environment:
+    PRIVATE_KEY_PASSWORD: "{{ certificate_authority_private_key_password | default('') }}"
+  delegate_to: "{{ certificate_authority_host }}"
+
+- name: fetch certificate
+  fetch:
+    src: "{{ certificate_authority_directory }}/certs/{{inventory_hostname}}-{{certificate_name}}.cert.pem"
+    dest: host_files/{{inventory_hostname}}/certificate/{{certificate_name}}.cert.pem
+    flat: yes
+    fail_on_missing: yes
+  delegate_to: "{{ certificate_authority_host }}"
+
+- name: copy certificate
+  copy:
+    src: host_files/{{inventory_hostname}}/certificate/{{certificate_name}}.cert.pem
+    dest: "{{ certificate_file }}"
+
+- name: fetch root certificate chain
+  fetch:
+    src: "{{ certificate_authority_directory }}/certs/ca.fullchain.pem"
+    dest: host_files/{{inventory_hostname}}/certificate/{{certificate_name}}.chain.pem
+    flat: yes
+    fail_on_missing: yes
+  delegate_to: "{{ certificate_authority_host }}"
+
+- name: copy root certificate chain
+  copy:
+    src: host_files/{{inventory_hostname}}/certificate/{{certificate_name}}.chain.pem
+    dest: "{{ certificate_chain_file }}"
+
+- name: create full certificate chain
+  template:
+    src: fullchain.pam.j2
+    dest: "{{ certificate_fullchain_file }}"

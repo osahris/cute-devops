@@ -1,0 +1,11 @@
+{{ansible_managed|comment}}
+
+# dkim_domains
+{% for domain in dkim_domains %}
+*@{{domain}} {{domain}}
+{% endfor %}
+
+# dkim_cname_domains
+{% for domain in dkim_cname_domains.keys() %}
+*@{{domain}} {{domain}}
+{% endfor %}

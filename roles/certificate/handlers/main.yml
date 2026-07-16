@@ -1,0 +1,7 @@
+---
+
+- name: stat certificate
+  stat:
+    path: "{{ certificate_file }}"
+  register: _certificate_stat
+  listen: certificate changed

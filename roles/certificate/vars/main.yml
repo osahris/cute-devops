@@ -1,0 +1,1 @@
+certificate_basic_constraints: "{{ lookup('template','basic_constraints.json.j2') }}"

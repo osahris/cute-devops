@@ -1,0 +1,17 @@
+--- 
+
+- name: install rainloop debian package
+  apt:
+    pkg: rainloop
+
+- name: template rainloop localhost config
+  template:
+    src: localhost.ini.j2
+    dest: /etc/rainloop/domains/localhost.ini
+
+- name: link local mail domains that should be usable by rainloop
+  file:
+    state: link
+    src: /etc/rainloop/domains/{{item}}.ini
+    dest: localhost.ini
+  loop: "{{ rainloop_local_domains }}"
