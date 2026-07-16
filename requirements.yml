@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Collections the roles and test harnesses depend on. galaxy.yml's
+# `dependencies` only auto-install when this collection is itself
+# installed; this file lets a working checkout pull them directly with
+# `ansible-galaxy collection install -r requirements.yml`.
+---
+collections:
+  - name: community.general
+    version: ">=8.0.0"
+  - name: containers.podman
+    version: ">=1.13.0"

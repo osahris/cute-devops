@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
 --- 
 
 - name: install rainloop debian package
@@ -9,9 +14,13 @@
     src: localhost.ini.j2
     dest: /etc/rainloop/domains/localhost.ini
 
+# RainLoop treats a domain whose .ini is a symlink to another domain's
+# .ini as an alias reusing that config. Point each local domain at the
+# templated localhost.ini. The link is relative so it stays valid
+# regardless of the domains directory's absolute path.
 - name: link local mail domains that should be usable by rainloop
   file:
     state: link
-    src: /etc/rainloop/domains/{{item}}.ini
-    dest: localhost.ini
+    src: localhost.ini
+    dest: /etc/rainloop/domains/{{item}}.ini
   loop: "{{ rainloop_local_domains }}"

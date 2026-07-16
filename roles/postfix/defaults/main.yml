@@ -1,3 +1,11 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2024-2025 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+# SPDX-FileCopyrightText: 2025 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+# SPDX-FileCopyrightText: 2025 Vasilii Tulskii <tulskyva@mail.ru>
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
 ---
 postfix_domain: "{{mailserver_domain_name}}"
 postfix_hostname: "{{mailserver_domain_name}}"
@@ -25,6 +33,11 @@ postfix_with_opendmarc: true
 postfix_with_submission_service_smtpd_sasl_path: private/auth
 
 postfix_with_smtps_service: true
+
+# Whether to provision a Let's Encrypt cert via certbot (certbot.yaml).
+# Off by default: it needs a public, ACME-reachable host. Point the
+# certificate_* vars at existing cert files instead when off.
+postfix_with_ssl: false
 
 postfix_certificate_fullchain_file: /etc/ssl/certs/ssl-cert-snakeoil.pem
 postfix_certificate_private_key_file: /etc/ssl/private/ssl-cert-snakeoil.key

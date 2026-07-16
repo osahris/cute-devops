@@ -1,3 +1,11 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2024-2025 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+# SPDX-FileCopyrightText: 2025 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+# SPDX-FileCopyrightText: 2025 Vasilii Tulskii <tulskyva@mail.ru>
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
 ---
 - name: update apt cache
   apt:
@@ -96,13 +104,30 @@
 
 # repair permissions for opendkim and opendmarc
 - name: repair permissions for opendkim
-  command: chown -R opendkim:opendkim /var/run/opendkim
+  ansible.builtin.file:
+    path: /var/run/opendkim
+    state: directory
+    owner: opendkim
+    group: opendkim
+    recurse: true
   when: postfix_with_opendkim
 
 - name: repair permissions for opendmarc
-  command: chown -R opendmarc:opendmarc /var/run/opendmarc
+  ansible.builtin.file:
+    path: /var/run/opendmarc
+    state: directory
+    owner: opendmarc
+    group: opendmarc
+    recurse: true
   when: postfix_with_opendmarc
 
-- name: restart postfix opendkim opendmarc
-  command: systemctl restart postfix opendkim opendmarc
-  notify: restart postfix
+# Config-change restarts are handled by the restart/reload handlers
+# notified from the template tasks above. This only ensures the service
+# is up (idempotent — no change when already running), replacing the old
+# unconditional `systemctl restart` that broke idempotence and was the
+# only thing starting postfix after a container/package install.
+- name: ensure postfix is started and enabled
+  ansible.builtin.systemd_service:
+    name: postfix
+    state: started
+    enabled: true

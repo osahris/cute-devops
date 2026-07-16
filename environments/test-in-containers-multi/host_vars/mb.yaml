@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+# mb: the mailboxes. Dovecot exposes LMTP and auth over the network so
+# mx can deliver and mo can authenticate, plus IMAP for clients.
+dovecot_lmtp_inet_listener: true
+dovecot_auth_inet_listener: true
+# mb runs no local postfix, so don't create the postfix-owned unix
+# sockets (they'd fail: "User doesn't exist: postfix"). mx delivers over
+# LMTP inet (24) and mo authenticates over the auth inet listener.
+dovecot_unix_listeners_for_postfix: false
+
+# assertions — mb owns the mailboxes, so it runs the end-to-end flow:
+# a message injected at mx must land here and be retrievable over IMAP.
+test_mail_stack_expected_units:
+  - dovecot
+test_mail_stack_expected_ports:
+  - 143
+  - 993
+  - 24
+test_mail_stack_flow: true
+test_mail_stack_flow_smtp_host: mx
+test_mail_stack_flow_imap_host: localhost
+test_mail_stack_flow_user: test@mail.test
+test_mail_stack_flow_password: testpassword

@@ -1,4 +1,15 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
 certificate_directory: /etc/ssl
+
+# Provider used when the role is invoked without an explicit choice.
+# selfsigned needs no network and no external CA, so a bare
+# `include_role: certificate` succeeds instead of failing on an
+# undefined `provider-{{ certificate_provider }}.yml` include.
+certificate_provider: selfsigned
 
 certificate_common_name: "{{ inventory_hostname }}"
 

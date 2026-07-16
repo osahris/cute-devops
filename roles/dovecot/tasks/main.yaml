@@ -1,3 +1,9 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+# SPDX-FileCopyrightText: 2024 Christian Akele <christian.akele@uk-koeln.de>
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
 ---
 
 - name: install packages
@@ -42,3 +48,9 @@
     - reload dovecot
 
 - include_tasks: auth/{{dovecot_auth}}.yaml
+
+- name: ensure dovecot is started and enabled
+  ansible.builtin.systemd_service:
+    name: dovecot
+    state: started
+    enabled: true

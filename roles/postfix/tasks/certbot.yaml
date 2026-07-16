@@ -1,3 +1,10 @@
+# SPDX-FileCopyrightText: 2025 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+# SPDX-FileCopyrightText: 2025 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+# SPDX-FileCopyrightText: 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 Vasilii Tulskii <tulskyva@mail.ru>
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
 ---
 - name: Install certbot and apache plugin
   apt:

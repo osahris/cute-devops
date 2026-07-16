@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+
 # SPDX-FileCopyrightText: 2026 Alexander Hirsch <Hirsch@med.uni-frankfurt.de>
+# SPDX-FileCopyrightText: 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
 #
 # SPDX-License-Identifier: EUPL-1.2
 

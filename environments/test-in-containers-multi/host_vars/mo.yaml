@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+# mo: outbound / submission host. Offers authenticated submission on 587
+# and relays outbound. SASL auth is delegated to the mailboxes instance
+# (mb) over the network.
+#
+# NOTE: cross-host SASL (postfix submission -> mb dovecot auth over inet)
+# needs validation on a real host; the rps-mail postfix role was written
+# for a co-located dovecot. See the harness README's multi-server notes.
+postfix_with_submission_service: true
+postfix_with_submission_service_smtpd_sasl_path: inet:mb:12345
+postfix_with_opendkim: false
+postfix_with_opendmarc: false
+postfix_with_sympa: false
+
+# assertions
+test_mail_stack_expected_units:
+  - postfix
+test_mail_stack_expected_ports:
+  - 587
+test_mail_stack_flow: false

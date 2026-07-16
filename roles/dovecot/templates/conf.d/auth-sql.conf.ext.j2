@@ -1,32 +1,36 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
 {{ansible_managed|comment}}
 
 # Authentication for SQL users. Included from 10-auth.conf.
 #
-# <doc/wiki/AuthDatabase.SQL.txt>
+# <https://doc.dovecot.org/latest/core/config/auth/databases/sql.html>
+#
+# In Dovecot 2.4 passdb/userdb use the driver name as the section name
+# (passdb sql / userdb sql). The old free-form "args = <path>" pointing at
+# dovecot-sql.conf.ext was removed: the SQL driver, connection settings and
+# queries are now expressed as regular 2.4 settings. Define sql_driver and a
+# named connection block (e.g. "mysql <host> { ... }") together with the
+# password_query / user_query below to match your database schema.
 
-passdb {
-  driver = sql
-
-  # Path for SQL configuration file, see example-config/dovecot-sql.conf.ext
-  args = /etc/dovecot/dovecot-sql.conf.ext
-}
-
-# "prefetch" user database means that the passdb already provided the
-# needed information and there's no need to do a separate userdb lookup.
-# <doc/wiki/UserDatabase.Prefetch.txt>
-#userdb {
-#  driver = prefetch
+#sql_driver = mysql
+#mysql {{dovecot_postfixadmin_mysql_host}} {
+#  user = {{dovecot_postfixadmin_mysql_username}}
+#  dbname = {{dovecot_postfixadmin_mysql_database}}
 #}
 
-userdb {
-  driver = sql
-  args = /etc/dovecot/dovecot-sql.conf.ext
+passdb sql {
+  #default_password_scheme = CRYPT
+  #query = SELECT password FROM mailbox WHERE username = '%{user}' AND active = '1'
 }
 
-# If you don't have any user-specific settings, you can avoid the user_query
-# by using userdb static instead of userdb sql, for example:
-# <doc/wiki/UserDatabase.Static.txt>
-#userdb {
-  #driver = static
-  #args = uid=vmail gid=vmail home=/var/vmail/%u
-#}
+userdb sql {
+  #query = SELECT '/home/vmail/%{user | domain}/%{user | username}' AS home, \
+  #  {{vmail_uid}} AS uid, {{vmail_gid}} AS gid FROM mailbox \
+  #  WHERE username = '%{user}' AND active = '1'
+}

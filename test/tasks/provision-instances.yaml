@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Host-side provisioning for the test-in-containers harness, shared by
+# both topology playbooks. Builds the single base image, issues the test
+# CA, and starts one rootless quadlet instance per mail host on a shared
+# network. Runs on localhost (connection: local); the instances are then
+# configured by the deploy play over the podman connection.
+#
+# Expects:
+#   test_instances   - list of instance/hostnames to start (e.g. [mail] or [mx, mo, mb, ml])
+#   test_ca_domain    - mail domain the issued certs should also cover
+---
+- name: Enable systemd lingering for the invoking user
+  ansible.builtin.command: loginctl enable-linger {{ ansible_user_id }}
+  args:
+    creates: /var/lib/systemd/linger/{{ ansible_user_id }}
+
+- name: Build the base test image
+  containers.podman.podman_image:
+    name: cute-devops-test:trixie
+    path: "{{ playbook_dir }}/test"
+    build:
+      # absolute path — a bare "Containerfile" resolves against the CWD
+      # (the repo root, whose Containerfile builds the docs website).
+      file: "{{ playbook_dir }}/test/Containerfile"
+    state: build
+    force: "{{ test_rebuild_image | default(false) | bool }}"
+
+- name: Issue the throwaway test CA and per-instance certs
+  # make-ca.sh is idempotent (keeps the CA, issues only missing leaf
+  # certs); run it every time so a new instance set gets its certs. A
+  # `creates:` guard on the CA would skip issuing certs for new instances.
+  ansible.builtin.command:
+    cmd: "{{ playbook_dir }}/test/ca/make-ca.sh {{ test_ca_domain }} {{ test_instances | join(' ') }}"
+  changed_when: false
+
+- name: Ensure the user quadlet directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/containers/systemd"
+    state: directory
+    mode: "0755"
+
+- name: Install the shared network and instance quadlets
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/test/quadlets/{{ item }}"
+    dest: "{{ ansible_env.HOME }}/.config/containers/systemd/{{ item }}"
+    mode: "0644"
+  loop:
+    - cute-devops-test.network
+    - cute-devops-test@.container
+
+- name: Reload the user systemd manager so quadlets generate units
+  ansible.builtin.systemd_service:
+    scope: user
+    daemon_reload: true
+
+- name: Start each instance
+  ansible.builtin.systemd_service:
+    scope: user
+    name: cute-devops-test@{{ item }}.service
+    state: started
+  loop: "{{ test_instances }}"
+
+- name: Wait for each instance to finish booting systemd
+  ansible.builtin.command: podman exec {{ item }} systemctl is-system-running --wait
+  register: _boot
+  changed_when: false
+  # is-system-running exits non-zero on "degraded"; that is acceptable
+  # (a masked/optional unit may be down) as long as it reached a state.
+  failed_when: _boot.stdout not in ["running", "degraded"]
+  loop: "{{ test_instances }}"
