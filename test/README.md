@@ -55,10 +55,23 @@ Both build the one `test/Containerfile` image, issue a throwaway test CA
 
 ## Status / notes
 
-- **single** is the primary green target.
-- **multi** cross-host wiring (mx→mb LMTP is straightforward; mo→mb
-  submission SASL over the network, and full list routing to ml) needs
-  validation on a real host — the rps-mail roles were written for a
-  co-located dovecot. Treat the multi group_vars as the starting point.
+Both topologies deploy green and pass the end-to-end mail-flow probe
+(SMTP submission → LMTP delivery → IMAPS retrieval):
+
+- **single** — postfix + dovecot + sympa co-located; a message to
+  `test@mail.test` is delivered and retrieved over IMAPS.
+- **multi** — a message injected at `mx` is delivered to `mb` over LMTP
+  inet and retrieved over IMAPS on `mb`.
+
+Known limits / follow-ups:
+
+- **Milters (opendkim/opendmarc) are disabled in the tests.** On trixie
+  the opendkim service can't bind its socket in postfix's spool dir under
+  systemd sandboxing, and DKIM/DMARC need published DNS to be meaningful.
+  A production milter fix (inet socket or a systemd `ReadWritePaths`
+  override) is a separate task.
+- **`mo`→`mb` submission SASL over the network is not exercised** by the
+  flow probe (which tests `mx`→`mb` delivery). mo deploys and listens on
+  587, but cross-host SASL auth needs a dedicated check.
 - If inner systemd fails to boot rootless, add `AddCapability=SYS_ADMIN`
   + `SecurityLabelDisable=true` to the `@` quadlet, or run rootful.
