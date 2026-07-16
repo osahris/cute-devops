@@ -31,9 +31,12 @@
     force: "{{ test_rebuild_image | default(false) | bool }}"
 
 - name: Issue the throwaway test CA and per-instance certs
+  # make-ca.sh is idempotent (keeps the CA, issues only missing leaf
+  # certs); run it every time so a new instance set gets its certs. A
+  # `creates:` guard on the CA would skip issuing certs for new instances.
   ansible.builtin.command:
     cmd: "{{ playbook_dir }}/test/ca/make-ca.sh {{ test_ca_domain }} {{ test_instances | join(' ') }}"
-    creates: "{{ playbook_dir }}/test/ca/out/ca.crt.pem"
+  changed_when: false
 
 - name: Ensure the user quadlet directory exists
   ansible.builtin.file:
