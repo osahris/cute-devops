@@ -75,6 +75,15 @@
     mode: "0644"
     force: false
 
+- name: "Scaffold README.md human guide in {{ _wt_workdir }}"
+  ansible.builtin.template:
+    src: README.md.j2
+    dest: "{{ _wt_workdir }}/README.md"
+    owner: "{{ _wt_owner }}"
+    group: "{{ _wt_group }}"
+    mode: "0644"
+    force: false
+
 - name: "Set up Claude hooks in {{ _wt_workdir }}"
   ansible.builtin.include_tasks: claude_hooks.yml
   when: _wt_claude | bool

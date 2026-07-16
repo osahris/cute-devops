@@ -37,22 +37,31 @@ The name is **`<category>/<branch>`**:
 
 So: `feature/add-dns-role`, `fix/login-redirect`, `experiment/new-router`.
 
-### Stacked branching
+### Choosing a base
 
-The base of the new branch depends on **where you are** when you create it:
+A new worktree's branch is always cut from **`main`**, wherever you create it
+from. That keeps unrelated work out of your branch and your eventual MR
+reviewable.
 
-- From this work directory (or anywhere not inside a worktree) → the new branch
-  is cut from **`main`**.
-- From inside an existing worktree → the new branch is cut from **that
-  worktree's current branch**, so you can stack work on top of work in review.
+Before starting, decide whether `main` is the right base for *this* work:
 
-To do it by hand:
+- **Does other, unmerged work belong in it?** If your change builds on an open
+  MR or another feature branch, you want that work present. Either base the new
+  branch on it directly (pass that branch instead of `main` to
+  `git worktree add … -b …`), or start from `main` and **merge the other branch
+  in** once you're in the worktree (`git merge <branch>`).
+- **Is it independent?** Then plain `main` is right — leave it.
+
+`EnterWorktree` always gives you a `main`-based worktree, so to build on another
+branch pull it in once you're inside:
 
 ```bash
-# from the work directory → based on main:
-git -C {{ _wt_repo }} worktree add {{ _wt_workdir }}/feature/my-thing -b work/feature/my-thing main
-cd {{ _wt_workdir }}/feature/my-thing
+git merge work/<category>/<other-branch>
 ```
+
+Prefer the smallest base that gets the job done: merging a branch in is explicit
+and visible in the log, whereas basing on it silently pulls its (possibly
+in-review) history into yours.
 
 ## Who merges what
 

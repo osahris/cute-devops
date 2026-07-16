@@ -60,10 +60,10 @@ if ! printf '%s' "$branch_slug" | grep -Eq '^[a-z][a-z0-9]*(-[a-z0-9]+)+$' \
   usage; exit 1
 fi
 
-# Stacked branching: if we're already inside a worktree, branch from its current
-# branch; otherwise (from the pad, whose HEAD is main) branch from main.
-base="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
-[ -z "$base" ] && base="main"
+# Always branch from main, wherever the worktree is created from — so unrelated
+# work never leaks into a new branch. To build on work in review, base your
+# branch on it by hand or merge it in afterwards (see CLAUDE.md).
+base="main"
 
 branch="work/$category/$branch_slug"
 target="$workdir/$category/$branch_slug"
