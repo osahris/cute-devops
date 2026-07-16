@@ -1,0 +1,10 @@
+---
+
+- name: Enable modules
+  apache2_module:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - rewrite
+    - ssl
+  notify: restart apache

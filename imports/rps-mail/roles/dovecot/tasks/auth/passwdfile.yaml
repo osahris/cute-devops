@@ -1,0 +1,8 @@
+---
+
+- name: dovecot users
+  template:
+    src: users.j2
+    dest: /etc/dovecot/users
+    group: dovecot
+    mode: 0640

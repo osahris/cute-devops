@@ -1,0 +1,41 @@
+{{ ansible_managed | comment }}
+
+
+<VirtualHost _default_:443>
+
+  ServerName localhost
+
+  ErrorLog ${APACHE_LOG_DIR}/error.log
+  CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+  DocumentRoot /var/www/html/
+  <Directory "/var/www/html/">
+    Options -Indexes
+  </Directory>
+
+  SSLEngine on
+  SSLCertificateFile "/etc/ssl/certs/ssl-cert-snakeoil.pem"
+  SSLCertificateKeyFile "/etc/ssl/private/ssl-cert-snakeoil.key"
+
+</VirtualHost>
+
+<VirtualHost _default_:80>
+
+  ErrorLog ${APACHE_LOG_DIR}/error.log
+  CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+  DocumentRoot /var/www/html/
+  <Directory "/var/www/html/">
+    Options -Indexes
+  </Directory>
+
+  # redirect to https if file could not be found in /var/www/default/
+  RewriteEngine On
+  RewriteRule ^\/\.well-known\/acme-challenge\/ - [L]
+  RewriteRule (.*) https://%{SERVER_NAME}$1 [R,L]
+
+  Alias /.well-known/acme-challenge/ /var/www/default/.well-known/acme-challenge/
+
+</VirtualHost>
+
+# vim: syntax=apache ts=4 sw=4 sts=4 sr noet

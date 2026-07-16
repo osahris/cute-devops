@@ -1,0 +1,15 @@
+---
+- name: update apt cache
+  apt:
+    update_cache: yes
+    
+- name: Install required debian packages
+  apt:
+    pkg:
+      - apache2
+      - ssl-cert
+
+- name: remove default page
+  file:
+    path: /var/www/html/index.html
+    state: absent

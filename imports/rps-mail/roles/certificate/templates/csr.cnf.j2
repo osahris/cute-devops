@@ -1,0 +1,29 @@
+{{ ansible_managed | comment }}
+
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = certificate_extensions
+prompt = no
+
+[req_distinguished_name]
+{% if certificate_country is defined%}
+C = {{ certificate_country }}
+{% endif %}
+{% if certificate_state is defined%}
+ST = {{certificate_state}}
+{% endif %}
+{% if certificate_locality is defined%}
+L = {{certificate_locality}}
+{% endif %}
+{% if certificate_organization is defined%}
+O = {{certificate_organization}}
+{% endif %}
+{% if certificate_organizational_unit is defined%}
+OU = {{certificate_organizational_unit}}
+{% endif %}
+CN = {{certificate_common_name}}
+{% if certificate_email_address is defined %}
+emailAddress = {{certificate_email_address}}
+{% endif %}
+
+{% include "certificate_extensions.cnf.j2" %}

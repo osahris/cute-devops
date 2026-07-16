@@ -1,0 +1,11 @@
+---
+
+- name: opendmarc debian packages
+  apt:
+    pkg: opendmarc
+
+- name: opendmarc config
+  template:
+    src: opendmarc.conf.j2
+    dest: /etc/opendmarc.conf
+  notify: restart opendmarc

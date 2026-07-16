@@ -1,0 +1,28 @@
+postfix_with_postfixadmin: false
+mailserver_domain_name: tomrobinr.iodatalabs.dev
+
+certificate_provider: letsencrypt
+postfix_with_ssl: true
+
+postfix_with_submission_service: true
+postfix_with_smtps_service: true
+
+postfix_virtual_mailbox_domains:
+  - tomrobinr.iodatalabs.dev
+dovecot_auth: passwdfile
+
+postfix_admin_email: "email@tomraja.de"
+
+postfix_certificate_fullchain_file: /etc/ssl/certs/{{mailserver_domain_name}}.cert.pem
+postfix_certificate_private_key_file: /etc/ssl/private/{{mailserver_domain_name}}.key.pem
+
+# dkim_cname_domains:
+#   third.iodatalabs.dev: tomrobinr.iodatalabs.dev
+#   lists.another.iodatalabs.dev: tomrobinr.iodatalabs.dev
+
+# postfix_virtual_mailbox_maps: |
+#   {
+#     "postmaster@{{ mailserver_domain_name }}": "{{ mailserver_domain_name }}/postmaster",
+#     "accounts@{{ mailserver_domain_name }}": "{{ mailserver_domain_name }}/accounts",
+#     "support@{{ mailserver_domain_name }}": "{{ mailserver_domain_name }}/support"
+#   }

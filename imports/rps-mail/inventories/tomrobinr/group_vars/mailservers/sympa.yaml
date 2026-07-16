@@ -1,0 +1,28 @@
+postfix_with_sympa: true
+
+sympa_admin_email: "{{ postfix_admin_email | default('listmaster@'+mailserver_domain_name) }}"
+sympa_listmaster_emails:
+  - "{{ sympa_admin_email }}"
+  - postmaster@{{ mailserver_domain_name }}
+  
+sympa_domains:
+  # - lists.another.iodatalabs.dev
+  # - third.iodatalabs.dev
+  - lists.tomrobinr.iodatalabs.dev
+sympa_main_domain: lists.{{ mailserver_domain_name }}
+
+sympa_gather_facts_from:
+  - dev.numhub.de
+  - staging.numhub.de
+
+sympa_mailinglist_envs:
+  lists.tomrobinr.iodatalabs.dev:
+    name: dev.numhub.de
+    keycloak_url: https://accounts.dev.numhub.de
+    keycloak_realm: numhub
+    keycloak_auth_username: admin
+    keycloak_auth_password: "{{ hostvars['dev.numhub.de']['ansible_facts']['ansible_local']['accounts.dev.numhub.de']['keycloak_admin_password'] }}"
+    keycloak_client_id: sympa-sync-lists.tomrobinr.iodatalabs.dev
+    keycloak_client_secret: "{{ sympa_sync_keycloak_client_secret }}"
+    sympa_source_webserver_ip: "127.0.0.21"
+    sympa_source_webserver_port: 8000

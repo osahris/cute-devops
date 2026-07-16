@@ -1,0 +1,36 @@
+---
+
+- name: dirs for CSR files
+  loop:
+    - "{{ certificate_signing_request_config_file | dirname }}"
+    - "{{ certificate_signing_request_file | dirname }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+
+- name: certificate signing request config
+  template:
+    src: csr.cnf.j2
+    dest: "{{ certificate_signing_request_config_file }}"
+
+- name: certificate signing request
+  command: openssl req -new
+    -config "{{ certificate_signing_request_config_file }}"
+    -key "{{ certificate_private_key_file }}"
+    -sha256
+    -out "{{certificate_signing_request_file}}"
+    {{ certificate_private_key_password is defined | ternary('-passin env:PRIVATE_KEY_PASSWORD','') }}
+  args:
+    creates: "{{certificate_signing_request_file}}"
+  environment:
+    PRIVATE_KEY_PASSWORD: "{{ certificate_private_key_password | default('') }}"
+
+- name: certificate signing request info
+  command: openssl req -text -noout
+    -in "{{certificate_signing_request_file}}"
+  changed_when: false
+  register: _certificate_signing_request_info
+
+# - name: certificate signing request debug
+#   debug:
+#     msg: "{{ _certificate_signing_request_info.stdout_lines }}"

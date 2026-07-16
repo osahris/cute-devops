@@ -1,0 +1,11 @@
+[Unit]
+Description=Run RPS-Admin Service every 5 minutes
+Requires=rps-admin@%i.service
+
+[Timer]
+Unit=rps-admin@%i.service
+OnCalendar=*-*-* *:*:00
+Persistent=true
+
+[Install]
+WantedBy=multi-user.target

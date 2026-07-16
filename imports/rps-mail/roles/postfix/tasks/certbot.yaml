@@ -1,0 +1,24 @@
+---
+- name: Install certbot and apache plugin
+  apt:
+    pkg:
+      - certbot
+      - python3-certbot-apache
+    state: present
+
+- name: Create certificate using certbot
+  command: >
+    certbot certonly --apache
+    -d {{ mailserver_domain_name }}
+    --agree-tos
+    -n
+    --email {{ postfix_admin_email }}
+  args:
+    creates: "/etc/letsencrypt/live/{{ mailserver_domain_name }}/fullchain.pem"
+
+- name: Add certbot renewal to crontab
+  cron:
+    name: "Certbot automatic renewal"
+    job: "/usr/bin/certbot renew --quiet --post-hook 'systemctl reload postfix'"
+    minute: "30"
+    hour: "3"

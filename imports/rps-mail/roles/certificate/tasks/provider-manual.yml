@@ -1,0 +1,4 @@
+---
+
+- include_tasks: key.yml
+- include_tasks: csr.yml

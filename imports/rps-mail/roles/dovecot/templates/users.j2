@@ -1,0 +1,5 @@
+{{ansible_managed|comment}}
+
+{% for user in dovecot_users %}
+{{user.username}}:{{user.password_hash}}::::::
+{% endfor %}

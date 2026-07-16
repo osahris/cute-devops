@@ -1,0 +1,85 @@
+---
+
+- name: Install required debian packages
+  apt:
+    pkg:
+      - python3-pip
+      - python3-virtualenv
+      - git
+
+- import_tasks: secrets.yaml
+
+- name: set fact
+  set_fact:
+    sympa_sync_keycloak_client_secret: "{{ sympa_sync_keycloak_client_secret }}"
+
+- name: debug sympa_sync_keycloak_client_secret
+  debug:
+    msg: "{{ sympa_sync_keycloak_client_secret }}"
+
+- name: loop over remote_facts.yaml
+  include_tasks: remote_facts.yaml
+  loop: "{{ sympa_gather_facts_from }}"
+  loop_control:
+    loop_var: remote_facts_from
+    index_var: remote_facts_from_index
+
+# - name: Print each mailing list environment
+#   debug:
+#     msg: "{{ remote_facts }}"
+
+# - name: print test hostvars of dev.numhub.de
+#   debug:
+#     msg: "{{ hostvars['dev.numhub.de']['ansible_facts']['ansible_local']['accounts.dev.numhub.de']['keycloak_admin_password'] }}"
+
+# - name: print test hostvars of staging.numhub.de
+#   debug:
+#     msg: "{{ hostvars['staging.numhub.de']['ansible_facts']['ansible_local'] }}"
+
+- name: Install rps-admin-tools pip package from git repo
+  pip:
+    name: git+https://gitlab.com/idcohorts/rps/rps-admin-tools.git@{{ rps_mail_sync_admin_tools_version }}
+    virtualenv: /opt/rps-admin-tools
+
+- name: Create symlink for rps-admin command
+  file:
+    src: /opt/rps-admin-tools/bin/rps-admin
+    dest: /usr/local/bin/rps-admin
+    state: link
+# /etc/rps-admin-tools/mailinglists/%i.env
+
+# - name: Example task
+#   debug: 
+#     msg: "{{ hostvars }}"
+
+- name: create directory /etc/rps-admin-tools
+  file:
+    path: "/etc/rps-admin-tools"
+    state: directory
+
+- name: create directory /etc/rps-admin-tools/mailinglists for envs
+  file:
+    path: "/etc/rps-admin-tools/mailinglists"
+    state: directory
+
+- name: loop over sympa_domains to create keycloak clients
+  include_tasks: keycloak_client.yaml
+  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+  loop_control:
+    loop_var: virtual_domain
+    index_var: virtual_domain_index
+
+- name: loop over sympa_domains to create directories
+  include_tasks: create-envs.yaml
+  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+  loop_control:
+    loop_var: virtual_domain
+    index_var: virtual_domain_index
+
+- name: loop over sympa_domains to create systemd services
+  include_tasks: create-systemd.yaml
+  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+  loop_control:
+    loop_var: virtual_domain
+    index_var: virtual_domain_index
+    

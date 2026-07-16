@@ -1,0 +1,51 @@
+---
+
+- include_role:
+    name: certificate
+  vars:
+    certificate_name: "{{virtual_domain}}"
+    certificate_common_name: "{{virtual_domain}}"
+    certificate_directory: /etc/ssl
+    certificate_key_usage:
+      - digitalSignature
+      - keyEncipherment
+    certificate_extended_key_usage:
+      - serverAuth
+  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+  loop_control:
+    loop_var: virtual_domain
+
+- name: apache2 sympa vhost
+  template:
+    src: apache/apache_vhost.conf.j2
+    dest: /etc/apache2/sites-available/sympa.conf
+  # notify: restart apache2
+
+- name: apache2 sympa config available
+  template:
+    src: apache/sympa.conf.j2
+    dest: /etc/apache2/conf-available/sympa.conf
+  # notify: restart apache2
+
+- name: apache2 sympa vhost enabled
+  file:
+    src: ../sites-available/sympa.conf
+    dest: /etc/apache2/sites-enabled/sympa.conf
+    state: link
+  # notify: restart apache2
+
+
+- name: Enable Apache2 proxy_fcgi module
+  apache2_module:
+    name: proxy_fcgi
+    state: present
+  # notify: restart apache2
+
+- name: restart apache2
+  command: systemctl restart apache2
+
+- name: Ensure wwsympa systemd socket is started and enabled
+  systemd:
+    name: wwsympa.socket
+    enabled: yes
+    state: started
