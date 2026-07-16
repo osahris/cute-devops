@@ -27,6 +27,11 @@ dovecot_users:
   - username: test@mail.test
     password_hash: "{CRYPT}$6$uTdSSemapWU7xtgm$Kou8KqfCccEP6PeisoPG0uTY0MV5cXJSE2SuO1.7V270vUk4ar0ylEL5ktRx1TFWsQA6Vq/gpTHzvRmBr4U0S1"
 
+# postfix must know mail.test is a local virtual-mailbox domain, else it
+# tries to relay it remotely (bounces).
+postfix_virtual_mailbox_domains:
+  - "{{ mailserver_domain_name }}"
+
 # --- postfix: no postfixadmin, no external checks ---
 postfix_with_postfixadmin: false
 postfix_with_spf_check: false

@@ -30,14 +30,29 @@ else
   fail "SMTP submission rejected"
 fi
 
-echo "== polling IMAP for delivery =="
+echo "== polling IMAP (993) for delivery =="
 found=0
 for _ in $(seq 1 30); do
-  # Fetch recent message subjects over IMAPS and look for our token.
-  if curl -s --insecure --max-time 10 \
-        --url "imaps://${imap_host}/INBOX" \
-        --user "${user}:${password}" \
-        --request "SEARCH SUBJECT ${token}" 2>/dev/null | grep -q '[0-9]'; then
+  # Real IMAPS login + SEARCH via imaplib (robust across the test-CA TLS).
+  if IMAP_HOST="${imap_host}" IMAP_USER="${user}" IMAP_PASS="${password}" \
+     IMAP_TOKEN="${token}" python3 - <<'PY'
+import imaplib, ssl, os, sys
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+try:
+    m = imaplib.IMAP4_SSL(os.environ["IMAP_HOST"], 993, ssl_context=ctx)
+    m.login(os.environ["IMAP_USER"], os.environ["IMAP_PASS"])
+    m.select("INBOX")
+    typ, data = m.search(None, "SUBJECT", os.environ["IMAP_TOKEN"])
+    hit = bool(data and data[0].split())
+    m.logout()
+    sys.exit(0 if hit else 1)
+except Exception as e:
+    print("imap:", e, file=sys.stderr)
+    sys.exit(2)
+PY
+  then
     found=1
     break
   fi

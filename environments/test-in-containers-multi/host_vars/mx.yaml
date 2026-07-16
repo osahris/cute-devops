@@ -10,6 +10,10 @@
 postfix_virtual_transport: lmtp:inet:mb:24
 postfix_with_sympa: false
 
+# mx accepts mail for the local virtual-mailbox domain and hands it to mb.
+postfix_virtual_mailbox_domains:
+  - "{{ mailserver_domain_name }}"
+
 # assertions
 test_mail_stack_expected_units:
   - postfix
