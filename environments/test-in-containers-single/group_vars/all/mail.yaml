@@ -37,6 +37,11 @@ postfix_with_postfixadmin: false
 postfix_with_spf_check: false
 postfix_with_spamhaus_check: false
 postfix_with_sympa: true
+# DKIM/DMARC need published DNS to be meaningful and the opendkim service
+# on trixie can't bind its socket in postfix's spool dir under systemd
+# sandboxing; out of scope for the transport-flow test.
+postfix_with_opendkim: false
+postfix_with_opendmarc: false
 
 # --- sympa: decoupled from RPS/Keycloak for the test run ---
 # (real loose-coupling lands with issues/mailinglist-sync.feature.md)
