@@ -10,6 +10,8 @@
     _repo_owner: "{{ repo.owner | default(repos_default_owner) }}"
     _repo_treehouses: "{{ repo.with_treehouses | default(repos_with_treehouses) }}"
     _repo_claude: "{{ repo.with_claude_hooks | default(repos_with_claude_hooks) }}"
+    _repo_remotes: "{{ repo.remotes | default([]) }}"
+    _repo_auto_push: "{{ repo.auto_push | default(repos_with_auto_push) }}"
 
 - name: "Assert repo.path is absolute and ends in .git: {{ _repo_path }}"
   ansible.builtin.assert:
@@ -36,6 +38,19 @@
     owner: "{{ _repo_owner }}"
     group: "{{ _repo_group }}"
     mode: "0644"
+
+- name: "Configure remotes in {{ _repo_path }}"
+  ansible.builtin.include_tasks: remotes.yml
+  when: _repo_remotes | length > 0
+
+- name: "Install auto-push reference-transaction hook in {{ _repo_path }}"
+  ansible.builtin.template:
+    src: reference-transaction.sh.j2
+    dest: "{{ _repo_path }}/hooks/reference-transaction"
+    owner: "{{ _repo_owner }}"
+    group: "{{ _repo_group }}"
+    mode: "0755"
+  when: _repo_auto_push | bool
 
 - name: "Set group ownership across {{ _repo_path }}"
   ansible.builtin.file:

@@ -24,6 +24,13 @@ repos:
     description: "A cute project."  # optional; written to bare repo's `description`
     with_treehouses: true           # per-repo override of repos_with_treehouses
     with_claude_hooks: true         # per-repo override of repos_with_claude_hooks
+    auto_push: false                # per-repo override of repos_with_auto_push
+    remotes:                        # optional; git remotes to configure on the bare repo
+      - name: github
+        url: git@github.com:foo/foo.git
+      - name: codeberg
+        url: ssh://git@codeberg.org/foo/foo.git
+        auto_push: false            # exclude this remote from auto-push (default true)
 ```
 
 Defaults (see `defaults/main.yml`):
@@ -32,6 +39,32 @@ Defaults (see `defaults/main.yml`):
 - `repos_default_owner: root`
 - `repos_with_treehouses: true`
 - `repos_with_claude_hooks: true`
+- `repos_with_auto_push: false`
+
+### Remotes
+
+Each entry in `remotes` needs a `name` and a `url`; the role adds the remote
+(or updates its URL) in the bare repo. Existing remotes not listed are left
+alone.
+
+### Auto-push
+
+With `auto_push: true` the role installs a `reference-transaction` git hook
+in the bare repo: whenever a branch or tag changes — a push into the repo, a
+commit in a treehouse worktree, a merge — the update is pushed on to every
+configured remote in the background (deletions propagate too). Per remote,
+`auto_push: false` opts that remote out (the hook only pushes to remotes
+whose `remote.<name>.autopush` git config is true).
+
+Notes:
+
+- The push runs as whichever user updated the ref, so everyone in the repo
+  group needs credentials for the remotes (e.g. ssh keys / agent).
+- Pushes are non-forced; rejections and other failures are appended to
+  `autopush.log` in the bare repo.
+- The hook file is Ansible-managed while `auto_push` is true (it overwrites a
+  hand-rolled `reference-transaction` hook). With `auto_push` false the role
+  never touches the hook.
 
 ## Example
 
@@ -60,7 +93,7 @@ git -C /srv/repos/foo.git worktree add treehouses/feature/x -b feature/x main
 
 ## What this role does NOT do
 
-- Wire up the `reference-transaction` hook on `main` (policy + sync-on-merge). That's project-specific — see the pattern.
+- Wire up branch policy / sync-on-merge in the `reference-transaction` hook. The optional `auto_push` hook only mirrors refs to remotes; anything beyond that is project-specific — see the pattern.
 - Create or manage Unix groups / users. Use `osahris.cute_devops.users` for that.
 - Push initial content into `main`. That's the maintainer's first commit.
 

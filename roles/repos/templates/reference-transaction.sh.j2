@@ -1,0 +1,37 @@
+#!/bin/sh
+# This file is managed by the osahris.cute_devops.repos Ansible role!
+#
+# Auto-push: whenever a branch or tag in this bare repo changes, push the
+# update on to every remote whose `remote.<name>.autopush` git config is
+# true (set via the role's `repos[].remotes` list).
+#
+# git calls this hook with the transaction state as $1 and feeds one
+# "<old-oid> <new-oid> <refname>" line per updated ref on stdin.
+
+[ "$1" = "committed" ] || exit 0
+
+refspecs=""
+while read -r old new ref; do
+  case "$ref" in
+    refs/heads/* | refs/tags/*) ;;
+    *) continue ;;
+  esac
+  case "$new" in
+    *[!0]*) refspecs="$refspecs $ref:$ref" ;;
+    *) refspecs="$refspecs :$ref" ;;   # all-zero OID: the ref was deleted
+  esac
+done
+
+[ -n "$refspecs" ] || exit 0
+
+log="$(git rev-parse --git-common-dir)/autopush.log"
+
+# Push in the background so the committer / pusher isn't blocked waiting on
+# the network; failures (auth, non-fast-forward, ...) land in autopush.log.
+for remote in $(git remote); do
+  [ "$(git config --bool --get "remote.$remote.autopush" 2>/dev/null)" = "true" ] || continue
+  # shellcheck disable=SC2086  # refspecs is a deliberately word-split list
+  git push --quiet "$remote" $refspecs >>"$log" 2>&1 &
+done
+
+exit 0

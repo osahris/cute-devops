@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `repos` role: new `remotes` option to configure multiple git remotes on a
+  bare repo, and an `auto_push` option that installs a `reference-transaction`
+  hook mirroring branch/tag updates (including deletions) to all remotes not
+  opted out via per-remote `auto_push: false`
+
 ### Changed
 - Relicensed from AGPL-3.0-or-later to EUPL-1.2; the
   `restic_client` and `restic_server` roles stay under

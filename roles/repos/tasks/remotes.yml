@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: "Assert every remote has a name and a url: {{ _repo_path }}"
+  ansible.builtin.assert:
+    that:
+      - _repo_remotes | rejectattr('name', 'defined') | length == 0
+      - _repo_remotes | rejectattr('url', 'defined') | length == 0
+    fail_msg: "each entry in repo.remotes needs both a name and a url"
+
+- name: "Configure remote in {{ _repo_path }}"
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+      changed=0
+      current="$(git -C {{ _repo_path | quote }} remote get-url {{ remote_def.name | quote }} 2>/dev/null || true)"
+      if [ -z "$current" ]; then
+        git -C {{ _repo_path | quote }} remote add {{ remote_def.name | quote }} {{ remote_def.url | quote }}
+        changed=1
+      elif [ "$current" != {{ remote_def.url | quote }} ]; then
+        git -C {{ _repo_path | quote }} remote set-url {{ remote_def.name | quote }} {{ remote_def.url | quote }}
+        changed=1
+      fi
+      autopush={{ 'true' if remote_def.auto_push | default(true) | bool else 'false' }}
+      if [ "$(git -C {{ _repo_path | quote }} config --get {{ ('remote.' ~ remote_def.name ~ '.autopush') | quote }} || true)" != "$autopush" ]; then
+        git -C {{ _repo_path | quote }} config {{ ('remote.' ~ remote_def.name ~ '.autopush') | quote }} "$autopush"
+        changed=1
+      fi
+      [ "$changed" -eq 0 ] || echo CHANGED
+  register: _repo_remote_result
+  changed_when: "'CHANGED' in _repo_remote_result.stdout"
+  loop: "{{ _repo_remotes }}"
+  loop_control:
+    loop_var: remote_def
+    label: "{{ remote_def.name }}"
