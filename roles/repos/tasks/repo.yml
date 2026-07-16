@@ -8,7 +8,7 @@
     _repo_path: "{{ repo.path }}"
     _repo_group: "{{ repo.group | default(repos_default_group) }}"
     _repo_owner: "{{ repo.owner | default(repos_default_owner) }}"
-    _repo_treehouses: "{{ repo.with_treehouses | default(repos_with_treehouses) }}"
+    _repo_workshops: "{{ repo.with_workshops | default(repos_with_workshops) }}"
     _repo_claude: "{{ repo.with_claude_hooks | default(repos_with_claude_hooks) }}"
 
 - name: "Assert repo.path is absolute and ends in .git: {{ _repo_path }}"
@@ -45,6 +45,6 @@
     group: "{{ _repo_group }}"
     recurse: true
 
-- name: "Set up Worktree Treehouses layout in {{ _repo_path }}"
-  ansible.builtin.include_tasks: treehouse.yml
-  when: _repo_treehouses | bool
+- name: "Set up Worktree Workshops layout in {{ _repo_path }}"
+  ansible.builtin.include_tasks: workshops.yml
+  when: _repo_workshops | bool

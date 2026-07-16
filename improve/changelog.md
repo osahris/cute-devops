@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Renamed the "Worktree Treehouses" pattern to **Worktree Workshops**
+  (`patterns/approaches/worktree-workshops.md`) with a fresh workshop/yard
+  metaphor. In the `repos` role this is a breaking rename: the on-disk
+  `treehouses/` directory is now `workshops/`, and the variables
+  `repos_with_treehouses` / `repo.with_treehouses` are now
+  `repos_with_workshops` / `repo.with_workshops`. The companion draft
+  `issues/treehouse-branch-shape.pattern.md` became
+  `issues/workshop-branch-shape.pattern.md`
 - Relicensed from AGPL-3.0-or-later to EUPL-1.2; the
   `restic_client` and `restic_server` roles stay under
   AGPL-3.0-or-later pending consent from a co-author
