@@ -24,7 +24,9 @@
     name: cute-devops-test:trixie
     path: "{{ playbook_dir }}/test"
     build:
-      file: Containerfile
+      # absolute path — a bare "Containerfile" resolves against the CWD
+      # (the repo root, whose Containerfile builds the docs website).
+      file: "{{ playbook_dir }}/test/Containerfile"
     state: build
     force: "{{ test_rebuild_image | default(false) | bool }}"
 
