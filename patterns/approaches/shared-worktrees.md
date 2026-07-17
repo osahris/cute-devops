@@ -60,9 +60,9 @@ people live while they work. They're separate paths:
 │       ├── worktree-create           ← creates a worktree for Claude
 │       └── worktree-remove
 ├── feature/                          ← category folder; 3775, same as work dir
-│   └── cute-thing/                   ← worktree, branch work/feature/cute-thing
+│   └── cute-thing/                   ← worktree, branch feature/cute-thing
 └── fix/                              ← category folder
-    └── login-redirect/               ← worktree, branch work/fix/login-redirect
+    └── login-redirect/               ← worktree, branch fix/login-redirect
 ```
 
 The bare repo stands on its own — it's a complete git repository and works with
@@ -83,7 +83,7 @@ start editing files at the top level. Look things up here; do work in a worktree
 
 A worktree shares its bare repo's objects and refs database. A commit in
 `/work/foo/feature/cute-thing/` lands immediately in
-`foo.git/refs/heads/work/feature/cute-thing` — no `git push` step, because
+`foo.git/refs/heads/feature/cute-thing` — no `git push` step, because
 there's nowhere separate to push to. As soon as you commit, your work is part of
 the bare repo's history.
 
@@ -93,13 +93,13 @@ pulls every worktree's live state**. From any other machine:
 ```bash
 git remote add foo ssh://host/srv/repos/foo.git
 git fetch foo
-git log foo/work/feature/cute-thing     # alice's in-progress work
-git log foo/work/fix/login-redirect      # whatever Claude is doing
+git log foo/feature/cute-thing     # alice's in-progress work
+git log foo/fix/login-redirect      # whatever Claude is doing
 ```
 
 No "publish my branch" ritual. Active work is *already published* the moment
 it's committed. (`main` of course stays gated by the maintainer's merge ritual;
-we're talking about the in-flight `work/**` branches.)
+we're talking about the in-flight `<category>/<branch>` worktree branches.)
 
 ### Names: `<category>/<branch>`
 
@@ -115,8 +115,10 @@ directory layout and a soft taxonomy:
   contains at least one `-`, at most 40 characters.
 
 So `feature/add-dns-role`, `fix/login-redirect`, `experiment/new-router`. The
-worktree lives at `/work/foo/<category>/<branch>`; the git branch is
-`work/<category>/<branch>`. Grouping worktrees under category folders keeps `ls
+worktree lives at `/work/foo/<category>/<branch>`; the git branch carries the
+very same name, `<category>/<branch>` — creating one by hand with a plain
+`git worktree add` and going through the hooks give identical results. Grouping
+worktrees under category folders keeps `ls
 /work/foo` self-organising instead of a flat wall of names, with nothing to
 configure — the folders are the taxonomy.
 
@@ -141,8 +143,8 @@ the branch *is* the worktree, and the existence of the directory is the lock. No
 external coordination needed.
 
 ```
-$ git -C /srv/repos/foo.git worktree add /work/foo/feature/cute-thing -b work/feature/cute-thing main
-fatal: 'work/feature/cute-thing' is already checked out at
+$ git -C /srv/repos/foo.git worktree add /work/foo/feature/cute-thing -b feature/cute-thing main
+fatal: 'feature/cute-thing' is already checked out at
        '/work/foo/feature/cute-thing'
 ```
 
@@ -299,7 +301,7 @@ the project works, with no per-session bootstrapping.
 
 - [ ] In `foo.git/hooks/`, set a `reference-transaction` policy on `main` (fast-forward-only, merge-commit-only) — see [[in-tree-issues]] for the shape.
 - [ ] Extend the same hook to sync the work directory's `.claude/` and `CLAUDE.md` from the new tree after every successful merge.
-- [ ] Optionally, a `pre-receive`/`update` hook that rejects any `work/*` ref whose shape isn't `work/<category>/<branch>` — see [[worktree-branch-shape]].
+- [ ] Optionally, a `pre-receive`/`update` hook that rejects any branch (apart from `main`) whose shape isn't `<category>/<branch>` — see [[worktree-branch-shape]].
 - [ ] Add `pre-receive` / `update` hooks for CI and lint that every push must satisfy.
 - [ ] Auto-push `main` to your public mirrors from the same hook.
 

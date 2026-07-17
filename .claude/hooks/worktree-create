@@ -66,7 +66,10 @@ fi
 base="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
 [ -z "$base" ] && base="main"
 
-branch="work/$category/$branch_slug"
+# The branch is named exactly like the worktree's path under the work
+# directory, so the hook behaves the same as a plain
+# `git worktree add <workdir>/<category>/<branch>` done by hand.
+branch="$category/$branch_slug"
 target="$workdir/$category/$branch_slug"
 
 if [ -e "$target/.git" ]; then

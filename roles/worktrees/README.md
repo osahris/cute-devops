@@ -29,8 +29,10 @@ layout. For each project it creates `{{ worktrees_base }}/<project>` (default
   tracked in the repo (checked out per worktree) — Claude Code does not inherit
   settings from the parent pad directory. This role scaffolds the pad's copy.
 
-Worktrees then live at `/work/<project>/<category>/<branch>` on branches
-`work/<category>/<branch>`, one per unit of work. The role records the work
+Worktrees then live at `/work/<project>/<category>/<branch>` on branches of the
+same name, `<category>/<branch>`, one per unit of work — the branch name always
+matches the worktree's path under the work directory, just like a plain
+`git worktree add` there. The role records the work
 directory in the bare repo's config (`cute.workdir`) so the hooks resolve it
 identically from the pad or from inside any worktree.
 
@@ -109,7 +111,7 @@ After the role runs, spawn a worktree (Claude users just call `EnterWorktree`):
 ```bash
 cd /work/foo
 git log --oneline main        # look things up (read-only pad)
-git -C /srv/repos/foo.git worktree add /work/foo/feature/add-dns -b work/feature/add-dns main
+git -C /srv/repos/foo.git worktree add /work/foo/feature/add-dns -b feature/add-dns main
 cd /work/foo/feature/add-dns  # now edit and commit
 ```
 

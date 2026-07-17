@@ -32,5 +32,5 @@ if [ -z "$dirty" ]; then
 fi
 
 n="$(printf '%s\n' "$dirty" | grep -c . || true)"
-printf '{"decision":"block","reason":"This worktree has %s uncommitted change(s). Commit your work before finishing: review `git status`, then `git add` and `git commit` on the work/<category>/<branch> branch. This Stop hook enforces a clean tree so every change lands as a commit."}\n' "$n"
+printf '{"decision":"block","reason":"This worktree has %s uncommitted change(s). Commit your work before finishing: review `git status`, then `git add` and `git commit` on the <category>/<branch> branch. This Stop hook enforces a clean tree so every change lands as a commit."}\n' "$n"
 exit 0

@@ -15,13 +15,14 @@ Run git directly in this directory against the live repo:
 git log --oneline -20 main              # recent history
 git branch                              # what work is in flight
 git show main:path/to/file              # read a file at a ref
-git log --oneline work/<category>/<branch>   # someone's in-progress branch
+git log --oneline <category>/<branch>   # someone's in-progress branch
 ```
 
 ## Doing work → use a worktree
 
 Don't edit files here. Each piece of work gets its own worktree at
-`{{ _wt_workdir }}/<category>/<branch>` on a branch `work/<category>/<branch>`.
+`{{ _wt_workdir }}/<category>/<branch>` on a branch of the same name,
+`<category>/<branch>` — exactly what a plain `git worktree add` there would use.
 
 Claude users: ask Claude to call the **`EnterWorktree`** tool (or start with
 `claude --worktree <category>/<branch>` from the CLI). Both routes go through
@@ -56,7 +57,7 @@ Before starting, decide whether `main` is the right base for *this* work:
 branch pull it in once you're inside:
 
 ```bash
-git merge work/<category>/<other-branch>
+git merge <category>/<other-branch>
 ```
 
 Prefer the smallest base that gets the job done: merging a branch in is explicit
@@ -66,7 +67,7 @@ in-review) history into yours.
 ## Who merges what
 
 Open an MR against `main`; the maintainer reviews and merges. Don't push to
-`main` from a `work/…` branch — the bare repo's hooks will reject it.
+`main` from a worktree branch — the bare repo's hooks will reject it.
 
 See [Shared Worktrees 🌳](https://cute-devops.patterns.how/patterns/approaches/shared-worktrees) for the full pattern.
 

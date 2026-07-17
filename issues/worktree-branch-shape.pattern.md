@@ -20,7 +20,9 @@ SPDX-License-Identifier: EUPL-1.2
 ## The rule (now core)
 
 Every worktree lives at `/work/<project>/<category>/<branch>` on a branch named
-`work/<category>/<branch>`. The name carries the same shape everywhere:
+`<category>/<branch>` — the branch name is exactly the worktree's path under the
+work directory, so hook-created and hand-made (`git worktree add`) worktrees
+behave identically. The name carries the same shape everywhere:
 
 - `feature/cute-thing`
 - `fix/login-redirect`
@@ -50,7 +52,7 @@ at a glance.
 ## Enforcement idea (still open)
 
 A `pre-receive` (or `update`) hook on the bare repo could reject any ref outside
-`refs/heads/work/<category>/<branch>` (and `refs/heads/main`). Because worktrees
+`refs/heads/<category>/<branch>` (and `refs/heads/main`). Because worktrees
 share the bare repo's refs database, that hook fires the moment you commit —
 there's no "push later" step where a malformed name could sneak through. The
 Claude Code worktree hooks already validate the shape at creation time; a
