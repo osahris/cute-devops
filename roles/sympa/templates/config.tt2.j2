@@ -1,0 +1,48 @@
+{#
+SPDX-FileCopyrightText: 2024 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+SPDX-FileCopyrightText: 2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+family_name rps-sync
+
+subject [% listname %]
+
+member_include
+source_parameters [% listname %]
+source rps-sync
+
+editor_include
+source_parameters [% listname %]
+source rps-sync-editors
+
+status [% status %]
+
+visibility [% visibility %]
+
+send [% send %]
+
+process_archive [% process_archive %]
+
+archive
+  mail_access [% archive_mail_access %]
+  web_access [% archive_web_access %]
+
+subscribe [% subscribe %]
+
+shared_doc
+  d_edit [% shared_edit %]
+  d_read [% shared_read %]
+
+custom_subject [% custom_subject %]
+
+distribution_ttl [% distribution_ttl %]
+
+dmarc_protection
+  mode [% dmarc_protection_mode %]
+  phrase [% dmarc_protection_phrase %]
+
+max_size [% max_size %]
+
+ttl 300

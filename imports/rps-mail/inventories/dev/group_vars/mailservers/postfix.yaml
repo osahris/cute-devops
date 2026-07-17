@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+postfix_with_spf_check: true
+postfix_with_spamhaus_check: true
+postfix_with_opendkim: true
+postfix_with_opendmarc: true
+postfix_with_sympa: true

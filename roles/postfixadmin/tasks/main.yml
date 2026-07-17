@@ -1,0 +1,99 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: mysql database
+  mysql_db:
+    name: "{{postfixadmin_mysql_database}}"
+    state: present
+  delegate_to: "{{(postfixadmin_mysql_host=='localhost')|ternary(inventory_hostname,postfixadmin_mysql_host)}}"
+
+- name: mysql user
+  mysql_user:
+    name: "{{postfixadmin_mysql_username}}"
+    password: "{{postfixadmin_mysql_password}}"
+    priv: "{{postfixadmin_mysql_database}}.*:ALL,GRANT"
+    host: "{{postfixadmin_mysql_host}}"
+    state: present
+  delegate_to: "{{(postfixadmin_mysql_host=='localhost')|ternary(inventory_hostname,postfixadmin_mysql_host)}}"
+
+- name: disable dbconfig
+  debconf:
+    name: postfixadmin
+    question: postfixadmin/dbconfig-{{item}}
+    answer: 'false'
+    vtype: boolean
+  with_items:
+    - install
+    - reinstall
+    - remove
+    - upgrade
+
+- name: install packages
+  apt:
+    pkg:
+      - postfixadmin
+      - ca-certificates
+      - ssl-cert
+    install_recommends: no
+
+- name: dbconfig
+  template:
+    src: dbconfig.inc.php.j2
+    dest: /etc/postfixadmin/dbconfig.inc.php
+
+- name: ensure template_c folder is writable by webserver
+  file:
+    path: /usr/share/postfixadmin/templates_c
+    owner: www-data
+    group: www-data
+    state: directory
+
+- name: make postfixadmin-cli executable
+  file:
+    path: /usr/share/postfixadmin/scripts/postfixadmin-cli
+    mode: "u=rwx,g=rx,o=rx"
+
+- name: symlink for postfixadmin-cli
+  file:
+    src: /usr/share/postfixadmin/scripts/postfixadmin-cli
+    dest:  /usr/local/bin/postfixadmin-cli
+    state: link
+
+#- name: setup postfixadmin
+#  get_url:
+#    url: http://localhost/postfixadmin/setup.php
+#    dest:  /var/www/html/postfixadmin-setup-report.html
+
+- name: apache2 vhost config
+  template:
+    src: apache2-vhost.conf.j2
+    dest: /etc/apache2/sites-available/postfixadmin.conf
+  notify:
+    - apache2 reload
+
+- name: apache2 vhost enable
+  file:
+    src: ../sites-available/postfixadmin.conf
+    dest: /etc/apache2/sites-enabled/postfixadmin.conf
+    state: link
+  notify:
+    - apache2 reload
+
+- name: apache2 ssl module enable
+  apache2_module:
+    name: ssl
+    state: present
+  notify:
+    - apache2 reload
+
+- name: disable postfixadmin apache2 config
+  file:
+    path: /etc/apache2/conf-enabled/postfixadmin.conf
+    state: absent
+
+- name: flush handlers
+  meta: flush_handlers

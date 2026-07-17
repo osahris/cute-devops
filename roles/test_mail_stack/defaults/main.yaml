@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+# systemd units that must be active on this instance.
+test_mail_stack_expected_units:
+  - postfix
+
+# TCP ports that must be listening on this instance (probed inside it).
+test_mail_stack_expected_ports:
+  - 25
+
+# Run the end-to-end delivery probe (test-mail-flow.sh). Enable on the
+# instance that owns the mailboxes; it injects a message and checks it
+# is retrievable over IMAP.
+test_mail_stack_flow: false
+
+# Parameters for the end-to-end probe.
+test_mail_stack_flow_smtp_host: localhost
+test_mail_stack_flow_imap_host: localhost
+test_mail_stack_flow_user: test@mail.test
+test_mail_stack_flow_password: testpassword

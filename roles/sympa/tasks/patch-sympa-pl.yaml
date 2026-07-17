@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2024 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: create backup of original v6.2.70 Sympa.pm
+  command: cp /usr/share/sympa/lib/Sympa.pm /usr/share/sympa/lib/Sympa.pm.orig
+
+- name: copy Sympa.pm from github repo
+  get_url:
+    url: https://raw.githubusercontent.com/sympa-community/sympa/refs/heads/main/src/lib/Sympa.pm
+    dest: /usr/share/sympa/lib/Sympa.pm
+
+- name: restart sympa
+  command: systemctl restart sympa

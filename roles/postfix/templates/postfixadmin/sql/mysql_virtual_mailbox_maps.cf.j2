@@ -1,0 +1,13 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+user = {{postfix_postfixadmin_mysql_username}}
+password = {{postfix_postfixadmin_mysql_password}}
+hosts = {{postfix_postfixadmin_mysql_host}}
+dbname = {{postfix_postfixadmin_mysql_database}}
+query           = SELECT maildir FROM mailbox WHERE username='%s' AND active = '1'
+#expansion_limit = 100

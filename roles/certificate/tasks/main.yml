@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- import_tasks: directory.yml
+  when: certificate_directory is defined
+
+- name: setup
+  include_tasks: setup_{{ansible_os_family}}.yml
+
+- name: method
+  include_tasks: "provider-{{ certificate_provider }}.yml"
+
+- name: info
+  command: openssl x509 -text -noout
+    -in "{{ certificate_file }}"
+  changed_when: false
+  register: _certificate_info

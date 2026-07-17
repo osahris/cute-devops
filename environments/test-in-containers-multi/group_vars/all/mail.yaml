@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+# Shared config for every instance in the multi-server topology.
+# Per-instance specifics (role toggles, cross-host addresses) live in the
+# group_vars/<instance>/ files.
+
+mail_test_domain: mail.test
+mailserver_domain_name: mail.test
+rps_admin_email: admin@mail.test
+
+# TLS via the harness test CA (no ACME) on whichever instance terminates it.
+postfix_with_ssl: false
+postfix_certificate_fullchain_file: /etc/ssl/certs/{{ inventory_hostname }}.fullchain.pem
+postfix_certificate_private_key_file: /etc/ssl/private/{{ inventory_hostname }}.key.pem
+dovecot_certificate_fullchain_file: /etc/ssl/certs/{{ inventory_hostname }}.fullchain.pem
+dovecot_certificate_private_key_file: /etc/ssl/private/{{ inventory_hostname }}.key.pem
+
+# The mailbox set, shared so mx's virtual maps and mb's dovecot agree.
+dovecot_auth: passwdfile
+dovecot_users:
+  # password: testpassword
+  - username: test@mail.test
+    password_hash: "{CRYPT}$6$uTdSSemapWU7xtgm$Kou8KqfCccEP6PeisoPG0uTY0MV5cXJSE2SuO1.7V270vUk4ar0ylEL5ktRx1TFWsQA6Vq/gpTHzvRmBr4U0S1"
+
+# No postfixadmin / external checks anywhere.
+postfix_with_postfixadmin: false
+postfix_with_spf_check: false
+postfix_with_spamhaus_check: false

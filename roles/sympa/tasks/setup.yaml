@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: Preconfigure sympa database type with debconf
+  ansible.builtin.debconf:
+    name: sympa
+    question: sympa/database-type
+    value: pgsql
+    vtype: select
+
+- name: Preconfigure sympa database password with debconf
+  ansible.builtin.debconf:
+    name: sympa
+    question: sympa/pgsql/app-pass
+    value: "{{ sympa_postgres_password }}"
+    vtype: password
+  no_log: True
+
+- name: Install sympa debian packages
+  apt:
+    pkg:
+      - sympa
+      - perl-doc
+
+# - name: chown sympa:sympa /etc/aliases.db
+#   command: chown sympa:sympa /etc/aliases.db

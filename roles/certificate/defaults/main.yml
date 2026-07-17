@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+certificate_directory: /etc/ssl
+
+# Provider used when the role is invoked without an explicit choice.
+# selfsigned needs no network and no external CA, so a bare
+# `include_role: certificate` succeeds instead of failing on an
+# undefined `provider-{{ certificate_provider }}.yml` include.
+certificate_provider: selfsigned
+
+certificate_common_name: "{{ inventory_hostname }}"
+
+#certificate_alt_names:
+#  - "DNS:{{ certificate_common_name }}"
+
+
+certificate_name: "{{ certificate_common_name | regex_replace(' ', '_') }}"
+certificate_file: "{{ certificate_directory }}/certs/{{ certificate_name }}.cert.pem"
+certificate_chain_file: "{{ certificate_directory }}/certs/{{ certificate_name }}.chain.pem"
+certificate_fullchain_file: "{{ certificate_directory }}/certs/{{ certificate_name }}.fullchain.pem"
+
+certificate_private_key_file: "{{ certificate_directory }}/private/{{ certificate_name }}.key.pem"
+certificate_private_key_size: 4096
+
+certificate_letsencrypt_account_key_file: "{{ certificate_directory }}/private/letsencrypt.account-key.pem"
+
+certificate_signing_request_file: "{{ certificate_directory }}/csr/{{ certificate_name }}.csr.pem"
+certificate_signing_request_config_file: "{{ certificate_directory }}/cnf/{{ certificate_name }}.csr.cnf"
+
+certificate_authority: false
+
+certificate_key_usage:
+  - digitalSignature
+  - keyEncipherment
+certificate_extended_key_usage:
+ - serverAuth

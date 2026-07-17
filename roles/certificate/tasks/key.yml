@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: dir for private key file
+  ansible.builtin.file:
+    path: "{{ certificate_private_key_file | dirname }}"
+    state: directory
+    # TODO: these are the debian default perms; check if they are generically applicable for us
+    owner: root
+    #group: ssl-cert
+    mode: "0710"
+
+- name: private key
+  command: openssl genrsa
+    -out "{{certificate_private_key_file}}"
+    {{ certificate_private_key_password is defined | ternary('-aes256 -passout env:PRIVATE_KEY_PASSWORD','') }}
+    {{ certificate_private_key_size }}
+  args:
+    creates: "{{ certificate_private_key_file }}"
+  environment:
+    PRIVATE_KEY_PASSWORD: "{{ certificate_private_key_password | default('') }}"
+  notify: certificate changed

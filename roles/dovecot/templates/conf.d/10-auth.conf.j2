@@ -1,0 +1,28 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ansible_managed|comment}}
+
+##
+## Authentication processes
+##
+
+# Disable plaintext (cleartext) authentication unless SSL/TLS is used. In
+# Dovecot 2.4 the old "disable_plaintext_auth = yes" was replaced by
+# "auth_allow_cleartext" with inverted meaning; disabling cleartext auth is
+# therefore expressed as auth_allow_cleartext = no.
+auth_allow_cleartext = no
+
+# Space separated list of wanted authentication mechanisms.
+# NOTE: See also auth_allow_cleartext setting.
+auth_mechanisms = plain login
+
+##
+## Password and user databases
+##
+
+!include auth-{{dovecot_auth}}.conf.ext

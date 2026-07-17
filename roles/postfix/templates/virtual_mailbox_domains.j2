@@ -1,0 +1,14 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ansible_managed|comment}}
+
+{% if postfix_virtual_mailbox_domains is defined %}
+{% for domain in postfix_virtual_mailbox_domains %}
+{{domain}}  OK
+{% endfor %}
+{% endif %}

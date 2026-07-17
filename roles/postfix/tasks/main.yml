@@ -1,0 +1,133 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2024-2025 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+# SPDX-FileCopyrightText: 2025 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+# SPDX-FileCopyrightText: 2025 Vasilii Tulskii <tulskyva@mail.ru>
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+- name: update apt cache
+  apt:
+    update_cache: yes
+
+- name: install packages
+  apt:
+    pkg:
+      - postfix
+      #- libsasl2-modules-postfix
+      - rsyslog
+      - mailutils
+
+- name: master configuration
+  template:
+    src: master.cf.j2
+    dest: /etc/postfix/master.cf
+  notify: restart postfix
+
+- name: main configuration
+  template:
+    src: main.cf.j2
+    dest: /etc/postfix/main.cf
+  notify: reload postfix
+
+- name: postfix transport_maps
+  template:
+    src: transport_maps.j2
+    dest: /etc/postfix/transport_maps
+  notify: postmap transport_maps
+
+- name: postfix virtual_alias_domains
+  template:
+    src: virtual_alias_domains.j2
+    dest: /etc/postfix/virtual_alias_domains
+  notify: postmap virtual_alias_domains
+
+- name: postfix virtual_alias_maps
+  template:
+    src: virtual_alias_maps.j2
+    dest: /etc/postfix/virtual_alias_maps
+  notify: postmap virtual_alias_maps
+
+- name: postfix virtual_mailbox_domains
+  template:
+    src: virtual_mailbox_domains.j2
+    dest: /etc/postfix/virtual_mailbox_domains
+  notify: postmap virtual_mailbox_domains
+
+- name: postfix virtual_mailbox_maps
+  template:
+    src: virtual_mailbox_maps.j2
+    dest: /etc/postfix/virtual_mailbox_maps
+  notify: postmap virtual_mailbox_maps
+
+- import_tasks: spf.yaml
+  when: postfix_with_spf_check
+
+- import_tasks: opendkim.yaml
+  when: postfix_with_opendkim
+
+- import_tasks: opendmarc.yaml
+  when: postfix_with_opendmarc
+
+- import_tasks: postfixadmin.yml
+  when: postfix_with_postfixadmin
+
+- name: check postfix configuration
+  command: postfix check
+  changed_when: false
+
+- name: postmap transport_maps
+  command: postmap /etc/postfix/transport_maps
+
+- name: postmap virtual_alias_domains
+  command: postmap /etc/postfix/virtual_alias_domains
+
+- name: postmap virtual_alias_maps
+  command: postmap /etc/postfix/virtual_alias_maps
+
+- name: postmap virtual_mailbox_domains
+  command: postmap /etc/postfix/virtual_mailbox_domains
+
+- name: postmap virtual_mailbox_maps
+  command: postmap /etc/postfix/virtual_mailbox_maps
+  notify: restart postfix
+
+# - name: chown root:postfix transport_maps
+#   command: chown root:postfix /etc/postfix/transport_maps.db
+
+- import_tasks: certbot.yaml
+  when: postfix_with_ssl
+
+# - import_tasks: configure-ssl.yaml
+#   when: postfix_with_ssl
+
+# repair permissions for opendkim and opendmarc
+- name: repair permissions for opendkim
+  ansible.builtin.file:
+    path: /var/run/opendkim
+    state: directory
+    owner: opendkim
+    group: opendkim
+    recurse: true
+  when: postfix_with_opendkim
+
+- name: repair permissions for opendmarc
+  ansible.builtin.file:
+    path: /var/run/opendmarc
+    state: directory
+    owner: opendmarc
+    group: opendmarc
+    recurse: true
+  when: postfix_with_opendmarc
+
+# Config-change restarts are handled by the restart/reload handlers
+# notified from the template tasks above. This only ensures the service
+# is up (idempotent — no change when already running), replacing the old
+# unconditional `systemctl restart` that broke idempotence and was the
+# only thing starting postfix after a container/package install.
+- name: ensure postfix is started and enabled
+  ansible.builtin.systemd_service:
+    name: postfix
+    state: started
+    enabled: true

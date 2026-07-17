@@ -1,5 +1,13 @@
+<!--
+SPDX-FileCopyrightText: 2016-2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2020-2025 Uniklinik Köln
+SPDX-FileCopyrightText: 2025-2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+
+SPDX-License-Identifier: EUPL-1.2
+-->
+
 ---
-# SPDX-FileCopyrightText: 2016-2026 Markus Katharina Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2016-2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
 # SPDX-License-Identifier: EUPL-1.2
 #
 # Sidebar grouping for the Roles section of the Cute DevOps! website.
@@ -34,6 +42,17 @@ groups:
   - name: Containers
     roles:
       - podman
+  - name: Mail
+    roles:
+      - mailname
+      - postfix
+      - dovecot
+      - sympa
+      - opendkim
+      - opendmarc
+      - postfixadmin
+      - rainloop
+      - certificate
   - name: Backup
     roles:
       - restic_client

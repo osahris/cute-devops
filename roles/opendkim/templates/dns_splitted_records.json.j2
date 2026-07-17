@@ -1,0 +1,14 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{
+{% for dkim_domain in dkim_domains %}
+"{{dkim_domain}}":
+{% set key = _dkim_public_keys[dkim_domain] %}
+"{{dkim_selector}}._domainkey IN TXT \"v=DKIM1; h=sha256; k=rsa; \" \"p={{key[0:253]}}\"{% for n in range((((key|length)-253)/255)|round|int) %} \"{{key[253+n*255:253+(n+1)*255]}}\"{% endfor %}",
+{% endfor %}
+}

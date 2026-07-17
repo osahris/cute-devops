@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2024 Christian Akele <christian.akele@uk-koeln.de>
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+# get hostvars from rps_servers and debug them
+# - hosts: rps_servers
+#   become: true
+#   tasks:
+#     - debug: 
+#         msg: "{{ hostvars['staging.numhub.de'].ansible_local['accounts.staging.numhub.de'].keycloak_admin_password }}"
+#       register: temp_pass
+      # sympa_mailinglist_envs['eliasham.iodatalabs.dev'].keycloak_admin_password
+
+- hosts: mailservers
+  become: true
+  roles:
+    - role: postfix
+      tags: postfix
+    
+    - role: dovecot
+      tags: dovecot
+    
+    - role: rps_mail_sync
+      tags: rps_mail_sync, mail_sync, mail-sync
+
+    - role: sympa
+      tags: sympa

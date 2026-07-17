@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2024 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+[mailservers]
+tomrobinr.iodatalabs.dev ansible_user=root
+
+[rps_servers]
+staging.numhub.de
+dev.numhub.de

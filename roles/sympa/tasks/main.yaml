@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: Generate Sympa secrets
+  tags: sympa-secrets
+  import_tasks: secrets.yaml
+
+- name: Setup Sympa
+  tags: sympa-setup
+  import_tasks: setup.yaml
+
+# - name: Install and configure database
+#   tags: sympa-db
+#   import_tasks: db.yaml
+
+- name: Apply patch for Sympa.pl
+  tags: sympa-patch
+  import_tasks: patch-sympa-pl.yaml
+  when: sympa_patch_sympa_pl | default(false) | bool
+
+- name: Sympa post-install operations
+  tags: sympa-config
+  import_tasks: config.yaml
+
+- name: Configure postfix and mail aliases
+  tags: sympa-mail
+  import_tasks: mail.yaml
+
+- name: Configure Apache
+  tags: sympa-web
+  import_tasks: web.yaml
+  # TODO: add certificate generation
+  # TODO: add apache vhost configuration
+
+- name: testing
+  debug:
+    msg: "{{ sympa_domains | union([sympa_main_domain]) }}"
+
+- name: gather secrets again
+  tags: sympa-secrets
+  import_tasks: secrets.yaml
+
+- name: loop over remote_facts.yaml
+  include_tasks: remote_facts.yaml
+  loop: "{{ sympa_gather_facts_from }}"
+  loop_control:
+    loop_var: remote_facts_from
+    index_var: remote_facts_from_index
+
+- name: loop over sympa_domains to create virtual robots
+  tags: sympa-robots
+  include_tasks: configure_virtual_domains.yaml
+  loop: "{{ sympa_domains | union([sympa_main_domain]) }}"
+  loop_control:
+    loop_var: virtual_domain
+    index_var: virtual_domain_index
+
+- name: restart postfix
+  command: systemctl restart postfix
+
+- name: restart sympa
+  command: systemctl restart sympa
+
+- name: restart wwsympa
+  command: systemctl restart wwsympa

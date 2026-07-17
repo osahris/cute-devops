@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: directory
+  file:
+    path: "{{ certificate_directory }}"
+    state: directory
+
+- name: subdirectories
+  file:
+    path: "{{ certificate_directory }}/{{item}}"
+    state: directory
+  with_items:
+    - certs
+    - csr
+    - cnf
+    - private
+
+- name: private directory
+  file:
+    path: "{{ certificate_directory }}/private"
+    # TODO: these are the debian default perms; check if they are generically applicable for us
+    owner: root
+    #group: ssl-cert
+    mode: 0710
+

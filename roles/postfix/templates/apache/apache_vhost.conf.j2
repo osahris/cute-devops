@@ -1,0 +1,31 @@
+{#
+SPDX-FileCopyrightText: 2024-2025 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+SPDX-FileCopyrightText: 2024-2025 Uniklinik Köln
+SPDX-FileCopyrightText: 2025 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+SPDX-FileCopyrightText: 2025 Vasilii Tulskii <tulskyva@mail.ru>
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ ansible_managed | comment }}
+
+<VirtualHost *:443>
+
+  ServerName {{ mailserver_domain_name }}
+
+  ErrorLog ${APACHE_LOG_DIR}/error-sympa-{{ mailserver_domain_name }}.log
+  CustomLog ${APACHE_LOG_DIR}/access-sympa-{{ mailserver_domain_name }}.log combined
+
+  DocumentRoot /var/www/html
+
+  RewriteEngine On
+  RewriteRule ^/?$ https://%{SERVER_NAME}/wws [QSA,R=301,L]
+
+  SSLEngine on
+  SSLCertificateFile "/etc/ssl/certs/{{mailserver_domain_name}}.cert.pem"
+  SSLCertificateKeyFile "/etc/ssl/private/{{mailserver_domain_name}}.key.pem"
+  {% if not certificate_provider == "selfsigned" %}
+  SSLCertificateChainFile "/etc/ssl/certs/{{mailserver_domain_name}}.chain.pem"
+  {% endif %}
+</VirtualHost>
+

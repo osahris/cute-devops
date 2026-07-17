@@ -1,0 +1,35 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+SPDX-FileCopyrightText: 2024 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ ansible_managed | comment }}
+
+{% for domain in sympa_domains | union([sympa_main_domain]) %}
+
+<VirtualHost *:443>
+
+  ServerName {{ domain }}
+
+  ErrorLog ${APACHE_LOG_DIR}/error-sympa-{{ domain }}.log
+  CustomLog ${APACHE_LOG_DIR}/access-sympa-{{ domain }}.log combined
+
+  DocumentRoot /var/www/html
+
+  RewriteEngine On
+  RewriteRule ^/?$ https://%{SERVER_NAME}/wws [QSA,R=301,L]
+
+  include /etc/apache2/conf-available/sympa.conf
+
+  SSLEngine on
+  SSLCertificateFile "/etc/ssl/certs/{{domain}}.cert.pem"
+  SSLCertificateKeyFile "/etc/ssl/private/{{domain}}.key.pem"
+  {% if not certificate_provider == "selfsigned" %}
+  SSLCertificateChainFile "/etc/ssl/certs/{{domain}}.chain.pem"
+  {% endif %}
+</VirtualHost>
+
+{% endfor %}

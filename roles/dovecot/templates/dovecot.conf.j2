@@ -1,0 +1,31 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ansible_managed|comment}}
+
+## Dovecot configuration file
+
+# "doveconf -n" command gives a clean output of the changed settings. Use it
+# instead of copy&pasting files when posting to the Dovecot mailing list.
+
+# Dovecot 2.4 requires the configuration version to be declared as the very
+# first setting in the file. dovecot_storage_version selects the default
+# mailbox storage behaviour and must also be set.
+dovecot_config_version = 2.4.0
+dovecot_storage_version = 2.4.0
+
+# Enable installed protocols
+!include_try /usr/share/dovecot/protocols.d/*.protocol
+
+# Most of the actual configuration gets included below. The filenames are
+# first sorted by their ASCII value and parsed in that order. The 00-prefixes
+# in filenames are intended to make it easier to understand the ordering.
+!include conf.d/*.conf
+
+# A config file can also tried to be included without giving an error if
+# it's not found:
+!include_try local.conf
