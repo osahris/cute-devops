@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: Install required Debian packages for PostgreSQL
+  apt:
+    pkg:
+      - postgresql
+      - libpq-dev
+      - python3-psycopg2 # Required by Ansible
+    state: present
+
+- name: Ensure PostgreSQL is started and enabled
+  ansible.builtin.systemd_service:
+    name: postgresql
+    state: started
+    enabled: true

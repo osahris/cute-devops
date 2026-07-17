@@ -1,0 +1,12 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ansible_managed|comment}}
+
+# In Dovecot 2.4 the wrapping "plugin { ... }" block was removed; plugin
+# settings are now written as ordinary top-level settings. This file
+# intentionally defines no plugin settings.

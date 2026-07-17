@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: Creating Sympa aliases file (1/2)
+  file:
+    path: "{{ sympa_mail_alias_file }}"
+    state: touch
+    owner: sympa
+    group: sympa
+    mode: 0644
+
+- name: Creating Sympa aliases file (2/2)
+  file:
+    path: "{{ sympa_mail_alias_file }}.db"
+    state: touch
+    owner: sympa
+    group: sympa
+    mode: 0644
+
+- name: Compiling sympa_aliases
+  command: "postmap {{ sympa_mail_alias_file }}"
+
+- name: Adding required virtual aliases
+  template:
+    src: mail/virtual.sympa.j2
+    dest: /etc/postfix/virtual.sympa
+
+- name: Compiling Sympa virtual aliases
+  command: postmap /etc/postfix/virtual.sympa
+
+- name: Adding required generic transports
+  template:
+    src: mail/transport.sympa.j2
+    dest: /etc/postfix/transport.sympa
+
+- name: Compiling Sympa transport
+  command: postmap /etc/postfix/transport.sympa

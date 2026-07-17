@@ -1,0 +1,196 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+SPDX-FileCopyrightText: 2024 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ansible_managed|comment}}
+
+### common settings
+
+mydomain = {{postfix_domain}}
+myhostname = {{postfix_hostname}}
+myorigin = {{postfix_origin}}
+
+smtpd_banner = {{postfix_origin}} ESMTP $mail_name (Debian/GNU)
+biff = no
+
+# appending .domain is the MUA's job.
+append_dot_mydomain = no
+
+readme_directory = no
+
+# See http://www.postfix.org/COMPATIBILITY_README.html
+compatibility_level = 3.6
+
+
+### general settings
+
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+#mydestination = {{postfix_hostname}}, {% if postfix_hostname != postfix_domain %}{{postfix_domain}},{% endif %} {% if sympa_main_domain is defined %}{{sympa_main_domain}},{% endif %} localhost.$mydomain, localhost.localdomain, localhost
+mydestination = localhost.$mydomain, localhost.localdomain, localhost
+mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
+mailbox_size_limit = 0
+recipient_delimiter = +
+inet_interfaces = all
+inet_protocols = all
+
+### outgoing relay
+{% if postfix_relayhost %}
+relayhost = {{postfix_relayhost}}
+{% if postfix_relayhost_auth_enabled %}
+## relay auth
+smtp_sasl_auth_enable = yes
+# Set username and password
+smtp_sasl_password_maps = static:{{postfix_relayhost_auth_user}}:{{postfix_relayhost_auth_pass}}
+smtp_sasl_security_options = noanonymous
+# Turn on tls encryption
+#smtp_tls_security_level = encrypt
+{% else %}
+# no relay auth configured
+{% endif %}
+{% else %}
+# no outgoing relayhost configured
+{% endif %}
+
+### TLS parameters
+
+smtpd_tls_cert_file={{postfix_certificate_fullchain_file}}
+smtpd_tls_key_file={{postfix_certificate_private_key_file}}
+smtpd_use_tls=yes
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+smtp_tls_security_level = may
+
+
+### rules and restricitons
+
+header_size_limit = 4096000
+message_size_limit = 52428800
+
+# some rules from http://www.postfix.org/SMTPD_ACCESS_README.html
+
+# Allow connections from trusted networks only.
+#smtpd_client_restrictions = permit_mynetworks, reject
+
+# Require that a remote SMTP client introduces itself
+#smtpd_helo_required = yes
+
+# Don't talk to mail systems that don't know their own hostname.
+#smtpd_helo_restrictions = reject_unknown_helo_hostname
+
+# Don't accept mail from domains that don't exist.
+#smtpd_sender_restrictions = reject_unknown_sender_domain
+
+# Spam control: exclude local clients and authenticated clients
+# from DNSBL and SPF lookups.
+smtpd_recipient_restrictions =
+  permit_mynetworks,
+  permit_sasl_authenticated,
+{% if postfix_with_spf_check %}
+  check_policy_service unix:private/policyd-spf,
+{% endif %}
+{% if postfix_with_spamhaus_check %}
+  reject_rbl_client zen.spamhaus.org,
+  reject_rhsbl_reverse_client dbl.spamhaus.org,
+  reject_rhsbl_helo dbl.spamhaus.org,
+  reject_rhsbl_sender dbl.spamhaus.org,
+{% endif %}
+
+# Relay control: local clients and authenticated clients
+# may specify any destination domain.
+smtpd_relay_restrictions =
+  permit_mynetworks,
+  reject_unauth_destination
+
+# Block clients that speak too early.
+smtpd_data_restrictions = reject_unauth_pipelining
+
+{#
+# Enforce mail volume quota via policy service callouts.
+smtpd_end_of_data_restrictions = check_policy_service unix:private/policy
+#}
+
+
+
+### DKIM and DMARC
+
+non_smtpd_milters =
+{% if postfix_with_opendkim %}
+  unix:/run/opendkim/opendkim.sock,
+{% endif %}
+{% if postfix_with_opendmarc %}
+  unix:/run/opendmarc/opendmarc.sock,
+{% endif %}
+
+smtpd_milters =
+{% if postfix_with_opendkim %}
+  unix:/run/opendkim/opendkim.sock,
+{% endif %}
+{% if postfix_with_opendmarc %}
+  unix:/run/opendmarc/opendmarc.sock,
+{% endif %}
+
+
+
+### transport configuration
+
+relay_domains =
+  hash:/etc/postfix/transport_maps,
+transport_maps =
+  hash:/etc/postfix/transport_maps,
+{% if postfix_with_sympa %}
+  hash:/etc/postfix/transport.sympa,
+  hash:/var/lib/sympa/transport,
+{% endif %}
+
+
+
+### Virtual Domain Hosting
+
+virtual_alias_domains =
+  hash:/etc/postfix/virtual_alias_domains,
+
+virtual_alias_maps =
+  hash:/etc/postfix/virtual_alias_maps,
+{% if postfix_with_postfixadmin %}
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_maps.cf,
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_maps.cf,
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_catchall_maps.cf,
+{% endif %}
+{% if postfix_with_sympa %}
+  hash:/etc/postfix/virtual.sympa,
+{% endif %}
+
+virtual_mailbox_domains =
+  hash:/etc/postfix/virtual_mailbox_domains,
+{% if postfix_with_postfixadmin %}
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_domains_maps.cf,
+{% endif %}
+{% if postfix_with_sympa %}
+  hash:/etc/postfix/transport.sympa,
+{% endif %}
+
+virtual_mailbox_maps =
+  hash:/etc/postfix/virtual_mailbox_maps,
+{% if postfix_with_postfixadmin %}
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_mailbox_maps.cf,
+  proxy:mysql:/etc/postfix/postfixadmin-sql/mysql_virtual_alias_domain_mailbox_maps.cf,
+{% endif %}
+{% if postfix_with_sympa %}
+  hash:/etc/postfix/transport.sympa,
+  hash:/var/lib/sympa/transport,
+  hash:/etc/postfix/virtual.sympa,
+{% endif %}
+
+virtual_transport = {{postfix_virtual_transport}}
+
+
+{% if postfix_with_sympa %}
+### sympa
+sympa_destination_recipient_limit = 1
+sympabounce_destination_recipient_limit = 1
+{% endif %}

@@ -1,0 +1,18 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ansible_managed|comment}}
+
+# dkim_domains
+{% for domain in dkim_domains %}
+*@{{domain}} {{domain}}
+{% endfor %}
+
+# dkim_cname_domains
+{% for domain in dkim_cname_domains.keys() %}
+*@{{domain}} {{domain}}
+{% endfor %}

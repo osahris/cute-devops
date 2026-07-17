@@ -1,0 +1,10 @@
+{#
+SPDX-FileCopyrightText: 2024 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+SPDX-FileCopyrightText: 2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+include_remote_file
+  name rps-sync-editors
+  url http://{{sympa_mailinglist_envs[virtual_domain].sympa_source_webserver_ip}}:{{sympa_mailinglist_envs[virtual_domain].sympa_source_webserver_port}}/[% param.0 %]/editors

@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+# Reach the instances by execing into the rootless podman container
+# (inventory_hostname == container name). Container root is the mapped
+# rootless user, so no privilege escalation is needed inside.
+ansible_connection: containers.podman.podman
+ansible_podman_executable: podman
+ansible_user: root
+ansible_become: false
+# Podman bind-mounts /etc/hosts, /etc/hostname, /etc/resolv.conf, so
+# Ansible's atomic temp+rename write fails on them; fall back to in-place
+# writes (safe for a throwaway test container).
+ansible_unsafe_writes: true

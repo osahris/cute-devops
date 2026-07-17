@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+# Parse the rendered JSON array into a real list; the extensions template
+# does `| join(', ')` on it, which would otherwise iterate the string's
+# characters (e.g. `[`, `"`, `C`, `A`, …).
+certificate_basic_constraints: "{{ lookup('template','basic_constraints.json.j2') | from_yaml }}"

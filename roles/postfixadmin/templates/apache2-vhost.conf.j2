@@ -1,0 +1,28 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ ansible_managed | comment }}
+
+<VirtualHost *:443>
+  ServerName {{postfixadmin_server_name}}
+
+  ErrorLog ${APACHE_LOG_DIR}/error.log
+  CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+  SSLEngine on
+  SSLCertificateFile "{{postfixadmin_certificate_fullchain_file}}"
+  SSLCertificateKeyFile "{{postfixadmin_certificate_private_key_file}}"
+
+  DocumentRoot /var/www/default/
+  <Directory "/var/www/default/">
+    Options -Indexes
+  </Directory>
+
+  Alias /postfixadmin /usr/share/postfixadmin/public
+  Redirect /postfixadmin/public /postfixadmin
+
+</VirtualHost>

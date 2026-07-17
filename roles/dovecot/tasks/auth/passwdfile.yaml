@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: dovecot users
+  template:
+    src: users.j2
+    dest: /etc/dovecot/users
+    group: dovecot
+    mode: 0640

@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+sympa_secrets:
+  sympa_postgres_password: "{{ sympa_postgres_password | default(lookup('ansible.builtin.password', '/dev/null length=32 chars=ascii_letters,digits')) }}"
+

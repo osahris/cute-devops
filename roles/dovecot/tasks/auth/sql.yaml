@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: dovecot sql config
+  template:
+    src: dovecot-sql.conf.ext.j2
+    dest: /etc/dovecot/dovecot-sql.conf.ext
+  notify:
+    - reload dovecot
+
+- name: postfixadmin mysql user
+  mysql_user:
+    name: "{{dovecot_postfixadmin_mysql_username}}"
+    password: "{{dovecot_postfixadmin_mysql_password}}"
+    priv: "{{dovecot_postfixadmin_mysql_database}}.*:SELECT"
+    host: "{{dovecot_postfixadmin_mysql_host}}"
+    state: present
+  delegate_to: "{{(dovecot_postfixadmin_mysql_host=='localhost')|ternary(inventory_hostname,dovecot_postfixadmin_mysql_host)}}"

@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+- name: Assert expected systemd units are active
+  ansible.builtin.command: systemctl is-active {{ item }}  # noqa: command-instead-of-module
+  register: _unit_state
+  changed_when: false
+  failed_when: _unit_state.stdout != "active"
+  loop: "{{ test_mail_stack_expected_units }}"
+
+- name: Assert expected ports are listening
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ item }}"
+    state: started
+    timeout: 30
+  loop: "{{ test_mail_stack_expected_ports }}"
+
+- name: Install the end-to-end probe
+  ansible.builtin.copy:
+    src: test-mail-flow.sh
+    dest: /usr/local/bin/test-mail-flow.sh
+    mode: "0755"
+  when: test_mail_stack_flow | bool
+
+- name: Ensure swaks is available for the probe
+  ansible.builtin.apt:
+    name: swaks
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when: test_mail_stack_flow | bool
+
+- name: Run the end-to-end mail flow probe
+  ansible.builtin.command: >-
+    /usr/local/bin/test-mail-flow.sh
+    {{ test_mail_stack_flow_smtp_host }}
+    {{ test_mail_stack_flow_imap_host }}
+    {{ test_mail_stack_flow_user }}
+    {{ test_mail_stack_flow_password }}
+  register: _flow
+  changed_when: false
+  when: test_mail_stack_flow | bool
+
+- name: Show end-to-end probe output
+  ansible.builtin.debug:
+    var: _flow.stdout_lines
+  when: test_mail_stack_flow | bool

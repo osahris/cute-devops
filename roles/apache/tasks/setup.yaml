@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+- name: update apt cache
+  apt:
+    update_cache: yes
+    
+- name: Install required debian packages
+  apt:
+    pkg:
+      - apache2
+      - ssl-cert
+
+- name: remove default page
+  file:
+    path: /var/www/html/index.html
+    state: absent

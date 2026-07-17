@@ -1,0 +1,99 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ansible_managed|comment}}
+
+# Internal user used by unprivileged Dovecot processes.
+default_internal_user = dovecot
+
+service imap-login {
+  inet_listener imap {
+    #port = 143
+  }
+  inet_listener imaps {
+    #port = 993
+    #ssl = yes
+  }
+}
+
+service pop3-login {
+  inet_listener pop3 {
+    #port = 110
+  }
+  inet_listener pop3s {
+    #port = 995
+    #ssl = yes
+  }
+}
+
+service lmtp {
+{% if dovecot_lmtp_inet_listener %}
+  inet_listener lmtp {
+    port = 24
+  }
+{% endif %}
+  unix_listener lmtp {
+    #mode = 0666
+  }
+{% if dovecot_unix_listeners_for_postfix %}
+  unix_listener /var/spool/postfix/private/dovecot-lmtp {
+    group = postfix
+    mode = 0600
+    user = postfix
+  }
+{% endif %}
+}
+
+service imap {
+  #process_limit = 1024
+}
+
+service pop3 {
+  #process_limit = 1024
+}
+
+service auth {
+  unix_listener auth-userdb {
+    #mode = 0666
+    #user =
+    #group =
+  }
+
+{% if dovecot_unix_listeners_for_postfix %}
+  # Postfix smtp-auth
+  unix_listener /var/spool/postfix/private/auth {
+    mode = 0666
+    user = postfix
+    group = postfix
+  }
+{% endif %}
+
+{% if dovecot_auth_inet_listener %}
+  # In Dovecot 2.4 inet_listener sections must be named.
+  inet_listener auth {
+    port = 3659
+  }
+{% endif %}
+
+  # Auth process is run as this user. Dovecot 2.4 no longer expands the old
+  # "$default_internal_user" reference at runtime, so the value is given
+  # literally (it matches default_internal_user above).
+  user = dovecot
+}
+
+service auth-worker {
+  # Auth worker process is run as this user.
+  user = dovecot
+}
+
+service dict {
+  unix_listener dict {
+    #mode = 0600
+    #user =
+    #group =
+  }
+}

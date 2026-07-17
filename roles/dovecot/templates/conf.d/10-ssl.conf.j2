@@ -1,0 +1,26 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ansible_managed|comment}}
+
+##
+## SSL settings
+##
+
+# SSL/TLS support: yes, no, required.
+ssl = yes
+
+# PEM encoded X.509 SSL/TLS certificate and private key. In Dovecot 2.4 the
+# old "ssl_cert = <path" / "ssl_key = <path" syntax was replaced by
+# ssl_server_cert_file / ssl_server_key_file which take the path directly.
+# They're opened before dropping root privileges, so keep the key file
+# unreadable by anyone but root.
+ssl_server_cert_file = {{dovecot_certificate_fullchain_file}}
+ssl_server_key_file = {{dovecot_certificate_private_key_file}}
+
+# Minimum SSL protocol version to accept.
+#ssl_min_protocol = TLSv1.2

@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- import_role:
+    name: opendmarc
+  vars:
+    opendmarc_socket: local:/var/spool/postfix/run/opendmarc/opendmarc.sock
+
+- name: opendmarc run directory in postfix spool
+  file:
+    path: /var/spool/postfix/run/opendmarc
+    state: directory
+    owner: opendmarc
+    group: opendmarc
+    mode: 0755
+
+- name: ensure postfix user is in opendmarc group
+  user:
+    name: postfix
+    groups: opendmarc
+    append: true
+  notify: restart postfix

@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- import_tasks: setup.yaml
+- import_tasks: modules.yaml
+- import_tasks: config.yaml
+- import_tasks: service.yaml
+
+

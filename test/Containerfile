@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+# Debian trixie systemd-init base image for the test-in-containers
+# harness. This is a *system container*: systemd runs as PID 1 and the
+# mail roles install and manage real .service units inside it, exactly
+# as they would on a VM or bare metal. It is NOT a dockerized,
+# one-process-per-container decomposition — see
+# anti-patterns/dockerize-mail-servers.md.
+#
+# No mail packages are baked in: the roles under test install them at
+# run time. Only the bits needed to boot systemd and to let Ansible
+# operate over the podman connection are present.
+FROM debian:trixie-slim
+
+ENV container=podman
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      systemd systemd-sysv dbus dbus-user-session libpam-systemd \
+      python3 python3-cryptography debconf-utils ca-certificates procps iproute2 iputils-ping \
+ && rm -rf /var/lib/apt/lists/*
+
+# Mask units that cannot work (or are pointless) inside a container.
+# Keeping them unmasked leaves systemd degraded and clutters the
+# `systemctl is-active` assertions the harness relies on.
+RUN systemctl mask \
+      systemd-udevd.service systemd-udevd-kernel.socket systemd-udevd-control.socket \
+      systemd-udev-trigger.service \
+      systemd-modules-load.service \
+      sys-kernel-config.mount sys-kernel-debug.mount sys-kernel-tracing.mount \
+      getty.target console-getty.service \
+      systemd-firstboot.service \
+      systemd-networkd.service systemd-resolved.service
+
+# systemd's own shutdown signal; without it `podman stop` waits the
+# full timeout before SIGKILL.
+STOPSIGNAL SIGRTMIN+3
+
+CMD ["/sbin/init"]

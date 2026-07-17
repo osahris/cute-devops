@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- include_tasks: key.yml
+- include_tasks: csr.yml
+
+- name: check if the certificate will expire soon
+  command: openssl x509 -checkend {{ 60*60*24*30 }} -noout -in {{certificate_file}}
+  register: _certificate_checkend
+  changed_when: _certificate_checkend.rc == 1
+  failed_when: _certificate_checkend.rc > 1
+
+- name: self sign certificate
+  command: openssl x509 -req
+    -in "{{ certificate_signing_request_file }}"
+    -signkey "{{ certificate_private_key_file }}"
+    -extfile "{{ certificate_signing_request_config_file }}"
+    -extensions certificate_extensions
+    -out "{{ certificate_file }}"
+    {{ certificate_private_key_password is defined | ternary('-passin env:PRIVATE_KEY_PASSWORD','') }}
+  args:
+    creates: "{{ certificate_file }}"
+  environment:
+    PRIVATE_KEY_PASSWORD: "{{ certificate_private_key_password | default('') }}"
+  notify: certificate changed
+  when: _certificate_checkend.rc == 1
+
+- name: link certificate chain file
+  file:
+    src: "{{ certificate_file }}"
+    dest: "{{ certificate_chain_file }}"
+    state: link
+
+- name: link full certificate chain file
+  file:
+    src: "{{ certificate_file }}"
+    dest: "{{ certificate_fullchain_file }}"
+    state: link

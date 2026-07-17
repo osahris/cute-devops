@@ -1,0 +1,65 @@
+# SPDX-FileCopyrightText: 2016 - 2026 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2020 - 2025 Uniklinik Köln
+# SPDX-FileCopyrightText: 2025 - 2026 Goethe-University Frankfurt – Institute for Digital Medicine and Clinical Data Science
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+---
+# Minimal self-contained mail config for the single-server test box.
+# Everything that would reach outside a throwaway container (ACME, RPS
+# Keycloak sync, DNSBLs) is switched off; TLS uses the harness test CA.
+
+mail_test_domain: mail.test
+mailserver_domain_name: mail.test
+rps_admin_email: admin@mail.test
+
+# --- TLS via the harness test CA (no ACME) ---
+postfix_with_ssl: false
+postfix_certificate_fullchain_file: /etc/ssl/certs/{{ inventory_hostname }}.fullchain.pem
+postfix_certificate_private_key_file: /etc/ssl/private/{{ inventory_hostname }}.key.pem
+dovecot_certificate_fullchain_file: /etc/ssl/certs/{{ inventory_hostname }}.fullchain.pem
+dovecot_certificate_private_key_file: /etc/ssl/private/{{ inventory_hostname }}.key.pem
+
+# --- dovecot: file-based auth, no MySQL ---
+dovecot_auth: passwdfile
+dovecot_users:
+  # password: testpassword
+  - username: test@mail.test
+    password_hash: "{CRYPT}$6$uTdSSemapWU7xtgm$Kou8KqfCccEP6PeisoPG0uTY0MV5cXJSE2SuO1.7V270vUk4ar0ylEL5ktRx1TFWsQA6Vq/gpTHzvRmBr4U0S1"
+
+# postfix must know mail.test is a local virtual-mailbox domain, else it
+# tries to relay it remotely (bounces).
+postfix_virtual_mailbox_domains:
+  - "{{ mailserver_domain_name }}"
+
+# --- postfix: no postfixadmin, no external checks ---
+postfix_with_postfixadmin: false
+postfix_with_spf_check: false
+postfix_with_spamhaus_check: false
+postfix_with_sympa: true
+# DKIM/DMARC need published DNS to be meaningful and the opendkim service
+# on trixie can't bind its socket in postfix's spool dir under systemd
+# sandboxing; out of scope for the transport-flow test.
+postfix_with_opendkim: false
+postfix_with_opendmarc: false
+
+# --- sympa: decoupled from RPS/Keycloak for the test run ---
+# (real loose-coupling lands with issues/mailinglist-sync.feature.md)
+sympa_patch_sympa_pl: false
+sympa_domains: []
+sympa_gather_facts_from: []
+sympa_mailinglist_envs: {}
+sympa_postgres_password: testsympa
+
+# --- assertions (test_mail_stack) ---
+test_mail_stack_expected_units:
+  - postfix
+  - dovecot
+  - sympa
+test_mail_stack_expected_ports:
+  - 25
+  - 143
+  - 993
+test_mail_stack_flow: true
+test_mail_stack_flow_user: test@mail.test
+test_mail_stack_flow_password: testpassword

@@ -1,0 +1,33 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ansible_managed|comment}}
+
+##
+## Mailbox locations and namespaces
+##
+
+# In Dovecot 2.4 the single "mail_location = <driver>:<path>" setting was split
+# into separate mail_driver and mail_path settings. The old
+# "mail_location = mdbox:~/mail.mdbox" therefore becomes mail_driver = mdbox
+# plus mail_path = ~/mail.mdbox.
+#
+# %variables also use the 2.4 syntax: %n (user part) -> %{user | username},
+# %d (domain part) -> %{user | domain}.
+mail_home = /home/vmail/%{user | domain}/%{user | username}
+mail_driver = mdbox
+mail_path = ~/mail.mdbox
+
+# There can be only one INBOX, and this setting defines which namespace has it.
+namespace inbox {
+  inbox = yes
+}
+
+# System user and group used to access mails. If you use multiple, userdb
+# can override these by returning uid or gid fields.
+mail_uid = vmail
+mail_gid = vmail

@@ -1,0 +1,31 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ansible_managed|comment}}
+
+# Authentication for passwd-file users. Included from 10-auth.conf.
+#
+# passwd-like file with specified location.
+# <https://doc.dovecot.org/latest/core/config/auth/databases/passwd_file.html>
+#
+# In Dovecot 2.4 passdb/userdb use the driver name as the section name and take
+# named settings instead of the old free-form "args" string:
+#   driver = passwd-file        -> passdb passwd-file { ... }
+#   scheme=CRYPT                -> default_password_scheme = CRYPT
+#   username_format=%u          -> auth_username_format = %{user}
+#   <path>                      -> passwd_file_path = <path>
+
+passdb passwd-file {
+  default_password_scheme = CRYPT
+  auth_username_format = %{user}
+  passwd_file_path = /etc/dovecot/users
+}
+
+userdb passwd-file {
+  auth_username_format = %{user}
+  passwd_file_path = /etc/dovecot/users
+}

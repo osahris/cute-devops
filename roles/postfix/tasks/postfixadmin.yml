@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+# SPDX-FileCopyrightText: 2024 Tom-Robin Raja <tom-robin.raja@uk-koeln.de>
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: postfix debian packages for postfixadmin
+  apt:
+    pkg:
+      - postfix
+      # - postfix-mysql
+      - postfix-pgsql
+
+- name: postfix sql map directory
+  file:
+    path: /etc/postfix/postfixadmin-sql/
+    state: directory
+    mode: u=rwx,g=rx,o=
+    group: postfix
+
+- name: postfixadmin sql map configuration
+  template:
+    src: postfixadmin/sql/{{item}}.j2
+    dest: /etc/postfix/postfixadmin-sql/{{item}}
+    mode: u=rwx,g=rx,o=
+    group: postfix
+  with_items:
+    - mysql_virtual_alias_domain_catchall_maps.cf
+    - mysql_virtual_alias_domain_maps.cf
+    - mysql_virtual_domains_maps.cf
+    - mysql_virtual_mailbox_maps.cf
+    - mysql_virtual_alias_domain_mailbox_maps.cf
+    - mysql_virtual_alias_maps.cf
+    - mysql_virtual_mailbox_limit_maps.cf
+  notify: reload postfix
+
+- name: postfixadmin mysql user
+  mysql_user:
+    name: "{{postfix_postfixadmin_mysql_username}}"
+    password: "{{postfix_postfixadmin_mysql_password}}"
+    priv: "{{postfix_postfixadmin_mysql_database}}.*:SELECT"
+    host: "{{postfix_postfixadmin_mysql_host}}"
+    state: present
+  delegate_to: "{{(postfix_postfixadmin_mysql_host=='localhost')|ternary(inventory_hostname,postfix_postfixadmin_mysql_host)}}"

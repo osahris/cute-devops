@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+---
+
+- name: test dkim dns records
+  command: opendkim-testkey -v -d {{item}} -s {{dkim_selector}} -k /etc/opendkim/keys/{{item}}/{{dkim_selector}}.private
+  changed_when: false
+  with_items: "{{dkim_domains}}"

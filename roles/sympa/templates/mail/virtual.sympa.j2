@@ -1,0 +1,14 @@
+{#
+SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+
+SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+#}
+
+{{ ansible_managed | comment}}
+
+{% for domain in sympa_domains | union([sympa_main_domain]) %}
+# {{domain}}
+sympa-request@{{ domain }}  listmaster@localhost
+sympa-owner@{{ domain }}    listmaster@localhost
+{% endfor %}

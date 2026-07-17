@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2023-2024 Mirian Brechtel <markus.katharina.brechtel@thengo.net>
+# SPDX-FileCopyrightText: 2023-2024 Uniklinik Köln
+#
+# SPDX-License-Identifier: Apache-2.0 OR EUPL-1.2
+
+postfixadmin_mysql_host: localhost
+postfixadmin_mysql_database: postfixadmin
+postfixadmin_mysql_username: postfixadmin
+postfixadmin_server_name: "{{inventory_hostname}}"
+postfixadmin_certificate_fullchain_file: /etc/ssl/certs/ssl-cert-snakeoil.pem
+postfixadmin_certificate_private_key_file: /etc/ssl/private/ssl-cert-snakeoil.key
